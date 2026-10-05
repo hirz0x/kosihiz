@@ -1,5 +1,6 @@
 import React from 'react';
 import Toast from './Toast';
+import KotakKonfirmasi from './Konfirmasi';
 import { namaIndo } from './terjemah';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -115,7 +116,7 @@ class DashboardPage extends React.Component {
       catalog: null, myOrders: [], saldo: 0, username: '', email: '', depErr: '', sending: false, sentOk: false, sentText: '',
       scat: 'all', sq: '', favs: {}, descId: 0, sOpen: '',
       ostat: 'all', oq: '', ofOpen: false, ostatus: {}, refundList: [], aff: null, wdJumlah: '', wdTujuan: '', wdBusy: false, peringkat: null, riwayat: [], bayarUrl: '', lastDep: '', cekMsg: '', toast: null, support: { nama: 'Tim Support', inisial: 'SG' }, pwForm: { cur: '', baru: '', baru2: '' }, emForm: { baru: '', pw: '' }, prefLoaded: false, invText: '', apiInfo: null, apiBaru: '', mfaAktif: null, mfaSetup: null, mfaKode: '', notifList: [], notifUnread: 0, sLimit: 40, kurs: 16000, siap: false,
-      amtKey: 50000, amtCustom: '', met: 'qris', mOpen: false, paid: false, dHistOpen: false, payHist: [],
+      amtKey: 50000, amtCustom: '', met: 'qris', mOpen: false, paid: false, bayarBusy: false, dHistOpen: false, payHist: [],
       tcat: 'order', tsub: 'refill', tid: '', tmsg: '', tsent: false, tHistOpen: false, viewT: 0, replyTxt: '',
       tickets: [],
       rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null,
@@ -199,12 +200,19 @@ class DashboardPage extends React.Component {
     fetch('/api/deposits/cek?id=' + encodeURIComponent(id))
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
-        if (!res.ok) { if (!diam) self.tampilkanToast(false, res.d.error || 'Gagal mengecek.'); return; }
+        if (!res.ok) {
+          if (diam) { try { localStorage.removeItem('sg_dep_pending'); } catch (e) {} self.setState({ paid: false, lastDep: '' }); return; }
+          self.tampilkanToast(false, res.d.error || 'Gagal mengecek.'); return;
+        }
         if (res.d.status === 'disetujui') {
           try { localStorage.removeItem('sg_dep_pending'); } catch (e) {}
           self.tampilkanToast(true, 'Pembayaran diterima, saldo sudah bertambah.');
           fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
+        } else if (res.d.status !== 'menunggu') {
+          try { localStorage.removeItem('sg_dep_pending'); } catch (e) {}
+          self.setState({ paid: false, lastDep: '' });
         } else {
+          self.setState({ paid: true });
           if (!diam) self.tampilkanToast('info', 'Belum dibayar (status: ' + (res.d.paymenku || 'menunggu') + ').');
         }
       })
@@ -320,9 +328,9 @@ class DashboardPage extends React.Component {
       .then(function (d) { if (d) self.setState({ apiInfo: d.info || null }); })
       .catch(function () {});
   }
-  buatApiKey() {
+  buatApiKey(sudahYakin) {
     var self = this;
-    if (this.state.apiInfo && !window.confirm('Buat API key baru? Key lama langsung tidak berlaku.')) return;
+    if (this.state.apiInfo && sudahYakin !== true) { this.setState({ konfirm: { pesan: 'Buat API key baru? Key lama langsung tidak berlaku.', lanjut: function () { self.buatApiKey(true); } } }); return; }
     fetch('/api/apikey', { method: 'POST' })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
@@ -362,9 +370,9 @@ class DashboardPage extends React.Component {
       })
       .catch(function () { self.tampilkanToast(false, 'Gagal mengaktifkan 2FA. Coba lagi.'); });
   }
-  nonaktifkanMfa() {
+  nonaktifkanMfa(sudahYakin) {
     var self = this;
-    if (!window.confirm('Nonaktifkan 2FA? Akun kamu akan lebih mudah diakses tanpa kode.')) return;
+    if (sudahYakin !== true) { this.setState({ konfirm: { pesan: 'Nonaktifkan 2FA? Akun kamu akan lebih mudah diakses tanpa kode.', lanjut: function () { self.nonaktifkanMfa(true); } } }); return; }
     fetch('/api/mfa/nonaktifkan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kode: this.state.mfaKode }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
@@ -397,7 +405,7 @@ class DashboardPage extends React.Component {
       .catch(function () {});
     var pending = null;
     try { pending = localStorage.getItem('sg_dep_pending'); } catch (e) {}
-    if (pending) { self.setState({ lastDep: pending, paid: true }); self.cekBayar(pending, true); }
+    if (pending) { self.setState({ lastDep: pending }); self.cekBayar(pending, true); }
     fetch('/api/services')
       .then(function (r) { return r.json(); })
       .then(function (d) { self.setState({ siap: true }); if (Array.isArray(d.services)) self.setState({ catalog: d.services }); if (d.settings && d.settings.kurs) self.setState({ kurs: d.settings.kurs }); })
@@ -635,7 +643,16 @@ class DashboardPage extends React.Component {
       return { id: o.id, svcId: o.svcId, name: o.nama || s.name, icon: s.icon, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
-        cancel: function () { var x = Object.assign({}, st.ostatus); x[o.id] = 'canceled'; self.setState({ ostatus: x }); },
+        cancel: function () {
+          fetch('/api/orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: o.id }) })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Pesanan gagal dibatalkan.'); return; }
+              self.tampilkanToast(true, 'Pesanan dibatalkan di provider.');
+              return fetch('/api/orders?as=user').then(function (r) { return r.json(); }).then(function (d) { if (Array.isArray(d.orders)) self.setState({ myOrders: d.orders }); });
+            })
+            .catch(function () { self.tampilkanToast(false, 'Pembatalan gagal. Coba lagi.'); });
+        },
         refill: function () { var x = Object.assign({}, st.ostatus); x['r' + o.id] = true; self.setState({ ostatus: x }); } };
     });
     var ofDef = [['all', 'Semua'], ['pending', 'Menunggu'], ['processing', 'Diproses'], ['completed', 'Selesai'], ['canceled', 'Dibatalkan']];
@@ -846,16 +863,17 @@ class DashboardPage extends React.Component {
       mets: mets.map(function (m) { var on = m.v === met.v; return { t: m.t, badge: m.badge, on: on, rowBg: on ? 'var(--r3)' : 'transparent', pick: set({ met: m.v, mOpen: false, paid: false }) }; }),
       payFunds: function (e) {
         if (e && e.preventDefault) e.preventDefault();
-        if (isNaN(amtN) || amtN < 10000) return;
+        if (isNaN(amtN) || amtN < 10000 || st.bayarBusy) return;
+        self.setState({ bayarBusy: true });
         fetch('/api/deposits?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nominal: amtN }) })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
-            if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Gagal membuat permintaan.'); return; }
+            if (!res.ok) { self.setState({ bayarBusy: false }); self.tampilkanToast(false, res.d.error || 'Gagal membuat permintaan.'); return; }
             var x = res.d.deposit;
             if (res.d.bayarUrl) { try { localStorage.setItem('sg_dep_pending', x.id); } catch (e) {} window.location.href = res.d.bayarUrl; return; }
-            self.setState({ paid: true, bayarUrl: res.d.bayarUrl || '', lastDep: x.id, cekMsg: '', depErr: '', payHist: [{ id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label }].concat(st.payHist) });
+            self.setState({ bayarBusy: false, paid: true, bayarUrl: res.d.bayarUrl || '', lastDep: x.id, cekMsg: '', depErr: '', payHist: [{ id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label }].concat(st.payHist) });
           })
-          .catch(function (err) { self.tampilkanToast(false, String(err && err.message ? err.message : err)); });
+          .catch(function (err) { self.setState({ bayarBusy: false }); self.tampilkanToast(false, String(err && err.message ? err.message : err)); });
       },
       dHistOpen: st.dHistOpen, openDHist: set({ dHistOpen: true }), closeDHist: set({ dHistOpen: false }),
       dh: {
@@ -868,7 +886,7 @@ class DashboardPage extends React.Component {
         var pill = { Berhasil: '#14532D', Menunggu: '#78350F', Gagal: '#7F1D1D' }[p.status] || '#27272A';
         return { id: p.id, tgl: p.tgl, metode: p.metode, jumlah: st.cur === 'IDR' ? 'Rp ' + fmt(p.jumlah) : '$ ' + (p.jumlah / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), status: lbl, c: c, pill: pill };
       }),
-      paid: st.paid, bayarUrl: st.bayarUrl, uname: st.username || '—', notifList: st.notifList, notifUnread: st.notifUnread, notifWaktu: function (iso) { var t = new Date(iso).getTime(); return Number.isNaN(t) ? '' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' WIB'; }, toast: st.toast, closeToast: function () { self.tutupToast(); }, uemail: st.email || '—', uinit: (st.username || '?').charAt(0).toUpperCase(), rankName: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', bonusTxt: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus ' + bonusDariPeringkat(st.peringkat) + '% untuk setiap deposit sesuai peringkat kamu. Biaya QRIS ditanggung kamu.' : 'Biaya QRIS ditanggung kamu.', bonusJudul: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus Deposit ' + bonusDariPeringkat(st.peringkat) + '%' : 'Bonus Deposit', bonusDesk: bonusDariPeringkat(st.peringkat) > 0 ? 'Setiap deposit yang disetujui otomatis mendapat bonus ' + bonusDariPeringkat(st.peringkat) + '% sesuai peringkat kamu, dan masuk ke saldo bersama nominal deposit.' : 'Peringkat kamu saat ini belum mendapat bonus deposit. Naik peringkat untuk mendapat bonus.', lastDep: st.lastDep, cekMsg: st.cekMsg, cekBayar: function () { self.cekBayar(); }, depErr: st.depErr, saldo: st.saldo,
+      paid: st.paid, bayarBusy: st.bayarBusy, bayarUrl: st.bayarUrl, uname: st.username || '—', notifList: st.notifList, notifUnread: st.notifUnread, notifWaktu: function (iso) { var t = new Date(iso).getTime(); return Number.isNaN(t) ? '' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' WIB'; }, toast: st.toast, closeToast: function () { self.tutupToast(); }, uemail: st.email || '—', uinit: (st.username || '?').charAt(0).toUpperCase(), rankName: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', bonusTxt: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus ' + bonusDariPeringkat(st.peringkat) + '% untuk setiap deposit sesuai peringkat kamu. Biaya QRIS ditanggung kamu.' : 'Biaya QRIS ditanggung kamu.', bonusJudul: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus Deposit ' + bonusDariPeringkat(st.peringkat) + '%' : 'Bonus Deposit', bonusDesk: bonusDariPeringkat(st.peringkat) > 0 ? 'Setiap deposit yang disetujui otomatis mendapat bonus ' + bonusDariPeringkat(st.peringkat) + '% sesuai peringkat kamu, dan masuk ke saldo bersama nominal deposit.' : 'Peringkat kamu saat ini belum mendapat bonus deposit. Naik peringkat untuk mendapat bonus.', lastDep: st.lastDep, cekMsg: st.cekMsg, cekBayar: function () { self.cekBayar(); }, depErr: st.depErr, saldo: st.saldo,
 
       /* tickets */
       tcats: tcatDef.map(function (c) { var on = st.tcat === c[0]; var s2 = segStyle(on); return { t: c[1], on: on, bg: s2.bg, fg: s2.fg, pick: set({ tcat: c[0], tsub: tsubDef[c[0]][0][0], tsent: false }) }; }),
@@ -1535,6 +1553,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
           ) : null}
           <main className="dash-main" style={{ position: "relative", zIndex: v.mainZ, padding: "34px 40px 60px", display: "flex", flexDirection: "column", gap: "22px", background: v.mainBg }}>
           <Toast toast={v.toast} onClose={v.closeToast} />
+          {this.state.konfirm ? <KotakKonfirmasi pesan={this.state.konfirm.pesan} onJawab={(ya) => { var k = this.state.konfirm; this.setState({ konfirm: null }); if (ya) k.lanjut(); }} /> : null}
             {v.is.neworder ? (
               <>
                 <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
@@ -2263,9 +2282,9 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         {v.bonusTxt}
                       </span>
                     </div>
-                    <button type="submit" className="submit" disabled={v.amtKurang} style={{ width: "100%", marginTop: "18px", opacity: v.amtKurang ? 0.5 : 1, cursor: v.amtKurang ? "not-allowed" : "pointer" }}>
+                    <button type="submit" className="submit" disabled={v.amtKurang || v.bayarBusy} style={{ width: "100%", marginTop: "18px", opacity: v.amtKurang || v.bayarBusy ? 0.5 : 1, cursor: v.amtKurang || v.bayarBusy ? "not-allowed" : "pointer" }}>
                       <i className="fa-solid fa-credit-card" aria-hidden="true" style={{ fontSize: 15, width: 15, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center' }} />
-                      Bayar {v.amtFmt}
+                      {v.bayarBusy ? 'Memproses...' : 'Bayar ' + v.amtFmt}
                     </button>
                     {v.paid ? (
                       <>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Toast from './Toast';
+import KotakKonfirmasi from './Konfirmasi';
 import Head from 'next/head';
 import Link from 'next/link';
 import { ACCENTS, accentVarsFor } from './theme';
@@ -435,11 +436,11 @@ function TrendTable({ rows }) {
   );
 }
 
-function OrdersTable({ rows }) {
+function OrdersTable({ rows, onRefund }) {
   return (
     <table className="tbl">
       <thead>
-        <tr><th>ID</th><th>Provider</th><th>Layanan</th><th>Link</th><th>Jumlah</th><th>Biaya</th><th>Status</th><th>Dibuat</th><th>Durasi</th></tr>
+        <tr><th>ID</th><th>Provider</th><th>Layanan</th><th>Link</th><th>Jumlah</th><th>Biaya</th><th>Status</th><th>Dibuat</th><th>Durasi</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         {rows.map((o) => (
@@ -452,10 +453,11 @@ function OrdersTable({ rows }) {
             <td>{rp(o.biaya)}</td>
             <td><Badge text={o.status} /></td>
             <td className="muted">{String(o.dibuat).slice(0, 16).replace('T', ' ')}</td>
+            <td>{onRefund && ['Canceled', 'Partial'].includes(o.status) ? <button type="button" className="sub" onClick={() => onRefund(o.id)}>Refund</button> : null}</td>
             <td>{o.selesaiAt ? 'Selesai dalam ' + Math.max(0, Math.round((new Date(o.selesaiAt) - new Date(o.dibuat)) / 60000)) + ' menit' : (['Completed', 'Canceled', 'Refunded', 'Partial'].includes(o.status) ? '—' : 'Berjalan ' + Math.max(0, Math.round((Date.now() - new Date(o.dibuat)) / 60000)) + ' menit')}</td>
           </tr>
         ))}
-        {rows.length === 0 && <tr><td colSpan={8} className="muted">Belum ada pesanan.</td></tr>}
+        {rows.length === 0 && <tr><td colSpan={10} className="muted">Belum ada pesanan.</td></tr>}
       </tbody>
     </table>
   );
@@ -558,7 +560,7 @@ export default function AdminPage() {
     setArtikelForm(kosongArtikel);
   };
   const hapusArtikel = async (i) => {
-    if (!window.confirm('Hapus artikel "' + artikelList[i].judul + '"?')) return;
+    if (!(await tanyaKonfirmasi('Hapus artikel "' + artikelList[i].judul + '"?'))) return;
     const { ok, d } = await kirimArtikel(artikelList.filter((_, j) => j !== i));
     if (!ok) { tampilkanToast(false, d.error || 'Gagal menghapus artikel.'); return; }
     tampilkanToast(true, 'Artikel dihapus.');
@@ -578,9 +580,21 @@ export default function AdminPage() {
   const [liveOrders, setLiveOrders] = useState([]);
   const [ordersBusy, setOrdersBusy] = useState(false);
   const [ordersMsg, setOrdersMsg] = useState(null);
+  /* Pengganti window.confirm yang menampilkan tulisan localhost. */
+  const [konfirm, setKonfirm] = useState(null);
+  const tanyaKonfirmasi = (pesan) => new Promise((resolve) => setKonfirm({ pesan, resolve }));
+  /* Refund langsung dari admin untuk pesanan yang gagal atau dibatalkan. Saldo user langsung bertambah. */
+  const refundPesanan = async (id) => {
+    if (!(await tanyaKonfirmasi('Refund pesanan ini ke saldo user? Jumlahnya dihitung otomatis dari sisa pesanan.'))) return;
+    const r = await fetch('/api/orders/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { tampilkanToast(false, d.error || 'Refund gagal.'); return; }
+    tampilkanToast(true, 'Refund Rp ' + Number(d.jumlah).toLocaleString('id-ID') + ' masuk ke saldo user.');
+    muatRefund();
+  };
   const [updLog, setUpdLog] = useState([]);
   const hapusRiwayatAdmin = async (rid) => {
-    if (!window.confirm('Hapus catatan riwayat ini? Layanannya tidak ikut terhapus.')) return;
+    if (!(await tanyaKonfirmasi('Hapus catatan riwayat ini? Layanannya tidak ikut terhapus.'))) return;
     const r = await fetch('/api/riwayat?id=' + encodeURIComponent(rid), { method: 'DELETE' });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { tampilkanToast(false, d.error || 'Gagal menghapus riwayat.'); return; }
@@ -601,7 +615,7 @@ export default function AdminPage() {
   const [undian, setUndian] = useState(null);
   const muatUndian = () => fetch('/api/undian').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setUndian(d); }).catch(() => {});
   const undiUndian = async () => {
-    if (!window.confirm('Undi pemenang undian bulan ini sekarang? Hanya bisa dilakukan sekali per bulan.')) return;
+    if (!(await tanyaKonfirmasi('Undi pemenang undian bulan ini sekarang? Hanya bisa dilakukan sekali per bulan.'))) return;
     const r = await fetch('/api/undian', { method: 'POST' });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { tampilkanToast(false, d.error || 'Undian gagal.'); return; }
@@ -1151,6 +1165,7 @@ button{font-family:inherit}
             )}
 
             <Toast toast={toast} onClose={() => setToast(null)} />
+            {konfirm ? <KotakKonfirmasi pesan={konfirm.pesan} onJawab={(ya) => { konfirm.resolve(ya); setKonfirm(null); }} /> : null}
             {tab === 'Statistik' && (
               <>
                 <div className="muted" style={{ fontSize: '12px' }}>
@@ -1241,7 +1256,7 @@ button{font-family:inherit}
                   <div style={{ fontSize: '12px', marginTop: '-8px', color: ordersMsg.ok ? '#22C55E' : '#FF5A75' }}>{ordersMsg.text}</div>
                 ) : null}
                 <div className="card" style={{ overflowX: 'auto' }}>
-                  <OrdersTable rows={orders} />
+                  <OrdersTable rows={orders} onRefund={refundPesanan} />
                 </div>
               </>
             )}

@@ -46,6 +46,8 @@ export default function AdminLogin() {
         <title>Login admin · SosmedGo</title>
         <meta name="robots" content="noindex, nofollow" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>{`html,body{margin:0;background:#0A0A0C;color-scheme:dark}
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #0D0D10 inset !important;-webkit-text-fill-color:#F4F4F5 !important;caret-color:#F4F4F5;transition:background-color 9999s ease-out 0s}`}</style>
       </Head>
       <main style={{ minHeight: '100vh', background: WARNA.latar, color: WARNA.teks, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div style={{ width: '100%', maxWidth: '380px' }}>

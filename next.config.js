@@ -3,6 +3,10 @@ const production = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
   poweredByHeader: false,
+  async redirects() {
+    /* Link lama /admin-login tetap diarahkan ke /admin/login. */
+    return [{ source: '/admin-login', destination: '/admin/login', permanent: false }];
+  },
   async headers() {
     const headers = [
       { key: 'X-Frame-Options', value: 'DENY' },

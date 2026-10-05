@@ -1034,7 +1034,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
   .dash-aside{display:none !important}
   .dash-aside.buka{display:flex !important;flex:1 1 100% !important;max-width:none !important;border-right:0 !important;border-bottom:1px solid var(--b1) !important}
   .dash-head{padding:12px 16px !important}
-  .dash-main{padding:18px 16px 48px !important}
+  .dash-main{padding:18px 16px 48px !important;flex:1 1 100% !important;width:100% !important;min-width:0 !important;max-width:100% !important;box-sizing:border-box !important}
 }
 @media (max-width:640px){
   /* iOS memperbesar halaman kalau font input di bawah 16px. */

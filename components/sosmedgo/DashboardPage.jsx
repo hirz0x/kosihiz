@@ -655,10 +655,7 @@ class DashboardPage extends React.Component {
     var amtVal = st.amtKey === 'custom' ? st.amtCustom : String(st.amtKey);
     var amtN = parseInt(amtVal, 10);
     var mets = [
-      { v: 'qris', t: 'QRIS Otomatis', badge: 'Pilihan Utama', info: 'Scan QRIS dari e-wallet atau m-banking apa pun. Saldo masuk otomatis.' },
-      { v: 'manual', t: 'Transfer Bank (konfirmasi via WhatsApp)', badge: false, info: 'Transfer ke rekening admin lalu kirim bukti via WhatsApp. Diproses manual.' },
-      { v: 'ewallet', t: 'DANA / OVO / GoPay', badge: false, info: 'Bayar lewat e-wallet, saldo masuk setelah pembayaran terverifikasi.' },
-      { v: 'usdt', t: 'USDT (TRC20)', badge: false, info: 'Bayar dengan USDT jaringan TRC20, dikonversi ke Rupiah otomatis.' }
+      { v: 'qris', t: 'QRIS Otomatis', badge: 'Pilihan Utama', info: 'Scan QRIS dari e-wallet atau m-banking apa pun. Saldo masuk otomatis.' }
     ];
     var met = mets.filter(function (m) { return m.v === st.met; })[0] || mets[0];
 

@@ -1070,6 +1070,9 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
   /* iOS memperbesar halaman kalau font input di bawah 16px. */
   .inp,.ta,input,select,textarea{font-size:16px !important}
   .dash-main{gap:16px !important}
+  .dash-theme-lbl{display:none !important}
+  .dash-head{flex-wrap:wrap !important;gap:8px !important}
+  .seg{flex:1 1 0 !important;min-width:0 !important;padding:10px 6px !important;font-size:12px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis}
 }
 @media (max-width:640px){.plat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .ptab:hover{border-color:var(--r5);color:var(--hi)}
@@ -1230,7 +1233,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                     <i className="fa-solid fa-sun" aria-hidden="true" style={{ fontSize: 15, width: 15, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center' }} />
                   </>
                 ) : null}
-                {" "}{v.tr.themeLbl}{" "}
+                {" "}<span className="dash-theme-lbl">{v.tr.themeLbl}</span>{" "}
               </button>
               <button type="button" className="ibtn" onClick={v.openUpd} aria-label={v.tr.notif} aria-haspopup="dialog" style={{ position: "relative" }}>
                 <FaIcon d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0" size={15} />

@@ -1075,7 +1075,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
 .sw span{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#FFFFFF;transition:left .15s}
 `}</style>
       <div className={v.themeCls} style={{ ...v.accentVars, fontFamily: "'Inter',system-ui,sans-serif", color: "var(--tx)", background: "var(--bg)", minHeight: "100vh", display: "flex", flexWrap: "wrap" }}>
-        <aside className={"dash-aside" + (v.navOpen ? " buka" : "")} style={{ flex: "1 1 230px", maxWidth: "250px", minWidth: "0", borderRight: "1px solid var(--b1)", padding: "22px 16px", display: "flex", flexDirection: "column", gap: "2px", boxSizing: "border-box", position: "sticky", top: "0", alignSelf: "flex-start", height: "100vh", overflowY: "auto" }}>
+        <aside className={"dash-aside" + (v.navOpen ? " buka" : "")} style={{ flex: "1 1 230px", maxWidth: "250px", minWidth: "0", borderRight: "1px solid var(--b1)", padding: "22px 16px", display: "flex", flexDirection: "column", gap: "2px", boxSizing: "border-box", position: "sticky", top: "0", alignSelf: "flex-start", height: "100vh", overflowX: "hidden", overflowY: "auto" }}>
           <Link href="/dashboard" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "22px", padding: "6px" }}>
             <img src="/icon.png" alt="" aria-hidden="true" className="logo-mark" width="24" height="24" style={{ borderRadius: "8px", display: "block" }} />
             <span style={{ fontSize: "17px", fontWeight: "800", color: "var(--hi)", letterSpacing: "-.03em" }}>

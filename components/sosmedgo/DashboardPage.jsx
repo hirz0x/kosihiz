@@ -838,7 +838,7 @@ class DashboardPage extends React.Component {
 
       /* add funds */
       amts: amtList.map(function (a) { var on = st.amtKey === a; var s2 = segStyle(on); return { t: a === 'custom' ? 'Custom' : 'Rp ' + fmt(a), on: on, bg: s2.bg, fg: s2.fg, pick: set({ amtKey: a, paid: false }) }; }),
-      amtVal: amtVal, amtFmt: !isNaN(amtN) && amtN > 0 ? 'Rp ' + fmt(amtN) : '',
+      amtVal: amtVal, amtKurang: amtVal !== '' && !(amtN >= 10000), amtFmt: !isNaN(amtN) && amtN > 0 ? 'Rp ' + fmt(amtN) : '',
       amtBc: st.amtKey === 'custom' ? 'var(--accent)' : 'var(--b3)',
       setAmt: function (e) { self.setState({ amtKey: 'custom', amtCustom: e.target.value, paid: false }); },
       mOpen: st.mOpen, toggleM: set({ mOpen: !st.mOpen }),
@@ -2214,6 +2214,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       Nominal (Rp)
                     </label>
                     <input id="nominal" className="inp" type="number" inputMode="numeric" placeholder="Minimal Rp 10.000" value={v.amtVal} onChange={v.setAmt} style={{ borderColor: v.amtBc }} />
+                    {v.amtKurang ? <span className="lbl" style={{ color: "#FF5A75", marginTop: "6px", display: "block" }}>Nominal minimal Rp 10.000.</span> : null}
                     <span className="lbl" id="lbl-met">
                       Metode
                     </span>
@@ -2262,7 +2263,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         {v.bonusTxt}
                       </span>
                     </div>
-                    <button type="submit" className="submit" style={{ width: "100%", marginTop: "18px" }}>
+                    <button type="submit" className="submit" disabled={v.amtKurang} style={{ width: "100%", marginTop: "18px", opacity: v.amtKurang ? 0.5 : 1, cursor: v.amtKurang ? "not-allowed" : "pointer" }}>
                       <i className="fa-solid fa-credit-card" aria-hidden="true" style={{ fontSize: 15, width: 15, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center' }} />
                       Bayar {v.amtFmt}
                     </button>

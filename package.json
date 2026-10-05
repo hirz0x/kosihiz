@@ -1,0 +1,17 @@
+{
+  "name": "sosmedgo-nextjs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "predev": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "cron:orders": "node scripts/cron-orders.js"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

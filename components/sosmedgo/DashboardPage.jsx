@@ -88,7 +88,7 @@ function bonusDariPeringkat(p) {
 
 /* Bentuk tiket dari server disesuaikan dengan yang dipakai tampilan tiket di halaman ini. */
 function tiketDariApi(t) {
-  return { id: t.id, cat: t.kategori, sub: t.sub || '', orderId: t.orderId || '', status: t.status, unread: t.status === 'answered' && !t.userBaca, updated: t.diupdate, msgs: t.pesan.map(function (m) { return { from: m.from === 'admin' ? 'support' : 'user', text: m.text, time: m.time }; }) };
+  return { id: t.id, cat: t.kategori, sub: t.sub || '', orderId: t.orderId || '', status: t.status, unread: t.status === 'answered' && !t.userBaca, updated: t.diupdate, msgs: t.pesan.map(function (m) { return { from: m.from === 'admin' ? 'support' : 'user', text: m.text, time: m.time, lampiran: m.lampiran }; }) };
 }
 
 /* Batasi jumlah layanan yang tampil supaya halaman tidak berat. */
@@ -117,7 +117,7 @@ class DashboardPage extends React.Component {
       scat: 'all', sq: '', favs: {}, descId: 0, sOpen: '',
       ostat: 'all', oq: '', ofOpen: false, ostatus: {}, refundList: [], aff: null, wdJumlah: '', wdTujuan: '', wdBusy: false, peringkat: null, riwayat: [], bayarUrl: '', lastDep: '', cekMsg: '', toast: null, support: { nama: 'Tim Support', inisial: 'SG' }, pwForm: { cur: '', baru: '', baru2: '' }, emForm: { baru: '', pw: '' }, prefLoaded: false, invText: '', apiInfo: null, apiBaru: '', mfaAktif: null, mfaSetup: null, mfaKode: '', notifList: [], notifUnread: 0, sLimit: 40, kurs: 16000, siap: false,
       amtKey: 50000, amtCustom: '', met: 'qris', mOpen: false, paid: false, bayarBusy: false, dHistOpen: false, payHist: [],
-      tcat: 'order', tsub: 'refill', tid: '', tmsg: '', tsent: false, tHistOpen: false, viewT: 0, replyTxt: '',
+      tcat: 'order', tsub: 'refill', tid: '', tmsg: '', tfile: null, tsent: false, tHistOpen: false, viewT: 0, replyTxt: '',
       tickets: [],
       rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null,
       atab: 'security', pwSaved: false, emSaved: false, twofa: false, lang: 'id', tz: 'WIB', keyN: 1, invSaved: false,
@@ -501,7 +501,7 @@ class DashboardPage extends React.Component {
           return {
             id: Number(x.id), p: platDari(x.kategori + ' ' + x.nama), ct: 'ww', ty: '',
             name: namaIndo(x.nama), price: jual(x), min: Number(x.min), max: Number(x.maks),
-            start: x.waktuN ? '± ' + x.waktuRata + ' menit' : 'Sesuai antrean provider', speed: x.jenis || 'Default',
+            start: x.waktuN >= 3 ? '± ' + x.waktuRata + ' menit' : 'Sesuai antrean provider', speed: x.jenis || 'Default',
             refill: x.refill ? 'Tersedia' : 'Tidak tersedia', kategori: x.kategori
           };
         });
@@ -894,14 +894,25 @@ class DashboardPage extends React.Component {
       tNeedsId: st.tcat === 'order',
       tid: st.tid, setTid: function (e) { self.setState({ tid: e.target.value }); },
       tmsg: st.tmsg, setTmsg: function (e) { self.setState({ tmsg: e.target.value }); },
+      tfile: st.tfile, hapusFile: function () { self.setState({ tfile: null }); },
+      pilihFile: function (e) {
+        var f = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!f) return;
+        if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].indexOf(f.type) < 0) { self.tampilkanToast(false, 'Lampiran harus JPG, PNG, WEBP, atau PDF.'); return; }
+        if (f.size > 300 * 1024) { self.tampilkanToast(false, 'Ukuran lampiran maksimal 300 KB.'); return; }
+        var reader = new FileReader();
+        reader.onload = function () { self.setState({ tfile: { nama: f.name, tipe: f.type, data: reader.result } }); };
+        reader.readAsDataURL(f);
+      },
       sendTicket: function (e) {
         if (e && e.preventDefault) e.preventDefault();
         if (!st.tmsg.trim()) return;
-        fetch('/api/tickets?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: st.tcat, sub: st.tsub, orderId: st.tcat === 'order' ? st.tid.trim() : '', pesan: st.tmsg.trim() }) })
+        fetch('/api/tickets?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: st.tcat, sub: st.tsub, orderId: st.tcat === 'order' ? st.tid.trim() : '', pesan: st.tmsg.trim(), lampiran: st.tfile || undefined }) })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
             if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Tiket gagal dikirim.'); return; }
-            self.setState({ tsent: false, tmsg: '', tid: '', page: 'ticket', viewT: res.d.ticket.id });
+            self.setState({ tsent: false, tmsg: '', tfile: null, tid: '', page: 'ticket', viewT: res.d.ticket.id });
             self.tampilkanToast(true, 'Tiket terkirim. Tim support akan membalas secepatnya.');
             self.muatTiket();
           })
@@ -910,7 +921,7 @@ class DashboardPage extends React.Component {
       tHistOpen: st.tHistOpen, openTHist: set({ tHistOpen: true }), closeTHist: set({ tHistOpen: false }),
       tlist: st.tickets.map(function (t) { var m = TS[t.status]; return { id: t.id, title: tTitle(t), updated: t.updated, unread: t.unread, sTxt: m[0], sBg: m[1], sFg: m[2],
         open: function () { self.setState({ tickets: st.tickets.map(function (x) { return x.id === t.id ? Object.assign({}, x, { unread: false }) : x; }), tHistOpen: false, page: 'ticket', viewT: t.id, hdd: '' }); self.bacaTiket(t.id); } }; }),
-      vt: vt ? { id: vt.id, title: tTitle(vt), orderId: vt.orderId || false, msgs: vt.msgs.map(function (m, i) { return { mine: m.from === 'user', support: m.from === 'support', first: i === 0, text: m.text, time: m.time, sNama: st.support.nama, sInisial: st.support.inisial }; }) } : { id: '', title: '', orderId: false, msgs: [] },
+      vt: vt ? { id: vt.id, title: tTitle(vt), orderId: vt.orderId || false, msgs: vt.msgs.map(function (m, i) { return { mine: m.from === 'user', support: m.from === 'support', first: i === 0, text: m.text, time: m.time, lampiran: m.lampiran, sNama: st.support.nama, sInisial: st.support.inisial }; }) } : { id: '', title: '', orderId: false, msgs: [] },
       vtClosed: !!vt && vt.msgs[vt.msgs.length - 1].from === 'user',
       replyTxt: st.replyTxt, setReply: function (e) { self.setState({ replyTxt: e.target.value }); },
       sendReply: function (e) {
@@ -2132,10 +2143,10 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                           <span style={{ flex: "1", minWidth: "220px", fontSize: "13px", fontWeight: "600" }}>
                             {o.svcId} — {o.name}{" "}
                             <span style={{ color: "var(--t4)", fontWeight: "500", marginLeft: "10px" }}>
-                              ▢ {o.date}
+                              <FaIcon d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4" size={12} style={{ display: "inline-block", marginRight: "4px", verticalAlign: "-2px" }} />{o.date}
                             </span>
                           </span>
-                          <span className="pill" style={{ background: o.sBg, color: o.sFg, border: `1px solid ${o.sBc}` }}>
+                          <span className="pill" style={{ background: /Selesai|Completed/i.test(o.sTxt) ? "#14532D" : /Batal|Cancel|Ditolak/i.test(o.sTxt) ? "#7F1D1D" : o.sBg, color: /Selesai|Completed/i.test(o.sTxt) ? "#F0FDF4" : /Batal|Cancel|Ditolak/i.test(o.sTxt) ? "#FEF2F2" : o.sFg, border: "none", fontWeight: "600", padding: "8px 16px", borderRadius: "999px", fontSize: "13px" }}>
                             {o.sTxt}
                           </span>
                           <button type="button" className="ibtn" aria-label="Laporkan masalah" onClick={v.goTickets}>
@@ -2145,7 +2156,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", padding: "10px 12px 10px 14px" }}>
                           <span className="pill" style={{ border: "1px solid var(--b3)", paddingLeft: "4px" }}>
                             <span className="ocircle">
-                              🔗
+                              <FaIcon d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" size={11} />
                             </span>
                             <span style={{ maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {o.link}
@@ -2368,9 +2379,11 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                     </label>
                     <textarea id="t-msg" className="inp" rows="6" style={{ height: "auto", padding: "14px", resize: "vertical" }} value={v.tmsg} onChange={v.setTmsg} />
                     <div style={{ display: "flex", justifyContent: "center", marginTop: "16px" }}>
-                      <button type="button" className="ghost" style={{ minWidth: "240px", justifyContent: "center" }}>
-                        📎 Lampirkan file
-                      </button>
+                      <label className="ghost" style={{ minWidth: "240px", justifyContent: "center", cursor: "pointer" }}>
+                        📎 {v.tfile ? v.tfile.nama : "Lampirkan file"}
+                        <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={v.pilihFile} style={{ display: "none" }} />
+                      </label>
+                      {v.tfile ? <button type="button" className="ghost" onClick={v.hapusFile} style={{ marginLeft: "8px" }}>Hapus</button> : null}
                     </div>
                     <button type="submit" className="submit" style={{ width: "100%", marginTop: "14px" }}>
                       Kirim Tiket{" "}
@@ -2478,7 +2491,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                                     </>
                                   ) : null}
                                   <div style={{ padding: "12px 16px", fontSize: "12px", lineHeight: "1.7", whiteSpace: "pre-line" }}>
-                                    {m.text}
+                                    {m.text}{m.lampiran ? (m.lampiran.tipe === 'application/pdf' ? <a href={m.lampiran.data} download={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', color: '#FF5A75', fontWeight: 600 }}>📄 {m.lampiran.nama}</a> : <img src={m.lampiran.data} alt={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', maxWidth: '100%', borderRadius: '10px' }} />) : null}
                                   </div>
                                   <div style={{ padding: "10px 16px", borderTop: "1px solid var(--b2)", fontSize: "11px", color: "var(--rt)" }}>
                                     {v.uname} - {m.time}
@@ -2493,7 +2506,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                                     {m.sInisial}
                                   </span>
                                   <div style={{ fontSize: "12px", lineHeight: "1.9", whiteSpace: "pre-line" }}>
-                                    {m.text}
+                                    {m.text}{m.lampiran ? (m.lampiran.tipe === 'application/pdf' ? <a href={m.lampiran.data} download={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', color: '#FF5A75', fontWeight: 600 }}>📄 {m.lampiran.nama}</a> : <img src={m.lampiran.data} alt={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', maxWidth: '100%', borderRadius: '10px' }} />) : null}
                                     <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--rt)" }}>
                                       {m.sNama} - {m.time}
                                     </div>

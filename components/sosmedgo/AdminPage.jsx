@@ -129,7 +129,7 @@ const LABEL_KATEGORI = { order: 'Pesanan', service: 'Layanan', payment: 'Pembaya
 const LABEL_STATUS_TIKET = { open: 'Terbuka', answered: 'Dibalas', closed: 'Ditutup' };
 const LABEL_STATUS_REFUND = { menunggu: 'Menunggu', disetujui: 'Diterima', ditolak: 'Ditolak' };
 const refundAdmin = (r) => ({ id: r.id, user: r.username || '—', pesanan: r.pesanan, jumlah: r.jumlah, alasan: r.alasan || '', status: LABEL_STATUS_REFUND[r.status] || r.status });
-const tiketAdmin = (t) => ({ id: t.id, user: t.username || '—', kategori: LABEL_KATEGORI[t.kategori] || t.kategori, orderId: t.orderId || '', status: LABEL_STATUS_TIKET[t.status] || t.status, update: t.diupdate, msgs: t.pesan.map((m) => ({ from: m.from, text: m.text, time: m.time })), tingkat: t.tingkat || 0 });
+const tiketAdmin = (t) => ({ id: t.id, user: t.username || '—', kategori: LABEL_KATEGORI[t.kategori] || t.kategori, orderId: t.orderId || '', status: LABEL_STATUS_TIKET[t.status] || t.status, update: t.diupdate, msgs: t.pesan.map((m) => ({ from: m.from, text: m.text, time: m.time, lampiran: m.lampiran })), tingkat: t.tingkat || 0 });
 
 
 
@@ -1420,7 +1420,7 @@ button{font-family:inherit}
                       const admin = m.from === 'admin';
                       return (
                         <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: admin ? 'flex-end' : 'flex-start', gap: '4px' }}>
-                          <div className="bubble" style={{ background: admin ? 'var(--r3)' : 'var(--s3)', border: '1px solid ' + (admin ? 'var(--r5)' : 'var(--b3)'), color: 'var(--t1)' }}>{m.text}</div>
+                          <div className="bubble" style={{ background: admin ? 'var(--r3)' : 'var(--s3)', border: '1px solid ' + (admin ? 'var(--r5)' : 'var(--b3)'), color: 'var(--t1)' }}>{m.text}{m.lampiran ? (m.lampiran.tipe === 'application/pdf' ? <a href={m.lampiran.data} download={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', color: 'var(--accent-l)', fontWeight: 600 }}>📄 {m.lampiran.nama}</a> : <img src={m.lampiran.data} alt={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', maxWidth: '100%', borderRadius: '10px' }} />) : null}</div>
                           <div style={{ fontSize: '10px', color: 'var(--t5)' }}>{admin ? supportProfil.nama : ticket.user} · {m.time}</div>
                         </div>
                       );

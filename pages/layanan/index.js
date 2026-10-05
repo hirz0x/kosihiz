@@ -149,7 +149,7 @@ export default function Layanan() {
                         {s.refill
                           ? <span style={{ ...chip, border: '1px solid rgba(34,197,94,.35)', background: 'rgba(34,197,94,.12)', color: '#4ADE80' }}>↻ Refill: Tersedia</span>
                           : <span style={{ ...chip, color: '#6B6E78' }}>↻ Refill: Tidak tersedia</span>}
-                        {s.waktuRata ? <span style={{ ...chip, background: 'rgba(34,197,94,.08)', color: '#4ADE80' }}>± {Math.round(s.waktuRata)} menit</span> : null}
+                        {s.waktuN >= 3 ? <span style={{ ...chip, background: 'rgba(34,197,94,.08)', color: '#4ADE80' }}>± {Math.round(s.waktuRata)} menit</span> : null}
                         <span className="lay-tombol" style={{ marginLeft: 'auto' }}>
                           <Link href="/login" style={{ display: 'inline-block', background: '#E11D3A', color: '#FFFFFF', borderRadius: '10px', padding: '10px 20px', fontSize: '13px', fontWeight: 700, textDecoration: 'none' }}>Beli Sekarang</Link>
                         </span>

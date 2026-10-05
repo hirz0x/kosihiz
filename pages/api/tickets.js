@@ -43,6 +43,18 @@ export default async function handler(req, res) {
       if (!teks) return res.status(400).json({ error: 'Pesan belum diisi.' });
       if (teks.length > PESAN_MAKS) return res.status(400).json({ error: 'Pesan terlalu panjang (maks 2000 karakter).' });
 
+      /* Lampiran disimpan di dalam pesan pertama, jadi tidak perlu kolom baru di database. */
+      const lamp = req.body && req.body.lampiran;
+      let lampiran = null;
+      if (lamp) {
+        const tipeOk = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(lamp.tipe);
+        const data = String(lamp.data || '');
+        if (!tipeOk || !data.startsWith('data:' + lamp.tipe + ';base64,') || data.length > 450000) {
+          return res.status(400).json({ error: 'Lampiran harus JPG, PNG, WEBP, atau PDF, maksimal 300 KB.' });
+        }
+        lampiran = { nama: String(lamp.nama || 'lampiran').slice(0, 120), tipe: lamp.tipe, data };
+      }
+
       const profil = await getProfile(user.id);
       const tiket = await createTicket({
         userId: user.id,
@@ -50,7 +62,7 @@ export default async function handler(req, res) {
         kategori,
         sub: String(sub || '').slice(0, SUB_MAKS),
         orderId: String(orderId || '').trim().slice(0, SUB_MAKS) || null,
-        pesan: [{ from: 'user', text: teks, time: sekarangWib() }]
+        pesan: [{ from: 'user', text: teks, time: sekarangWib(), ...(lampiran ? { lampiran } : {}) }]
       });
       return res.status(200).json({ ticket: keKlien(tiket) });
     }

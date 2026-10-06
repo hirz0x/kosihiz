@@ -159,8 +159,8 @@ class DashboardPage extends React.Component {
     var self = this;
     return fetch('/api/affiliates?as=user')
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && d.username) self.setState({ aff: d }); })
-      .catch(function () {});
+      .then(function (d) { if (d && d.username) self.setState({ aff: d, affGagal: false }); else self.setState({ affGagal: true }); })
+      .catch(function () { self.setState({ affGagal: true }); });
   }
   tarikKomisi() {
     var self = this;
@@ -962,8 +962,8 @@ class DashboardPage extends React.Component {
       massFg: st.massRes && (st.massRes.bad.length || st.massRes.empty) ? 'var(--rt2)' : 'var(--gr)',
 
       /* affiliates */
-      refLink: st.aff ? (typeof window !== 'undefined' ? window.location.origin : '') + '/register?ref=' + encodeURIComponent(st.aff.username) : '',
-      affStats: [['Rate komisi', st.aff ? st.aff.persen + '%' : '10%'], ['Minimal penarikan', 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000)], ['Pendaftaran', String(st.aff ? st.aff.pendaftaran : 0)], ['Total pendapatan', 'Rp ' + fmt(st.aff ? st.aff.komisiTotal : 0)], ['Pendapatan tersedia', 'Rp ' + fmt(st.aff ? st.aff.komisi : 0)]].map(function (a) { return { l: a[0], v: a[1] }; }),
+      affGagal: st.affGagal, refLink: st.aff ? (typeof window !== 'undefined' ? window.location.origin : '') + '/register?ref=' + encodeURIComponent(st.aff.username) : '',
+      affStats: [['Rate komisi', st.aff ? st.aff.persen + '%' : '—'], ['Minimal penarikan', 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000)], ['Pendaftaran', String(st.aff ? st.aff.pendaftaran : 0)], ['Total pendapatan', 'Rp ' + fmt(st.aff ? st.aff.komisiTotal : 0)], ['Pendapatan tersedia', 'Rp ' + fmt(st.aff ? st.aff.komisi : 0)]].map(function (a) { return { l: a[0], v: a[1] }; }),
       minTarikTxt: 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000),
       afiliasiTxt: 'Bagikan link ini. Setiap kali orang yang kamu ajak isi saldo, kamu dapat komisi ' + (st.aff ? st.aff.persen : 5) + '% dari depositnya. Komisi bisa dipindah ke saldo untuk belanja layanan.',
       wdJumlah: st.wdJumlah, setWdJumlah: function (e) { self.setState({ wdJumlah: e.target.value }); },
@@ -2655,7 +2655,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         ⧉ {v.copyTxt}
                       </button>
                       <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--rt)", wordBreak: "break-all" }}>
-                        {v.refLink || "Memuat link..."}
+                        {v.refLink || (v.affGagal ? "Gagal memuat link. Muat ulang halaman." : "Memuat link...")}
                       </span>
                     </div>
                     <p style={{ margin: "16px 0 0", fontSize: "12px", color: "var(--t4)", lineHeight: "1.7" }}>

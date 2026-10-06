@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /layanan
+Allow: /blog
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /lupa-password
+Disallow: /reset-password
+
+Sitemap: https://www.smmsosmedgo.store/sitemap.xml

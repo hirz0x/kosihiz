@@ -17,7 +17,15 @@ const nextConfig = {
     /* Mode report-only: pelanggaran hanya dicatat di console, belum memblokir. */
     headers.push({ key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" });
     if (production) headers.push({ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' });
-    return [{ source: '/:path*', headers }];
+    const privat = { key: 'X-Robots-Tag', value: 'noindex, nofollow' };
+    return [
+      { source: '/:path*', headers },
+      { source: '/admin', headers: [privat] },
+      { source: '/admin/:path*', headers: [privat] },
+      { source: '/dashboard', headers: [privat] },
+      { source: '/dashboard/:path*', headers: [privat] },
+      { source: '/api/:path*', headers: [privat] }
+    ];
   }
 };
 

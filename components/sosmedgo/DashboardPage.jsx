@@ -1071,6 +1071,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
   .inp,.ta,input,select,textarea{font-size:16px !important}
   .dash-main{gap:16px !important}
   .dash-theme-lbl{display:none !important}
+  .aff-card{margin-top:0 !important}
   .dash-head{flex-wrap:wrap !important;gap:8px !important}
   .seg{flex:1 1 0 !important;min-width:0 !important;padding:10px 6px !important;font-size:12px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis}
 }
@@ -2634,7 +2635,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
             ) : null}
             {v.is.affiliates ? (
               <>
-                <div className="card" style={{ marginTop: "-58px", position: "relative", zIndex: "2", borderRadius: "18px", overflow: "hidden" }}>
+                <div className="card aff-card" style={{ marginTop: "-58px", position: "relative", zIndex: "2", borderRadius: "18px", overflow: "hidden" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
                     {(v.affStats || []).map((a, $index) => (
                       <React.Fragment key={$index}>

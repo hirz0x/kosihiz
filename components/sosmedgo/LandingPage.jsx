@@ -201,16 +201,45 @@ class LandingPage extends React.Component {
       <>
         <Head>
           <title>SosmedGo — Panel SMM Termurah</title>
+          <meta name="description" content="SosmedGo adalah panel SMM termurah di Indonesia untuk followers, likes, views, dan layanan social media marketing lainnya. Proses otomatis 24 jam, harga bersaing, dan API siap pakai untuk reseller." />
+          <link rel="canonical" href="https://smmsosmedgo.store/" />
           <link rel="preconnect" href="https://api.fontshare.com" />
           <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" />
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'SosmedGo',
+                url: 'https://smmsosmedgo.store/',
+                logo: 'https://smmsosmedgo.store/icon.png',
+                sameAs: []
+              })
+            }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'SosmedGo',
+                url: 'https://smmsosmedgo.store/'
+              })
+            }}
+          />
         </Head>
         <style jsx global>{`
 html{color-scheme:dark}
 .js-fade section{opacity:0;transform:translateY(18px);transition:opacity .7s ease-out,transform .7s ease-out}
 .js-fade section.in{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce){.js-fade section{opacity:1;transform:none;transition:none}}
-body{margin:0;background:#0A0A0C;overflow-x:hidden}
+body{margin:0;background:#0A0A0C;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html{scroll-behavior:smooth}
+a,button{transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s cubic-bezier(.4,0,.2,1),opacity .15s ease;-webkit-tap-highlight-color:transparent}
+button:active:not(:disabled){transform:scale(.97)}
 @media (min-width:1000px){
   .ls-hero-grid{display:block !important;text-align:center !important;max-width:1180px !important;padding-top:20px}
   .ls-hero-teks{position:relative;z-index:1;align-items:center !important;text-align:center}
@@ -248,9 +277,10 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
 .navlink{font-size:13px;font-weight:600;color:#C9CBD1;padding:9px 14px;border-radius:999px}
 .navlink:hover{color:#FFFFFF;background:#1A1A1F}
 .btn{display:inline-flex;align-items:center;gap:8px;background:#E11D3A;color:#FFFFFF;font-weight:600;font-size:13px;border-radius:999px;padding:12px 22px;box-shadow:0 8px 24px rgba(225,29,58,.35);border:none;cursor:pointer;font-family:inherit}
-.btn:hover{background:#C8102E;color:#FFFFFF}
+.btn:hover{background:#C8102E;color:#FFFFFF;transform:translateY(-1px);box-shadow:0 12px 30px rgba(225,29,58,.45)}
+.btn:active{transform:translateY(0) scale(.97);box-shadow:0 6px 16px rgba(225,29,58,.35)}
 .btn-o{display:inline-flex;align-items:center;gap:8px;background:#121215;color:#FFFFFF;font-weight:600;font-size:13px;border-radius:999px;padding:11px 20px;border:1px solid #26262C}
-.btn-o:hover{border-color:#E11D3A;color:#FFFFFF}
+.btn-o:hover{border-color:#E11D3A;color:#FFFFFF;transform:translateY(-1px)}
 .badge{display:inline-flex;align-items:center;gap:8px;background:#121215;border:1px solid #23232A;border-radius:999px;padding:4px 14px 4px 4px;font-size:12px;font-weight:600;color:#FF5A75}
 .badge-ic{width:28px;height:28px;border-radius:50%;background:#2A0E14;display:flex;align-items:center;justify-content:center}
 .h2{margin:0;font-size:clamp(28px,3.2vw,38px);font-weight:700;letter-spacing:-.03em;line-height:1.2;color:#FFFFFF}

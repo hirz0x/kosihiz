@@ -5,6 +5,10 @@ import { wajibAdmin } from '../../lib/auth';
 import { bersihkanArtikel } from '../../lib/artikel';
 import { ambilSemuaArtikel } from '../../lib/artikelStore';
 
+/* Setiap simpan mengirim seluruh daftar artikel sekaligus, termasuk foto-foto artikel lain yang sudah tersimpan.
+   Batas bawaan Next.js (1mb) gampang terlampaui begitu ada beberapa artikel berfoto, jadi dinaikkan di sini. */
+export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {

@@ -221,18 +221,13 @@ class DashboardPage extends React.Component {
   tampilkanToast(ok, text) {
     var self = this;
     clearTimeout(this._toastTimer);
-    this.setState({ toast: { ok: ok, text: text } });
-    this._toastTimer = setTimeout(function () { self.setState({ toast: null }); }, 5000);
+    /* Toast baru diberi key unik (waktu) supaya animasi muncul-nya terulang, walau teksnya sama dengan toast sebelumnya. */
+    this.setState({ toast: { ok: ok, text: text, kunci: Date.now() } });
+    this._toastTimer = setTimeout(function () { self.setState({ toast: null }); }, 6000);
   }
   tutupToast() {
     clearTimeout(this._toastTimer);
     this.setState({ toast: null });
-  }
-  tampilkanToast(ok, text) {
-    var self = this;
-    clearTimeout(this._toastTimer);
-    this.setState({ toast: { ok: ok, text: text } });
-    this._toastTimer = setTimeout(function () { self.setState({ toast: null }); }, 5000);
   }
   componentWillUnmount() {
     clearTimeout(this._siapTimer);
@@ -640,7 +635,7 @@ class DashboardPage extends React.Component {
     }).map(function (o) {
       var s = byId[o.svcId] || { name: o.nama || ('Layanan ' + o.svcId), icon: I.all, price: 0, hasRefill: false };
       var m = SM[o.status] || SM.pending;
-      return { id: o.id, svcId: o.svcId, name: o.nama || s.name, icon: s.icon, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
+      return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
         cancel: function () {
@@ -689,7 +684,7 @@ class DashboardPage extends React.Component {
       home: T('Beranda', 'Home'), settings: T('Pengaturan', 'Settings'), logout: T('Keluar', 'Logout'),
       welcome: T('Selamat datang di SosmedGo', 'Welcome to SosmedGo'), welcomeSub: T('Panel SMM Indonesia — proses otomatis 24 jam.', 'Indonesian SMM panel — automated 24/7.'),
       place: T('Buat pesanan', 'Place your order'), category: T('Kategori', 'Category'), service: T('Layanan', 'Service'), qty: T('Jumlah', 'Quantity'),
-      subtotal: T('Subtotal', 'Sub Total'), submit: T('Kirim Pesanan', 'Place Order'), notif: T('Notifikasi', 'Notifications'), lang: T('Bahasa', 'Language'),
+      subtotal: T('Subtotal', 'Sub Total'), submit: T('Kirim Pesanan', 'Place Order'), memproses: T('Memproses...', 'Processing...'), notif: T('Notifikasi', 'Notifications'), lang: T('Bahasa', 'Language'),
       updates: T('Update', 'Updates'), close: T('Tutup', 'Close'), viewAll: T('Lihat Semua', 'View All'), noUpd: T('Tidak ada update.', 'No updates.'),
       themeLbl: st.theme === 'dark' ? T('Gelap', 'Dark') : T('Terang', 'Light'), themeAria: T('Ganti tema', 'Toggle theme'), speed: T('Kecepatan', 'Service Speed'), minmax: T('Min — Maks', 'Min - Max'), guar: T('Garansi', 'Guaranteed'), desc: T('Deskripsi', 'Description'), svcId: T('ID Layanan', 'Product ID'), start: T('Mulai', 'Start'), trusted: T('Provider Terpercaya', 'Trusted Provider Service'), notes: T('Catatan', 'Notes'), n1: T('Pastikan akun/postingan tidak di-private.', 'Make sure your profile is public before ordering.'), n2: T('Jangan pesan ulang link yang sama sebelum pesanan pertama selesai.', 'Do not place a second order on the same link before the first one is completed.'), n3: T('Pesanan yang sudah berjalan tidak bisa dibatalkan.', 'Cancellation is not available once the order has started.'), myAcc: T('Akun Saya', 'My Account'), rankTitle: T('Sistem Peringkat', 'Rank System'), aff: T('Afiliasi', 'Affiliates'), view: T('Lihat Profil', 'View'), acc: T('Akun', 'Account'), tickets: T('Tiket', 'Tickets'), lastUpd: T('Update terakhir', 'Last update'), ticket: T('Tiket', 'Ticket'), orderId: T('ID Pesanan', 'Order ID'), supportTeam: T('Tim Support', 'Support Team'), message: T('Tulis pesan', 'Message'), attach: T('Lampirkan file', 'Attach file'), send: T('Kirim', 'Send'), waitReply: T('Pesan terkirim. Tim support akan membalas secepatnya.', 'Message sent. Our support team will reply soon.'), yourRank: T('Peringkat kamu', 'Your rank')
     };
@@ -802,10 +797,23 @@ class DashboardPage extends React.Component {
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
-            if (!res.ok || res.d.error) { self.setState({ sending: false }); self.tampilkanToast(false, res.d.error || 'Pesanan gagal dikirim.'); }
-            else { fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {}); self.setState({ sending: false }); self.tampilkanToast(true, 'Pesanan ' + res.d.order.providerOrder + ' dibayar dengan saldo. Sedang diproses.'); }
+            if (!res.ok || res.d.error) {
+              var pesanGagal = res.d.error || 'Pesanan gagal dikirim.';
+              self.setState({ sending: false, sent: true, sentOk: false, sentText: pesanGagal });
+              self.tampilkanToast(false, pesanGagal);
+            } else {
+              fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
+              var pesanSukses = 'Pesanan ' + res.d.order.providerOrder + ' dibayar dengan saldo. Sedang diproses.';
+              /* Link dan jumlah dikosongkan lagi, supaya tidak tersubmit ulang tanpa sengaja. Layanan yang dipilih dibiarkan, untuk pesan ulang layanan sama. */
+              self.setState({ sending: false, sent: true, sentOk: true, sentText: pesanSukses, link: '', qty: '' });
+              self.tampilkanToast(true, pesanSukses);
+            }
           })
-          .catch(function (err) { self.setState({ sending: false }); self.tampilkanToast(false, String(err && err.message ? err.message : err)); });
+          .catch(function (err) {
+            var pesanError = String(err && err.message ? err.message : err);
+            self.setState({ sending: false, sent: true, sentOk: false, sentText: pesanError });
+            self.tampilkanToast(false, pesanError);
+          });
       },
       sending: st.sending,
       sentFg: st.sentOk ? 'var(--gr)' : '#FF5A75',
@@ -1032,9 +1040,17 @@ class DashboardPage extends React.Component {
 .theme-light .inp,.theme-light .dd{border-color:#E6E8EC}
 .theme-light .card,.theme-light .menu,.theme-light .ddpanel{box-shadow:0 4px 16px rgba(16,24,40,.07)}
 .theme-light .dash-head{background:linear-gradient(180deg,rgba(var(--accent-rgb),.06) 0%,rgba(var(--accent-rgb),0) 100%)}
-body{margin:0;background:var(--bg)}
+body{margin:0;background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html{scroll-behavior:smooth}
 a{color:var(--t2);text-decoration:none}a:hover{color:var(--hi)}
-button{font-family:inherit}
+button{font-family:inherit;transition:transform .15s cubic-bezier(.4,0,.2,1),box-shadow .15s ease,border-color .15s ease,background-color .15s ease,color .15s ease,opacity .15s ease;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:not-allowed}
+button:active:not(:disabled){transform:scale(.97)}
+.submit:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(var(--accent-rgb),.38)}
+.submit:not(:disabled):active{transform:translateY(0) scale(.97);box-shadow:0 6px 16px rgba(var(--accent-rgb),.3)}
+.submit:disabled{opacity:.55;box-shadow:none}
+.ghost:hover{transform:translateY(-1px)}
+.card,.inp,.dd,.ta{transition:border-color .15s ease,box-shadow .15s ease}
 .sb{width:100%;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--t3);padding:11px 12px;border-radius:12px;border:none;background:transparent;cursor:pointer;text-align:left;min-height:44px}
 .sb:hover{background:var(--s3);color:var(--hi)}
 .card{background:var(--s1);border:1px solid var(--b2);border-radius:16px}
@@ -1731,8 +1747,8 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                                   {v.subtotal}
                                 </span>
                               </div>
-                              <button type="submit" className="submit" style={{ flex: "1 1 220px" }}>
-                                {v.tr.submit}{" "}
+                              <button type="submit" className="submit" disabled={v.sending} style={{ flex: "1 1 220px", opacity: v.sending ? 0.6 : 1, cursor: v.sending ? "not-allowed" : "pointer" }}>
+                                {v.sending ? v.tr.memproses : v.tr.submit}{" "}
                                 <FaIcon d="M5 12h14M13 6l6 6-6 6" size={14} />
                               </button>
                             </div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import BlogLayout from '../../components/sosmedgo/BlogLayout';
+import { namaIndo } from '../../components/sosmedgo/terjemah';
 
 /* Daftar layanan untuk pengunjung, tampilannya mengikuti halaman Layanan di dashboard.
  * Data dari /api/services. Harga sudah termasuk markup. Tombol beli mengarah ke halaman masuk. */
@@ -126,7 +127,7 @@ export default function Layanan() {
                   <div style={{ ...kotak, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                       <span style={{ width: '32px', height: '32px', borderRadius: '9px', background: '#E11D3A', color: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px', flexShrink: 0 }}>{g.nama.charAt(0).toUpperCase()}</span>
-                      <span style={{ fontSize: '15px', fontWeight: 700 }}>{g.nama}</span>
+                      <span style={{ fontSize: '15px', fontWeight: 700 }}>{namaIndo(g.nama)}</span>
                     </div>
                     <span style={{ fontSize: '12px', color: '#6B6E78', whiteSpace: 'nowrap' }}>{jumlahKat[g.nama]} layanan</span>
                   </div>
@@ -135,7 +136,7 @@ export default function Layanan() {
                     <div key={s.id} className="lay-baris" style={{ ...kotak, padding: '16px 18px', display: 'grid', gap: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                         <span style={{ background: '#E11D3A', color: '#FFFFFF', borderRadius: '999px', padding: '5px 12px', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>ID: {s.id}</span>
-                        <span style={{ fontSize: '15px', fontWeight: 600, flex: '1 1 260px', lineHeight: 1.4 }}>{s.nama}</span>
+                        <span style={{ fontSize: '15px', fontWeight: 600, flex: '1 1 260px', lineHeight: 1.4 }}>{namaIndo(s.nama)}</span>
                         <span style={{ border: '1px solid #26262E', borderRadius: '10px', overflow: 'hidden', display: 'inline-flex', fontSize: '14px', whiteSpace: 'nowrap' }}>
                           <span style={{ padding: '8px 12px', color: '#FF5A75', fontWeight: 700 }}>≈ Rp {hargaDari(s).toLocaleString('id-ID')}</span>
                           <span style={{ padding: '8px 12px', color: '#6B6E78', borderLeft: '1px solid #26262E' }}>1000</span>

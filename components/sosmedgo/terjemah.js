@@ -7,10 +7,17 @@ const ISTILAH = [
   ['Shares', 'Bagikan'], ['Saves', 'Simpan'], ['Cheapest', 'Termurah'], ['Cheap', 'Murah'],
   ['Best for SEO', 'Terbaik untuk SEO'], ['Best', 'Terbaik'], ['English Names', 'Nama Inggris'],
   ['Worldwide', 'Seluruh Dunia'], ['Insights', 'Insight'], ['Brazil', 'Brasil'], ['USA', 'AS'],
-  ['Instant Start', 'Mulai Instan'], ['Low Drop', 'Penurunan Rendah'], ['No Refill', 'Tanpa Refill'],
+  ['Instant Start', 'Mulai Instan'], ['Start Time', 'Waktu Mulai'],
+  ['No Drop', 'Tanpa Penurunan'], ['Non Drop', 'Tanpa Penurunan'], ['Low Drop', 'Penurunan Rendah'],
+  ['High Drop', 'Penurunan Tinggi'], ['Drop Protection', 'Perlindungan Penurunan'], ['Drop', 'Penurunan'],
+  ['No Refill', 'Tanpa Refill'], ['Refill Button Working', 'Tombol Refill Berfungsi'],
   ['Services', 'Layanan'], ['Service', 'Layanan'], ['Real', 'Asli'], ['Active', 'Aktif'],
-  ['Lifetime', 'Seumur Hidup'], ['Guaranteed', 'Dijamin'], ['Speed', 'Kecepatan'],
-  ['Days', 'Hari'], ['Day', 'Hari'], ['Hours', 'Jam'], ['Hour', 'Jam'], ['Minutes', 'Menit'], ['Minute', 'Menit']
+  ['Lifetime', 'Seumur Hidup'], ['Guaranteed', 'Dijamin'], ['Guarantee', 'Garansi'], ['Speed', 'Kecepatan'],
+  ['Days', 'Hari'], ['Day', 'Hari'], ['Hours', 'Jam'], ['Hour', 'Jam'], ['Minutes', 'Menit'], ['Minute', 'Menit'],
+  ['Cancel Enable', 'Bisa Dibatalkan'], ['Country Targeted', 'Target Negara'], ['Targeted', 'Bertarget'],
+  ['High Quality', 'Kualitas Tinggi'], ['Quality', 'Kualitas'], ['Profile Data', 'Data Profil'],
+  ['Random', 'Acak'], ['Different', 'Berbeda'], ['Working', 'Berfungsi'], ['Fast', 'Cepat'],
+  ['Accounts', 'Akun'], ['Account', 'Akun'], ['Max', 'Maks'], ['Views', 'Tayangan']
 ];
 
 const PETA = new Map(ISTILAH.map((x) => [x[0].toLowerCase(), x[1]]));

@@ -16,18 +16,23 @@ export default function BlogLayout({ judul, deskripsi, lebar = 860, children }) 
   return (
     <>
       <Head>
-        <title>{judul} — SosmedGo</title>
+        <title>{judul + ' — SosmedGo'}</title>
         <meta name="description" content={deskripsi} />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="icon" href="/icon.png" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
         <style>{`
-          html,body{margin:0;background:#0A0A0C;color:#F4F4F5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color-scheme:dark;-webkit-text-size-adjust:100%;overflow-x:hidden}
+          html,body{margin:0;background:#0A0A0C;color:#F4F4F5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color-scheme:dark;-webkit-text-size-adjust:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+          html{scroll-behavior:smooth}
+          a,button{transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s cubic-bezier(.4,0,.2,1),opacity .15s ease;-webkit-tap-highlight-color:transparent}
+          button:active:not(:disabled){transform:scale(.97)}
           .bl-wrap{max-width:1180px;margin:0 auto;padding:20px 20px 0}
           .bl-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;background:rgba(20,20,24,.6);border:1px solid #26262E;border-radius:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
           .bl-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
           .bl-nav a{text-decoration:none;font-size:14px;font-weight:600;padding:8px 12px;border-radius:10px;white-space:nowrap}
+          .bl-nav a:hover{background:rgba(255,255,255,.06)}
           .bl-burger{display:none;width:42px;height:42px;border-radius:12px;background:#17171B;border:1px solid #26262E;align-items:center;justify-content:center;cursor:pointer;padding:0}
+          .bl-burger:hover{border-color:#3A3A42}
           .bl-mmenu{display:none}
           @media (max-width:640px){
             .bl-wrap{padding:12px 12px 0}

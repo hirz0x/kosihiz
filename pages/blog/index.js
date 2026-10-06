@@ -49,5 +49,8 @@ export default function Blog({ artikel }) {
 }
 
 export async function getServerSideProps() {
-  return { props: { artikel: await ambilSemuaArtikel() } };
+  /* Halaman daftar hanya butuh ringkasan, bukan isi artikel lengkap, supaya payload halaman tidak membengkak. */
+  const semua = await ambilSemuaArtikel();
+  const ringkas = semua.map((a) => ({ slug: a.slug, judul: a.judul, ringkasan: a.ringkasan, tanggal: a.tanggal, gambar: a.gambar, terbit: a.terbit }));
+  return { props: { artikel: ringkas } };
 }

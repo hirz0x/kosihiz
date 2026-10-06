@@ -473,8 +473,6 @@ export default function AdminPage() {
   const [q, setQ] = useState('');
   const [pengguna, setPengguna] = useState([]);
   const [saldoProv, setSaldoProv] = useState({ saldo: null, currency: '', error: '' });
-  const saldoTxt = saldoProv.saldo === null ? '—' : (saldoProv.currency && saldoProv.currency !== 'IDR' ? saldoProv.saldo + ' ' + saldoProv.currency : rp(saldoProv.saldo));
-  const provMenipis = saldoProv.saldo !== null && (!saldoProv.currency || saldoProv.currency === 'IDR') && saldoProv.saldo < PROVIDER_LOW;
   const muatPengguna = () => fetch('/api/pengguna').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.pengguna)) setPengguna(d.pengguna); }).catch(() => {});
   const [orderFilter, setOrderFilter] = useState('Semua');
   const [deposits, setDeposits] = useState([]);
@@ -568,6 +566,11 @@ export default function AdminPage() {
     setArtikelSel(-1);
   };
   const [kurs, setKurs] = useState(16000);
+  /* Saldo provider ditampilkan dalam Rupiah. Kalau provider membalas dalam USD, dikonversi pakai kurs, dengan nilai USD aslinya sebagai keterangan kecil. */
+  const saldoAsliUsd = saldoProv.currency && saldoProv.currency !== 'IDR';
+  const saldoIdr = saldoProv.saldo === null ? null : (saldoAsliUsd ? saldoProv.saldo * kurs : saldoProv.saldo);
+  const saldoTxt = saldoIdr === null ? '—' : rp(saldoIdr) + (saldoAsliUsd ? ' (≈ ' + saldoProv.saldo.toFixed(2) + ' ' + saldoProv.currency + ')' : '');
+  const provMenipis = saldoIdr !== null && saldoIdr < PROVIDER_LOW;
   const [massMarkup, setMassMarkup] = useState('');
   const [selSvc, setSelSvc] = useState({});
   const [svcQ, setSvcQ] = useState('');
@@ -784,7 +787,8 @@ export default function AdminPage() {
     setProvMsg(null);
     try {
       const d = await callProvider('balance');
-      setProvMsg({ ok: true, text: 'Tersambung. Saldo provider: ' + d.balance + ' ' + (d.currency || '') });
+      const idr = d.currency && d.currency !== 'IDR' ? Number(d.balance) * kurs : Number(d.balance);
+      setProvMsg({ ok: true, text: 'Tersambung. Saldo provider: ' + rp(idr) + (d.currency && d.currency !== 'IDR' ? ' (≈ ' + Number(d.balance).toFixed(2) + ' ' + d.currency + ')' : '') });
     } catch (e) {
       setProvMsg({ ok: false, text: e.message });
     }
@@ -995,9 +999,17 @@ export default function AdminPage() {
 .theme-light{--bg:#FFFFFF;--s0:#FFFFFF;--s1:#FFFFFF;--s2:#FFFFFF;--s3:#F1F5F9;--s4:#E2E8F0;--b1:#F1F5F9;--b2:#E2E8F0;--b3:#E2E8F0;--b4:#CBD5E1;--b5:#CBD5E1;--b6:#94A3B8;--tx:#0F172A;--t1:#1E293B;--t2:#334155;--t3:#475569;--t4:#64748B;--t5:#94A3B8;--t6:#CBD5E1;--rt2:#9F1239;--gr:#15803D;--am:#B45309;--bl:#2563EB;--hi:#0F172A}
 .theme-light .card{border-color:#E2E8F0;box-shadow:0 4px 16px rgba(16,24,40,.07)}
 .theme-light .dash-head{background:linear-gradient(180deg,rgba(var(--accent-rgb),.06) 0%,rgba(var(--accent-rgb),0) 100%)}
-body{margin:0;background:var(--bg)}
+body{margin:0;background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html{scroll-behavior:smooth}
 a{color:var(--t2);text-decoration:none}a:hover{color:var(--hi)}
-button{font-family:inherit}
+button{font-family:inherit;transition:transform .15s cubic-bezier(.4,0,.2,1),box-shadow .15s ease,border-color .15s ease,background-color .15s ease,color .15s ease,opacity .15s ease;-webkit-tap-highlight-color:transparent}
+button:disabled{cursor:not-allowed}
+button:active:not(:disabled){transform:scale(.97)}
+.submit:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(var(--accent-rgb),.38)}
+.submit:not(:disabled):active{transform:translateY(0) scale(.97);box-shadow:0 6px 16px rgba(var(--accent-rgb),.3)}
+.submit:disabled{opacity:.55;box-shadow:none}
+.ghost:hover{transform:translateY(-1px)}
+.card,.inp,.ta{transition:border-color .15s ease,box-shadow .15s ease}
 .sb{width:100%;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--t3);padding:11px 12px;border-radius:12px;border:none;background:transparent;cursor:pointer;text-align:left;min-height:44px;box-sizing:border-box;text-decoration:none}
 .sb:hover{background:var(--s3);color:var(--hi)}
 .sb.on{background:var(--accent);color:#FFFFFF;font-weight:600;box-shadow:0 8px 22px rgba(var(--accent-rgb),.3)}

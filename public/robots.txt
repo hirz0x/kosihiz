@@ -8,4 +8,4 @@ Disallow: /register
 Disallow: /lupa-password
 Disallow: /reset-password
 
-Sitemap: https://www.smmsosmedgo.store/sitemap.xml
+Sitemap: https://smmsosmedgo.store/sitemap.xml

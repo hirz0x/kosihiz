@@ -1,7 +1,7 @@
 import { ambilSemuaArtikel } from '../lib/artikelStore';
 
 /* Sitemap otomatis: halaman publik dan artikel yang sudah terbit. Dibuat ulang setiap diminta. */
-const BASE = (process.env.APP_URL || 'https://www.smmsosmedgo.store').replace(/\/$/, '');
+const BASE = (process.env.APP_URL || 'https://smmsosmedgo.store').replace(/\/$/, '');
 
 function escXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

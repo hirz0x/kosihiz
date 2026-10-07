@@ -3,6 +3,13 @@ const production = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
   poweredByHeader: false,
+  /* Cache webpack di disk (.next/cache) sering gagal ditulis di Windows (ENOENT saat rename pack file),
+     dan itu yang bikin dev server berujung "missing required error components". Dimatikan saat dev saja;
+     build produksi tetap pakai cache normal. */
+  webpack(config, { dev }) {
+    if (dev) config.cache = false;
+    return config;
+  },
   async redirects() {
     /* Link lama /admin-login tetap diarahkan ke /admin/login. */
     return [{ source: '/admin-login', destination: '/admin/login', permanent: false }];

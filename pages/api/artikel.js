@@ -5,9 +5,10 @@ import { wajibAdmin } from '../../lib/auth';
 import { bersihkanArtikel } from '../../lib/artikel';
 import { ambilSemuaArtikel } from '../../lib/artikelStore';
 
-/* Setiap simpan mengirim seluruh daftar artikel sekaligus, termasuk foto-foto artikel lain yang sudah tersimpan.
-   Batas bawaan Next.js (1mb) gampang terlampaui begitu ada beberapa artikel berfoto, jadi dinaikkan di sini. */
-export const config = { api: { bodyParser: { sizeLimit: '4mb' } } };
+/* Setiap simpan mengirim seluruh daftar artikel sekaligus. Fotonya sendiri sudah berupa URL pendek
+   (diunggah ke Supabase Storage lewat /api/artikel/upload-gambar), jadi payloadnya tetap kecil —
+   batas dinaikkan sedikit saja untuk jaga-jaga kalau isi artikel panjang. */
+export const config = { api: { bodyParser: { sizeLimit: '2mb' } } };
 
 export default async function handler(req, res) {
   try {

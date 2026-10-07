@@ -97,6 +97,16 @@ export default function AdminPage() {
       URL.revokeObjectURL(url);
       if (hasil.length > 450000) { tampilkanToast(false, 'Foto masih terlalu besar. Pakai foto yang lebih kecil.'); return; }
       setArtikelForm((f) => ({ ...f, gambar: hasil }));
+      /* Langsung diunggah ke penyimpanan supaya yang tersimpan di artikel cuma URL pendek, bukan base64 utuh. */
+      setArtikelBusy(true);
+      fetch('/api/artikel/upload-gambar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: artikelForm.slug || 'artikel', gambar: hasil }) })
+        .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          setArtikelBusy(false);
+          if (!ok) { tampilkanToast(false, (d && d.error) || 'Gagal mengunggah foto, dipakai versi sementara.'); return; }
+          setArtikelForm((f) => ({ ...f, gambar: d.url }));
+        })
+        .catch(() => { setArtikelBusy(false); tampilkanToast(false, 'Gagal mengunggah foto, dipakai versi sementara.'); });
     };
     img.onerror = () => { URL.revokeObjectURL(url); tampilkanToast(false, 'Foto tidak bisa dibaca.'); };
     img.src = url;

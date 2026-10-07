@@ -43,7 +43,13 @@ export default function LupaPassword() {
             <form onSubmit={kirim} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
               <p style={{ margin: 0, fontSize: '13px', color: WARNA.redup, lineHeight: 1.6 }}>Masukkan email akun kamu. Kami akan mengirim link untuk membuat password baru.</p>
               <label htmlFor="lupa-email" style={{ fontSize: '12px', color: WARNA.redup, marginTop: '6px' }}>Email</label>
-              <input id="lupa-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} style={{ height: '46px', background: '#0D0D10', border: '1px solid ' + WARNA.garis, borderRadius: '10px', padding: '0 14px', color: WARNA.teks, fontSize: '16px', outline: 'none', fontFamily: 'inherit' }} />
+              <div style={{ position: 'relative' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-10 5L2 7" />
+                </svg>
+                <input id="lupa-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} style={{ width: '100%', boxSizing: 'border-box', height: '46px', background: '#0D0D10', border: '1px solid ' + WARNA.garis, borderRadius: '10px', padding: '0 14px 0 42px', color: WARNA.teks, fontSize: '16px', outline: 'none', fontFamily: 'inherit' }} />
+              </div>
               {err ? <div role="alert" style={{ fontSize: '12px', color: '#FF5A75' }}>{err}</div> : null}
               <button type="submit" disabled={busy || !email} style={{ marginTop: '8px', height: '46px', borderRadius: '10px', border: 'none', background: WARNA.aksen, color: '#FFFFFF', fontWeight: 700, fontSize: '14px', cursor: busy ? 'wait' : 'pointer', opacity: busy || !email ? 0.6 : 1, fontFamily: 'inherit' }}>
                 {busy ? 'Mengirim...' : 'Kirim link reset'}

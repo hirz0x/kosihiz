@@ -129,9 +129,9 @@ function LandingCta({ v }) {
               {" "}Hak Cipta 2026. Semua hak dilindungi.
             </span>
           </span>
-          <a href="#" style={{ fontSize: "10px", color: "#FF5A75" }}>
+          <Link href="/ketentuan-layanan" style={{ fontSize: "10px", color: "#FF5A75" }}>
             Ketentuan Layanan
-          </a>
+          </Link>
         </footer>
       </div>
     </div>

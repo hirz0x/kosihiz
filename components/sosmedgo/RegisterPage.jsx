@@ -69,7 +69,7 @@ a{color:#FF5A75;text-decoration:none}a:hover{color:#E11D3A}
 .submit:hover{background:#C8102E}
 .gbtn{display:inline-flex;align-items:center;gap:8px;background:#111114;border:1px solid #23232A;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:#E4E4E7;cursor:pointer;font-family:inherit}
 .gbtn:hover{border-color:#3A3A42}
-.chk{width:20px;height:20px;margin:0;accent-color:#E11D3A}
+.chk{width:16px;height:16px;margin:0;accent-color:#E11D3A}
 .mi{display:flex;align-items:center;gap:10px;font-size:9px;color:#A1A3AB;padding:8px 10px}
 `}</style>
       <div style={{ fontFamily: "'Satoshi','Plus Jakarta Sans',system-ui,sans-serif", color: "#F4F4F5", background: "#0A0A0C", minHeight: "100vh", display: "flex", flexWrap: "wrap" }}>
@@ -100,17 +100,33 @@ a{color:#FF5A75;text-decoration:none}a:hover{color:#E11D3A}
               <label className="lbl" htmlFor="r-username">
                 Username
               </label>
-              <input id="r-username" className="field" type="text" autoComplete="username" style={{ marginBottom: "6px" }} />
+              <div style={{ position: "relative", marginBottom: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <input id="r-username" className="field" type="text" autoComplete="username" style={{ paddingLeft: "42px" }} />
+              </div>
               <div style={{ fontSize: "11px", color: "#8B8D96", marginBottom: "16px" }}>3-20 karakter: huruf kecil, angka, titik, atau garis bawah.</div>
               <label className="lbl" htmlFor="r-email">
                 Email
               </label>
-              <input id="r-email" className="field" type="email" autoComplete="email" style={{ marginBottom: "22px" }} />
+              <div style={{ position: "relative", marginBottom: "22px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-10 5L2 7" />
+                </svg>
+                <input id="r-email" className="field" type="email" autoComplete="email" style={{ paddingLeft: "42px" }} />
+              </div>
               <label className="lbl" htmlFor="r-password">
                 Password
               </label>
               <div style={{ position: "relative", marginBottom: "22px" }}>
-                <input id="r-password" className="field" type={v.pwType} autoComplete="new-password" style={{ paddingRight: "50px" }} />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input id="r-password" className="field" type={v.pwType} autoComplete="new-password" style={{ paddingLeft: "42px", paddingRight: "50px" }} />
                 <button type="button" onClick={v.togglePw} aria-label={v.pwLabel} style={{ position: "absolute", right: "1px", top: "1px", width: "44px", height: "44px", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
@@ -121,7 +137,13 @@ a{color:#FF5A75;text-decoration:none}a:hover{color:#E11D3A}
               <label className="lbl" htmlFor="r-confirm">
                 Konfirmasi password
               </label>
-              <input id="r-confirm" className="field" type={v.pwType} autoComplete="new-password" style={{ marginBottom: "22px" }} />
+              <div style={{ position: "relative", marginBottom: "22px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input id="r-confirm" className="field" type={v.pwType} autoComplete="new-password" style={{ paddingLeft: "42px" }} />
+              </div>
               {this.state.err ? <div role="alert" style={{ fontSize: "12px", color: "#FF5A75", marginBottom: "10px" }}>{this.state.err}</div> : null}
               <button type="submit" className="submit" disabled={this.state.busy} style={{ color: "#FFFFFF", boxSizing: "border-box", opacity: this.state.busy ? 0.6 : 1 }}>
                 {this.state.busy ? "Memproses..." : "Daftar"}

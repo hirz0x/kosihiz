@@ -37,7 +37,13 @@ export default function ResetPassword() {
     setBusy(false);
   };
 
-  const input = { height: '46px', background: '#0D0D10', border: '1px solid ' + WARNA.garis, borderRadius: '10px', padding: '0 14px', color: WARNA.teks, fontSize: '16px', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+  const input = { height: '46px', background: '#0D0D10', border: '1px solid ' + WARNA.garis, borderRadius: '10px', padding: '0 14px 0 42px', color: WARNA.teks, fontSize: '16px', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+  const kunciIkon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
   const siap = !busy && token && pw && pw2;
 
   return (
@@ -58,9 +64,15 @@ export default function ResetPassword() {
           ) : (
             <form onSubmit={simpan} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
               <label htmlFor="rp-1" style={{ fontSize: '12px', color: WARNA.redup }}>Password baru</label>
-              <input id="rp-1" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} disabled={busy || !token} style={input} />
+              <div style={{ position: 'relative' }}>
+                {kunciIkon}
+                <input id="rp-1" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} disabled={busy || !token} style={input} />
+              </div>
               <label htmlFor="rp-2" style={{ fontSize: '12px', color: WARNA.redup }}>Konfirmasi password baru</label>
-              <input id="rp-2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} disabled={busy || !token} style={input} />
+              <div style={{ position: 'relative' }}>
+                {kunciIkon}
+                <input id="rp-2" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} disabled={busy || !token} style={input} />
+              </div>
               {err ? <div role="alert" style={{ fontSize: '12px', color: '#FF5A75' }}>{err}</div> : null}
               <button type="submit" disabled={!siap} style={{ marginTop: '8px', height: '46px', borderRadius: '10px', border: 'none', background: WARNA.aksen, color: '#FFFFFF', fontWeight: 700, fontSize: '14px', cursor: busy ? 'wait' : 'pointer', opacity: siap ? 1 : 0.6, fontFamily: 'inherit' }}>
                 {busy ? 'Menyimpan...' : 'Simpan password'}

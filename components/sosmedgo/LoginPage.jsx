@@ -90,7 +90,7 @@ a{color:#FF5A75;text-decoration:none}a:hover{color:#E11D3A}
 .submit:hover{background:#C8102E}
 .gbtn{display:inline-flex;align-items:center;gap:8px;background:#111114;border:1px solid #23232A;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;color:#E4E4E7;cursor:pointer;font-family:inherit}
 .gbtn:hover{border-color:#3A3A42}
-.chk{width:20px;height:20px;margin:0;accent-color:#E11D3A}
+.chk{width:16px;height:16px;margin:0;accent-color:#E11D3A}
 .mi{display:flex;align-items:center;gap:10px;font-size:9px;color:#A1A3AB;padding:8px 10px}
 `}</style>
       <div style={{ fontFamily: "'Satoshi','Plus Jakarta Sans',system-ui,sans-serif", color: "#F4F4F5", background: "#0A0A0C", minHeight: "100vh", display: "flex", flexWrap: "wrap" }}>
@@ -121,12 +121,22 @@ a{color:#FF5A75;text-decoration:none}a:hover{color:#E11D3A}
               <label className="lbl" htmlFor="username">
                 Username
               </label>
-              <input id="username" className="field" type="text" autoComplete="username" style={{ marginBottom: "26px" }} />
+              <div style={{ position: "relative", marginBottom: "26px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <input id="username" className="field" type="text" autoComplete="username" style={{ paddingLeft: "42px" }} />
+              </div>
               <label className="lbl" htmlFor="password">
                 Password
               </label>
               <div style={{ position: "relative" }}>
-                <input id="password" className="field" type={v.pwType} autoComplete="current-password" style={{ paddingRight: "50px" }} />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input id="password" className="field" type={v.pwType} autoComplete="current-password" style={{ paddingLeft: "42px", paddingRight: "50px" }} />
                 <button type="button" onClick={v.togglePw} aria-label={v.pwLabel} style={{ position: "absolute", right: "1px", top: "1px", width: "44px", height: "44px", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />

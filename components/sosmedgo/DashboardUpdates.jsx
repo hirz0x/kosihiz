@@ -26,8 +26,8 @@ function DashboardUpdates({ v }) {
                   {(d.items || []).map((u, $index) => (
                     <React.Fragment key={$index}>
                       <div className="card" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "12px" }}>
-                        <span className="ddic" style={{ width: "30px", height: "30px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)" }}>
-                          <FaIcon d={u.icon} size={14} style={{ color: "var(--accent-l)" }} />
+                        <span className="ddic" style={{ width: "30px", height: "30px", color: u.platColor, background: `rgba(${u.platRgb},.12)`, border: `1px solid rgba(${u.platRgb},.3)` }}>
+                          <FaIcon d={u.icon} size={14} style={{ color: u.platColor }} />
                         </span>
                         <span className="idpill">
                           {u.id}

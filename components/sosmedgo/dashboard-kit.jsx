@@ -18,6 +18,25 @@ export const FA_MENU = {
   soon: 'fa-solid fa-code'
 };
 
+/* Warna asli tiap platform (bukan warna aksen tema) untuk badge ikon layanan/kategori,
+   supaya misalnya ikon Facebook selalu biru walau tema aksen yang dipilih user beda.
+   tt dan tw aslinya hitam, tapi diganti putih supaya tetap kebaca di atas badge gelap
+   panel, bukan menghilang jadi hitam-di-atas-hitam. */
+export const PLAT_COLOR = {
+  ig: '#E1306C', yt: '#FF0000', tt: '#FFFFFF', tw: '#FFFFFF', sp: '#1DB954', tg: '#229ED9',
+  fb: '#1877F2', twitch: '#9146FF', rd: '#FF4500', li: '#0A66C2', wa: '#25D366', gg: '#4285F4',
+  kick: '#53FC18', shp: '#EE4D2D', web: '#3B82F6', seo: '#22C55E'
+};
+
+/* Ubah warna hex (#rgb atau #rrggbb) jadi "r,g,b" supaya bisa dipakai di dalam rgba(...). */
+export function hexKeRgb(hex) {
+  const h = String(hex || '').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(function (c) { return c + c; }).join('') : h;
+  const n = parseInt(full, 16);
+  if (isNaN(n)) return '229,29,58';
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',');
+}
+
 export const FA_BY_PATH = {
   "@lainnya": "fa-solid fa-ellipsis",
   "@linkedin": "fa-brands fa-linkedin",

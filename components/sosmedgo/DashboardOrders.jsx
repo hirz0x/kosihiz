@@ -42,8 +42,8 @@ function DashboardOrders({ v }) {
               <React.Fragment key={$index}>
                 <div className="card" style={{ borderRadius: "14px", overflow: "hidden" }}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", padding: "12px 12px 12px 14px", borderBottom: "1px solid var(--b2)" }}>
-                    <span className="ddic" style={{ width: "32px", height: "32px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)" }}>
-                      <FaIcon d={o.icon} size={15} style={{ color: "var(--accent-l)" }} />
+                    <span className="ddic" style={{ width: "32px", height: "32px", color: o.platColor, background: `rgba(${o.platRgb},.12)`, border: `1px solid rgba(${o.platRgb},.3)` }}>
+                      <FaIcon d={o.icon} size={15} style={{ color: o.platColor }} />
                     </span>
                     <input type="checkbox" aria-label="Pilih pesanan" style={{ width: "18px", height: "18px", margin: "0", accentColor: "var(--accent)" }} />
                     <span className="idpill" style={{ background: "var(--accent)", color: "#FFFFFF", borderColor: "var(--accent)" }}>

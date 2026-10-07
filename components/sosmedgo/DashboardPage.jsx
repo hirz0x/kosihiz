@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ACCENTS, accentVarsFor } from './theme';
 
 import {
-  FA_MENU, FaIcon, bonusDariPeringkat, tiketDariApi, batasiGrup, totalGrup
+  FA_MENU, FaIcon, bonusDariPeringkat, tiketDariApi, batasiGrup, totalGrup, PLAT_COLOR, hexKeRgb
 } from './dashboard-kit';
 
 import DashboardNewOrder from './DashboardNewOrder';
@@ -383,6 +383,9 @@ class DashboardPage extends React.Component {
       x.minTxt = fmt(x.min); x.maxTxt = fmt(x.max); x.icon = I[x.p];
       x.hasRefill = x.refill !== 'Tidak tersedia';
       x.desc = ['Link: username atau link postingan/profil', 'Mulai: ' + x.start, 'Kecepatan: ' + x.speed, 'Garansi refill: ' + x.refill, 'Akun harus publik selama proses berjalan'];
+      var warnaAsli = PLAT_COLOR[x.p];
+      x.platColor = warnaAsli || 'var(--accent-l)';
+      x.platRgb = warnaAsli ? hexKeRgb(warnaAsli) : 'var(--accent-rgb)';
       peta[x.id] = x;
     };
 
@@ -550,9 +553,9 @@ class DashboardPage extends React.Component {
       if (oql && String(o.id).indexOf(oql) < 0 && o.link.toLowerCase().indexOf(oql) < 0) return false;
       return true;
     }).map(function (o) {
-      var s = byId[o.svcId] || { name: o.nama || ('Layanan ' + o.svcId), icon: I.all, price: 0, hasRefill: false };
+      var s = byId[o.svcId] || { name: o.nama || ('Layanan ' + o.svcId), icon: I.all, price: 0, hasRefill: false, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)' };
       var m = SM[o.status] || SM.pending;
-      return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
+      return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, platColor: s.platColor, platRgb: s.platRgb, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
         cancel: function () {
@@ -607,7 +610,7 @@ class DashboardPage extends React.Component {
     };
     var updData = (st.riwayat || []).map(function (x) { return [x.tanggal, x.layananId, x.tipe, x.lama, x.baru]; });
     var UPS = { up: [T('Harga naik', 'Rate increased'), 'rgba(var(--accent-rgb),.1)', 'var(--rt)'], down: [T('Harga turun', 'Rate decreased'), 'rgba(34,197,94,.1)', 'var(--gr)'], off: [T('Layanan dinonaktifkan', 'Service disabled'), 'var(--s4)', 'var(--t3)'], 'new': [T('Layanan baru ditambahkan', 'New service added'), 'rgba(59,130,246,.1)', 'var(--bl)'] };
-    var mkUpd = function (u) { var sv = byId[u[1]] || { name: 'Layanan ' + u[1], icon: I.all }, m = UPS[u[2]]; return { id: u[1], name: sv.name, icon: sv.icon, bg: m[1], fg: m[2], msg: u[3] ? m[0] + ' ' + T('dari', 'from') + ' ' + u[3] + ' ' + T('ke', 'to') + ' ' + u[4] : m[0] }; };
+    var mkUpd = function (u) { var sv = byId[u[1]] || { name: 'Layanan ' + u[1], icon: I.all, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)' }, m = UPS[u[2]]; return { id: u[1], name: sv.name, icon: sv.icon, platColor: sv.platColor, platRgb: sv.platRgb, bg: m[1], fg: m[2], msg: u[3] ? m[0] + ' ' + T('dari', 'from') + ' ' + u[3] + ' ' + T('ke', 'to') + ' ' + u[4] : m[0] }; };
     var groupDays = function (list) { var out = [], idx = {}; list.forEach(function (u) { if (!(u[0] in idx)) { idx[u[0]] = out.length; out.push({ date: u[0], items: [] }); } out[idx[u[0]]].items.push(mkUpd(u)); }); return out; };
     var updPage = updData.filter(function (u) { return st.updF === 'all' || u[2] === st.updF; });
     var atabDef = [
@@ -653,8 +656,8 @@ class DashboardPage extends React.Component {
       mainBg: st.page === 'neworder' ? (L ? 'radial-gradient(900px 340px at 85% 0%,rgba(var(--accent-rgb),.07),rgba(var(--accent-rgb),0) 70%),#FFFFFF' : 'linear-gradient(180deg,var(--g1) 0,var(--bg) 340px)') : 'var(--bg)',
       menu1: menu1,
       menu2: [
-        { t: T('Info WhatsApp', 'WhatsApp Announcements'), fa: 'fa-brands fa-whatsapp', icon: 'M3 21l1.6-4.8A9 9 0 1 1 7.8 19.4zM9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z', ic: 'currentColor', go: go('soon') },
-        { t: T('Info Telegram', 'Telegram Announcements'), fa: 'fa-brands fa-telegram', icon: 'M21 4L3 11l6 2 2 6 3-4 5 4zM9 13l12-9', ic: 'currentColor', go: go('soon') }
+        { t: T('Info WhatsApp', 'WhatsApp Announcements'), fa: 'fa-brands fa-whatsapp', icon: 'M3 21l1.6-4.8A9 9 0 1 1 7.8 19.4zM9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z', ic: 'currentColor', href: 'https://whatsapp.com/channel/0029VbDlg3EIt5s051wllX3B' },
+        { t: T('Info Telegram', 'Telegram Announcements'), fa: 'fa-brands fa-telegram', icon: 'M21 4L3 11l6 2 2 6 3-4 5 4zM9 13l12-9', ic: 'currentColor', href: 'https://t.me/smmsosmedgo' }
       ],
       goSoon: go('soon'), goNew: go('neworder'), goFunds: go('addfunds'), goTickets: go('tickets', { tcat: 'order', tsub: 'refill' }),
 
@@ -1125,10 +1128,17 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
           <div style={{ height: "1px", background: "var(--b2)", margin: "14px 10px" }} />
           {(v.menu2 || []).map((m, $index) => (
             <React.Fragment key={$index}>
-              <button type="button" className="sb" onClick={m.go}>
-                <i className={m.fa} aria-hidden="true" style={{ color: m.ic, flex: "none", width: "17px", textAlign: "center", fontSize: "16px" }} />
-                {m.t}
-              </button>
+              {m.href ? (
+                <a className="sb" href={m.href} target="_blank" rel="noopener noreferrer">
+                  <i className={m.fa} aria-hidden="true" style={{ color: m.ic, flex: "none", width: "17px", textAlign: "center", fontSize: "16px" }} />
+                  {m.t}
+                </a>
+              ) : (
+                <button type="button" className="sb" onClick={m.go}>
+                  <i className={m.fa} aria-hidden="true" style={{ color: m.ic, flex: "none", width: "17px", textAlign: "center", fontSize: "16px" }} />
+                  {m.t}
+                </button>
+              )}
             </React.Fragment>
           ))}
           <div style={{ height: "1px", background: "var(--b2)", margin: "14px 10px" }} />
@@ -1310,8 +1320,8 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                               <React.Fragment key={$index}>
                                 <div style={{ border: "1px solid var(--b3)", borderRadius: "12px", marginBottom: "8px", overflow: "hidden", background: "var(--s2)" }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 12px" }}>
-                                    <span className="ddic" style={{ width: "24px", height: "24px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)" }}>
-                                      <FaIcon d={u.icon} size={12} style={{ color: "var(--accent-l)" }} />
+                                    <span className="ddic" style={{ width: "24px", height: "24px", color: u.platColor, background: `rgba(${u.platRgb},.12)`, border: `1px solid rgba(${u.platRgb},.3)` }}>
+                                      <FaIcon d={u.icon} size={12} style={{ color: u.platColor }} />
                                     </span>
                                     <span style={{ fontSize: "12px", fontWeight: "600", lineHeight: "1.45" }}>
                                       {u.id} — {u.name}

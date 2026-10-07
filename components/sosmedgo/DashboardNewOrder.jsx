@@ -223,8 +223,8 @@ function DashboardNewOrder({ v }) {
                   <>
                     <div>
                       <div className="dethead" style={{ padding: "24px", textAlign: "center", background: "linear-gradient(160deg,var(--g2),var(--r1) 70%)", borderBottom: "1px solid var(--r6)" }}>
-                        <span style={{ width: "42px", height: "42px", margin: "0 auto 12px", borderRadius: "12px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <FaIcon d={v.svc.icon} size={18} style={{ color: "var(--accent-l)" }} />
+                        <span style={{ width: "42px", height: "42px", margin: "0 auto 12px", borderRadius: "12px", color: v.svc.platColor, background: `rgba(${v.svc.platRgb},.12)`, border: `1px solid rgba(${v.svc.platRgb},.3)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <FaIcon d={v.svc.icon} size={18} style={{ color: v.svc.platColor }} />
                         </span>
                         <div style={{ fontSize: "14px", fontWeight: "600", lineHeight: "1.5" }}>
                           {v.svc.id} — {v.svc.name} — {v.svc.priceTxt}

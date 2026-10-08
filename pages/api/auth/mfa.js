@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { cookieSesiLengkap } from '../../../lib/account';
 import { faktorUser, totpAktif, verifikasiKode } from '../../../lib/mfa';
 import { ambilIp, sisaKunci, catatGagal, resetKunci } from '../../../lib/loginGuard';
@@ -13,8 +14,12 @@ export default async function handler(req, res) {
   if (!m) return res.status(401).json({ error: 'Sesi verifikasi habis. Login ulang.' });
   const token = decodeURIComponent(m.slice('sg_mfa='.length));
 
-  const kunci = 'mfa_login:' + ambilIp(req);
-  const tunggu = await sisaKunci(kunci);
+  /* Kunci per IP dan per sesi verifikasi (token sg_mfa di-hash, bukan disimpan mentah) — supaya
+     penyerang yang gonta-ganti IP tidak bisa dapat jatah percobaan baru selama masih memegang
+     sesi verifikasi yang sama. */
+  const kunciIp = 'mfa_login:' + ambilIp(req);
+  const kunciSesi = 'mfa_sesi:' + crypto.createHash('sha256').update(token).digest('hex');
+  const tunggu = Math.max(await sisaKunci(kunciIp), await sisaKunci(kunciSesi));
   if (tunggu > 0) return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi dalam ' + Math.ceil(tunggu / 60) + ' menit.' });
 
   try {
@@ -22,10 +27,12 @@ export default async function handler(req, res) {
     if (!faktor) return res.status(401).json({ error: 'Sesi verifikasi habis. Login ulang.' });
     const hasil = await verifikasiKode(token, faktor.id, kode);
     if (!hasil.ok) {
-      await catatGagal(kunci);
+      await catatGagal(kunciIp);
+      await catatGagal(kunciSesi);
       return res.status(400).json({ error: hasil.error });
     }
-    await resetKunci(kunci);
+    await resetKunci(kunciIp);
+    await resetKunci(kunciSesi);
     const aman = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     res.setHeader('Set-Cookie', [...cookieSesiLengkap(hasil.sesi.access_token, hasil.sesi.expires_in, hasil.sesi.refresh_token, Boolean(req.body && req.body.ingat)), 'sg_mfa=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0' + aman]);
     return res.status(200).json({ ok: true });

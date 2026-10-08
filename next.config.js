@@ -21,8 +21,11 @@ const nextConfig = {
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' }
     ];
-    /* Mode report-only: pelanggaran hanya dicatat di console, belum memblokir. */
-    headers.push({ key: 'Content-Security-Policy-Report-Only', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" });
+    /* Ditegakkan beneran (bukan report-only lagi) — sudah dicek semua <link rel="stylesheet"> dan
+       <script src> eksternal yang dipakai di seluruh halaman, termasuk cdn.fontshare.com (domain
+       terpisah tempat file font Satoshi beneran dimuat, bukan cuma api.fontshare.com yang menyajikan
+       stylesheet-nya) supaya tidak ada yang diam-diam terblokir. */
+    headers.push({ key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com https://cdn.fontshare.com; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" });
     if (production) headers.push({ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' });
     const privat = { key: 'X-Robots-Tag', value: 'noindex, nofollow' };
     return [

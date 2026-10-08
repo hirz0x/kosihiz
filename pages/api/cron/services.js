@@ -5,11 +5,12 @@
    (disarankan beberapa jam sekali atau sekali sehari, bukan tiap menit). */
 
 import { sinkronKatalog } from '../../../lib/katalog';
+import { cekBearerRahasia } from '../../../lib/auth';
 
 export default async function handler(req, res) {
   const rahasia = process.env.CRON_SECRET || '';
   if (!rahasia) return res.status(500).json({ error: 'CRON_SECRET belum diisi di .env.local.' });
-  if (req.headers.authorization !== 'Bearer ' + rahasia) return res.status(401).json({ error: 'Tidak diizinkan.' });
+  if (!cekBearerRahasia(req, rahasia)) return res.status(401).json({ error: 'Tidak diizinkan.' });
 
   try {
     const hasil = await sinkronKatalog({});

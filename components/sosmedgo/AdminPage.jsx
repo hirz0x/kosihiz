@@ -243,6 +243,13 @@ export default function AdminPage() {
   useEffect(() => {
     if (services.length && !services.some((s) => String(s.id) === rec.id)) setRec((r) => ({ ...r, id: String(services[0].id) }));
   }, [services]);
+  /* Dropdown pencarian layanan untuk form "Catat perubahan layanan" (tab Update) — dulu pakai <select>
+     bawaan browser yang daftarnya panjang, tidak bisa dicari, dan panelnya bisa menutupi baris lain
+     di bawahnya. Diganti kotak pencarian sendiri (lihat svcIndex/recPickFiltered di bawah). */
+  const [recPickOpen, setRecPickOpen] = useState(false);
+  const [recPickQ, setRecPickQ] = useState('');
+  /* Riwayat perubahan layanan yang dipilih untuk dihapus massal (tab Update). */
+  const [selUpd, setSelUpd] = useState({});
   const [settingsTab, setSettingsTab] = useState('Keamanan');
   const [pwOld, setPwOld] = useState('');
   const [pwNew, setPwNew] = useState('');
@@ -428,11 +435,44 @@ export default function AdminPage() {
   const svcIndex = useMemo(() => services.map((x) => (x.nama + ' ' + x.id).toLowerCase()), [services]);
   const svcFiltered = useMemo(() => {
     const q = svcQ.trim().toLowerCase();
-    return services.filter((x, i) => {
+    const cocok = services.filter((x, i) => {
       if (svcCat !== 'all' && x.kategori !== svcCat) return false;
       return q === '' || svcIndex[i].includes(q);
     });
+    if (q === '') return cocok;
+    /* Kecocokan ID diutamakan di halaman pertama — tanpa ini, cari ID gampang ketimbun
+       ratusan layanan lain yang namanya kebetulan memuat angka yang sama (mis. "Max 100K"). */
+    const skor = (s) => {
+      const id = String(s.id).toLowerCase();
+      if (id === q) return 0;
+      if (id.startsWith(q)) return 1;
+      if (id.includes(q)) return 2;
+      return 3;
+    };
+    return [...cocok].sort((a, b) => skor(a) - skor(b));
   }, [services, svcIndex, svcQ, svcCat]);
+  /* Daftar selalu dibatasi (biar tidak menggambar ribuan baris sekaligus), dan kalau sedang dicari,
+     diurutkan supaya kecocokan di ID selalu muncul duluan — bukan ketimbun layanan lain yang
+     namanya kebetulan memuat angka yang sama (mis. cari "100" gampang ketimbun "Max 100K", "100%
+     Real", dst, padahal yang dicari adalah ID layanan 100). */
+  const RECPICK_BATAS = 60;
+  const recPickHasil = useMemo(() => {
+    const q = recPickQ.trim().toLowerCase();
+    if (q === '') return { list: services.slice(0, RECPICK_BATAS), total: services.length };
+    const skor = (s) => {
+      const id = String(s.id).toLowerCase();
+      if (id === q) return 0;
+      if (id.startsWith(q)) return 1;
+      if (id.includes(q)) return 2;
+      return 3;
+    };
+    const cocok = services.filter((_, i) => svcIndex[i].includes(q)).sort((a, b) => skor(a) - skor(b));
+    return { list: cocok.slice(0, RECPICK_BATAS), total: cocok.length };
+  }, [services, svcIndex, recPickQ]);
+  const recPickFiltered = recPickHasil.list;
+  const recPickLebihBanyak = recPickHasil.total > RECPICK_BATAS;
+  const recSelected = services.find((s) => String(s.id) === String(rec.id)) || null;
+  const pilihRecSvc = (id) => { setRec((r) => ({ ...r, id: String(id) })); setRecPickOpen(false); setRecPickQ(''); };
   const svcPages = Math.max(1, Math.ceil(svcFiltered.length / SVC_PER_PAGE));
   const svcPageSafe = Math.min(svcPage, svcPages);
   const svcRows = svcFiltered.slice((svcPageSafe - 1) * SVC_PER_PAGE, svcPageSafe * SVC_PER_PAGE);
@@ -499,6 +539,32 @@ export default function AdminPage() {
     });
     return out;
   })();
+  /* Hapus massal riwayat perubahan layanan (tab Update) — sebelumnya cuma bisa satu-satu. */
+  const updFlatIds = useMemo(() => updDays.flatMap((d) => d.items.map((it) => it.rid)), [updDays]);
+  const selUpdCount = useMemo(() => updFlatIds.filter((id) => selUpd[id]).length, [updFlatIds, selUpd]);
+  const allUpdSelected = updFlatIds.length > 0 && updFlatIds.every((id) => selUpd[id]);
+  /* Hanya ubah id yang sedang kelihatan (sesuai filter updF) — jangan timpa seluruh selUpd,
+     supaya pilihan di filter lain (mis. "Harga naik") tidak ikut hilang kalau "Pilih semua"
+     ditoggle lagi saat sedang di filter yang berbeda (mis. "Dinonaktifkan"). */
+  const toggleAllUpd = () => setSelUpd((m) => {
+    const salin = { ...m };
+    updFlatIds.forEach((id) => {
+      if (allUpdSelected) delete salin[id]; else salin[id] = true;
+    });
+    return salin;
+  });
+  const toggleSelUpd = (id) => setSelUpd((m) => ({ ...m, [id]: !m[id] }));
+  const hapusRiwayatMassal = async () => {
+    const ids = updFlatIds.filter((id) => selUpd[id]);
+    if (!ids.length) return;
+    if (!(await tanyaKonfirmasi('Hapus ' + ids.length + ' catatan riwayat terpilih? Layanannya tidak ikut terhapus.'))) return;
+    const r = await fetch('/api/riwayat?ids=' + ids.join(','), { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { tampilkanToast(false, d.error || 'Gagal menghapus riwayat.'); return; }
+    tampilkanToast(true, (d.dihapus || ids.length) + ' catatan riwayat dihapus.');
+    setSelUpd({});
+    await muatRiwayat();
+  };
   const addUpdate = async () => {
     const needPrice = rec.tipe === 'up' || rec.tipe === 'down';
     if (needPrice && (!rec.lama.trim() || !rec.baru.trim())) return;
@@ -584,7 +650,7 @@ export default function AdminPage() {
     );
   };
 
-  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
+  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
 
   return (
     <>
@@ -620,6 +686,10 @@ button:active:not(:disabled){transform:scale(.97)}
 .ibtn:hover{border-color:var(--b6)}
 .ibtn .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .ddic{width:28px;height:28px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.dd{width:100%;box-sizing:border-box;height:44px;display:flex;align-items:center;gap:8px;background:var(--s0);border:1px solid var(--b3);border-radius:10px;padding:0 12px;color:var(--hi);font-size:13px;font-weight:500;cursor:pointer;text-align:left}
+.ddpanel{position:absolute;left:0;right:0;top:48px;z-index:30;background:var(--s2);border:1px solid var(--b5);border-radius:12px;padding:6px;max-height:320px;overflow:auto;box-shadow:0 24px 50px rgba(0,0,0,.6)}
+.ddopt{width:100%;display:flex;align-items:center;gap:10px;border:none;border-radius:8px;padding:8px 10px;min-height:40px;color:var(--t1);font-size:12px;text-align:left;cursor:pointer;background:transparent}
+.ddopt:hover{background:var(--s4)}
 .ghost{height:36px;border-radius:9px;border:1px solid var(--b5);background:var(--s1);color:var(--t1);font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:0 12px}
 .ghost:hover{border-color:var(--rt)}
 .ghost.ok{color:#22C55E;border-color:rgba(34,197,94,.35)}

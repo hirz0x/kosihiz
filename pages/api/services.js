@@ -1,11 +1,11 @@
 /* Katalog layanan: tarik dari provider, simpan di Supabase, dan atur markup. */
 
-import { callProvider } from '../../lib/provider';
-import { getServices, replaceServices, saveServices, getSetting, setSetting, getSettings } from '../../lib/store';
+import { getServices, saveServices, getSetting, setSetting, getSettings } from '../../lib/store';
 import { waktuPerLayanan } from '../../lib/orders';
 import { catatPerubahan, simpanRiwayat } from '../../lib/riwayat';
 import { decodeEntitas } from '../../lib/teks';
 import { wajibAdmin } from '../../lib/auth';
+import { sinkronKatalog } from '../../lib/katalog';
 
 export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
 
@@ -29,35 +29,8 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     if (!wajibAdmin(req, res)) return;
     try {
-      const settings = await getSettings();
-      const kurs = Number(req.body && req.body.kurs) > 0 ? Number(req.body.kurs) : settings.kurs;
-      const list = await callProvider('services');
-      if (!Array.isArray(list)) throw new Error('Balasan provider bukan daftar layanan.');
-
-      const markupLama = new Map((await getServices()).map((s) => [s.id, s.markup]));
-      const services = list.map((x) => ({
-        id: String(x.service),
-        nama: decodeEntitas(x.name),
-        kategori: x.category,
-        rate: Number(x.rate),
-        dasar: Math.round(Number(x.rate) * kurs),
-        markup: markupLama.has(String(x.service)) ? markupLama.get(String(x.service)) : 0,
-        min: Number(x.min),
-        maks: Number(x.max),
-        jenis: x.type || 'Default',
-        refill: !!x.refill,
-        batal: !!x.cancel,
-        aktif: true
-      }));
-
-      /* Layanan baru dicatat hanya kalau sebelumnya sudah ada daftar, supaya sinkron pertama tidak membanjiri riwayat. */
-      const layananBaru = markupLama.size ? services.filter((x) => !markupLama.has(x.id)).slice(0, 200).map((x) => ({ layananId: x.id, tipe: 'new', lama: '', baru: '' })) : [];
-      await replaceServices(services);
-      if (layananBaru.length) await simpanRiwayat(layananBaru);
-      await setSetting('settings', { ...settings, kurs });
-      const disinkron = new Date().toISOString();
-      await setSetting('services_synced', disinkron);
-      return res.status(200).json({ jumlah: services.length, kategori: new Set(services.map((s) => s.kategori)).size, disinkron });
+      const hasil = await sinkronKatalog({ kursOverride: req.body && req.body.kurs });
+      return res.status(200).json(hasil);
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
     }

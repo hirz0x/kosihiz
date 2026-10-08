@@ -30,13 +30,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    /* Admin menghapus satu catatan riwayat. Layanannya sendiri tidak ikut terhapus. */
+    /* Admin menghapus satu atau beberapa catatan riwayat sekaligus. Layanannya sendiri tidak ikut terhapus. */
     if (req.method === 'DELETE') {
       if (!wajibAdmin(req, res)) return;
-      const id = String((req.body && req.body.id) || req.query.id || '');
-      if (!/^[0-9]+$/.test(id)) return res.status(400).json({ error: "ID riwayat tidak valid." });
-      await hapusRiwayat(id);
-      return res.status(200).json({ ok: true });
+      const mentah = (req.body && (req.body.ids || req.body.id)) || req.query.ids || req.query.id || '';
+      const daftar = (Array.isArray(mentah) ? mentah : String(mentah).split(',')).map((x) => String(x).trim()).filter(Boolean);
+      /* Dibatasi 15 digit (aman di bawah Number.MAX_SAFE_INTEGER) supaya string digit yang sengaja
+         dibikin sangat panjang tidak lolos validasi lalu jadi Infinity saat di-Number()-kan di
+         lib/store.js, yang bisa bikin filter in.(...) ke Supabase rusak. */
+      if (!daftar.length || !daftar.every((x) => /^[0-9]{1,15}$/.test(x))) return res.status(400).json({ error: 'ID riwayat tidak valid.' });
+      if (daftar.length > 300) return res.status(400).json({ error: 'Maksimal 300 catatan sekali hapus.' });
+      await hapusRiwayat(daftar);
+      return res.status(200).json({ ok: true, dihapus: daftar.length });
     }
 
     return res.status(405).json({ error: 'Metode tidak didukung.' });

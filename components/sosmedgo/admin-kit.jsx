@@ -134,8 +134,11 @@ export const rp = (n) => 'Rp ' + n.toLocaleString('id-ID');
 /* Tanggal WIB dari waktu ISO. */
 export const tanggalWib = (iso) => new Date(new Date(iso).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10);
 
-/* Harga jual = harga dasar + markup, dibulatkan ke ratusan rupiah. */
-export const hargaJual = (s) => Math.round((s.dasar * (1 + s.markup / 100)) / 100) * 100;
+/* Harga jual = harga dasar + markup, dibulatkan ke ratusan rupiah.
+   markup pakai fallback 0 (sama seperti salinan rumus ini di lib/pesanan.js, lib/riwayat.js,
+   pages/api/orders.js, DashboardPage.jsx, LandingPage.jsx) supaya tidak jadi Rp NaN kalau ada
+   baris layanan yang markup-nya kosong/null. */
+export const hargaJual = (s) => Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
 
 export const STATUS_COLOR = {
   Aktif: '#22C55E', Selesai: '#22C55E', Berhasil: '#22C55E', Diterima: '#22C55E', Terbit: '#22C55E',

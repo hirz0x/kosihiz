@@ -499,8 +499,17 @@ class DashboardPage extends React.Component {
     var qtyN = parseInt(st.qty, 10), hasQty = !isNaN(qtyN) && qtyN > 0;
     var qtyOk = svc && hasQty && qtyN >= svc.min && qtyN <= svc.max;
     var ql = st.q.trim().toLowerCase();
-    /* Dibatasi 50 supaya daftar tetap ringan meski katalog ribuan. */
-    var found = (st.page !== 'neworder' || st.tab !== 'search') ? [] : (ql ? services.filter(function (s) { return s.name.toLowerCase().indexOf(ql) > -1 || String(s.id) === ql; }) : services).slice(0, ql ? 50 : 5);
+    /* Cocok di ID (bukan cuma persis sama) atau nama. Kecocokan ID diurutkan duluan sebelum
+       dipotong ke 50 teratas, supaya layanan yang ID-nya cocok tidak ketimbun lalu terpotong
+       oleh ratusan layanan lain yang cuma kebetulan namanya memuat angka yang sama. */
+    var skorLayanan = function (s) {
+      var id = String(s.id).toLowerCase();
+      if (id === ql) return 0;
+      if (id.indexOf(ql) === 0) return 1;
+      if (id.indexOf(ql) > -1) return 2;
+      return 3;
+    };
+    var found = (st.page !== 'neworder' || st.tab !== 'search') ? [] : (ql ? services.filter(function (s) { return s.name.toLowerCase().indexOf(ql) > -1 || String(s.id).indexOf(ql) > -1; }).sort(function (a, b) { return skorLayanan(a) - skorLayanan(b); }) : services).slice(0, ql ? 50 : 5);
     var choose = function (patch) { patch.open = ''; patch.sent = false; self.setState(patch); };
     var buyGo = function (s) { var c = catOf(s.id); return go('neworder', { plat: s.p, cat: c ? c.v : '', svcId: s.id, tab: 'new', sent: false }); };
 
@@ -509,7 +518,7 @@ class DashboardPage extends React.Component {
     var sCats = st.page !== 'services' ? [] : cats.filter(function (c) { return st.scat === 'all' || c.v === st.scat; });
     var sGroups = sCats.map(function (c) {
       var items = c.ids.map(function (id) { return byId[id]; }).filter(function (s) {
-        if (sql && s.name.toLowerCase().indexOf(sql) < 0 && String(s.id) !== sql) return false;
+        if (sql && s.name.toLowerCase().indexOf(sql) < 0 && String(s.id).indexOf(sql) < 0) return false;
         var fa = st.fa, kw = fa.kw.trim().toLowerCase();
         if (kw && s.name.toLowerCase().indexOf(kw) < 0) return false;
         if (fa.pmin !== '' && s.price < Number(fa.pmin)) return false;
@@ -519,6 +528,19 @@ class DashboardPage extends React.Component {
         if (fa.ty.length && fa.ty.indexOf(s.ty) < 0) return false;
         return true;
       });
+      /* Kecocokan ID diurutkan duluan, sama alasannya seperti pencarian layanan di form Pesanan Baru. */
+      if (sql) {
+        items = items.slice().sort(function (a, b) {
+          var skor = function (s) {
+            var id = String(s.id).toLowerCase();
+            if (id === sql) return 0;
+            if (id.indexOf(sql) === 0) return 1;
+            if (id.indexOf(sql) > -1) return 2;
+            return 3;
+          };
+          return skor(a) - skor(b);
+        });
+      }
       return { t: c.t, icon: c.icon, bg: c.bg, count: items.length, items: items.map(function (s) {
         var fav = !!st.favs[s.id], open = st.descId === s.id, fast = /Instan|menit/.test(s.start);
         return { id: s.id, name: s.name, priceFmt: s.priceFmt, minTxt: s.minTxt, maxTxt: s.maxTxt, start: s.start, refill: s.refill, desc: s.desc,

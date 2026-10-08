@@ -36,7 +36,18 @@ export default function Layanan() {
 
   const hasil = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    return (list || []).filter((s) => (kat === 'Semua' || s.kategori === kat) && (!q || String(s.nama).toLowerCase().includes(q) || String(s.id) === q));
+    const cocok = (list || []).filter((s) => (kat === 'Semua' || s.kategori === kat) && (!q || String(s.nama).toLowerCase().includes(q) || String(s.id).toLowerCase().includes(q)));
+    if (!q) return cocok;
+    /* Kecocokan ID diutamakan, supaya cari ID tidak ketimbun layanan lain yang namanya
+       kebetulan memuat angka yang sama (mis. "Max 100K"). */
+    const skor = (s) => {
+      const id = String(s.id).toLowerCase();
+      if (id === q) return 0;
+      if (id.startsWith(q)) return 1;
+      if (id.includes(q)) return 2;
+      return 3;
+    };
+    return [...cocok].sort((a, b) => skor(a) - skor(b));
   }, [list, cari, kat]);
 
   /* Jumlah layanan per kategori dari seluruh hasil, bukan hanya yang sedang tampil. */

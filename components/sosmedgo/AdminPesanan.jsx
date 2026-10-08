@@ -21,7 +21,7 @@ function AdminPesanan({ v }) {
             <div style={{ fontSize: '12px', marginTop: '-8px', color: ordersMsg.ok ? '#22C55E' : '#FF5A75' }}>{ordersMsg.text}</div>
           ) : null}
           <div className="card" style={{ overflowX: 'auto' }}>
-            <OrdersTable rows={orders} onRefund={refundPesanan} />
+            <OrdersTable rows={orders} onRefund={refundPesanan} refundedIds={new Set((refunds || []).filter((r) => r.status !== 'Ditolak').map((r) => r.pesanan))} />
           </div>
         </>
   );

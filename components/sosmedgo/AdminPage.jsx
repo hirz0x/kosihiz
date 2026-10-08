@@ -159,10 +159,15 @@ export default function AdminPage() {
     setArtikelSel(-1);
   };
   const [kurs, setKurs] = useState(16000);
+  /* kurs di atas cuma nilai awal sebelum kurs asli dari server kebaca (lihat setKurs di /api/services
+     di bawah). Tanpa penanda ini, saldo provider yang dalam USD sempat dikonversi pakai kurs awal yang
+     salah lalu "lompat" ke angka Rupiah yang benar begitu kurs asli selesai dimuat — kelihatan seperti
+     saldonya berubah sendiri padahal cuma kurs konversinya yang baru siap. */
+  const [kursSiap, setKursSiap] = useState(false);
   /* Saldo provider ditampilkan dalam Rupiah. Kalau provider membalas dalam USD, dikonversi pakai kurs, dengan nilai USD aslinya sebagai keterangan kecil. */
   const saldoAsliUsd = saldoProv.currency && saldoProv.currency !== 'IDR';
   const saldoIdr = saldoProv.saldo === null ? null : (saldoAsliUsd ? saldoProv.saldo * kurs : saldoProv.saldo);
-  const saldoTxt = saldoIdr === null ? '—' : rp(saldoIdr) + (saldoAsliUsd ? ' (≈ ' + saldoProv.saldo.toFixed(2) + ' ' + saldoProv.currency + ')' : '');
+  const saldoTxt = saldoIdr === null || (saldoAsliUsd && !kursSiap) ? '—' : rp(saldoIdr) + (saldoAsliUsd ? ' (≈ ' + saldoProv.saldo.toFixed(2) + ' ' + saldoProv.currency + ')' : '');
   const provMenipis = saldoIdr !== null && saldoIdr < PROVIDER_LOW;
   const [massMarkup, setMassMarkup] = useState('');
   const [selSvc, setSelSvc] = useState({});
@@ -351,9 +356,10 @@ export default function AdminPage() {
         setSiap(true);
         if (Array.isArray(d.services)) setServices(d.services);
         if (d.settings && d.settings.kurs) setKurs(d.settings.kurs);
+        setKursSiap(true);
         if (d.disinkron) setSyncedAt(d.disinkron);
       })
-      .catch(() => {});
+      .catch(() => { setKursSiap(true); });
     fetch('/api/orders')
       .then((r) => r.json())
       .then((d) => { if (Array.isArray(d.orders)) setLiveOrders(d.orders); })

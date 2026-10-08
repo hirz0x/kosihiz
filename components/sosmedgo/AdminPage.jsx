@@ -28,6 +28,28 @@ export default function AdminPage() {
   const [theme, setTheme] = useState('dark');
   const [themeMode, setThemeMode] = useState('dark');
   const [accent, setAccent] = useState('red');
+  /* Tema & warna aksen admin disimpan di localStorage browser ini (bukan lewat /api/preferensi
+     seperti panel user, karena sesi admin tidak terikat akun Supabase). Dibaca sekali saat mount
+     supaya render pertama tetap sama dengan server (tidak ada kedipan/hydration mismatch),
+     lalu ditulis ulang tiap kali diganti. */
+  useEffect(() => {
+    try {
+      const modeTersimpan = localStorage.getItem('admin_themeMode');
+      const accentTersimpan = localStorage.getItem('admin_accent');
+      if (modeTersimpan) {
+        setThemeMode(modeTersimpan);
+        if (modeTersimpan === 'auto') {
+          const gelap = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)').matches : true;
+          setTheme(gelap ? 'dark' : 'light');
+        } else {
+          setTheme(modeTersimpan);
+        }
+      }
+      if (accentTersimpan) setAccent(accentTersimpan);
+    } catch (e) { /* localStorage tidak tersedia (mis. private mode) — tetap pakai default. */ }
+  }, []);
+  useEffect(() => { try { localStorage.setItem('admin_themeMode', themeMode); } catch (e) {} }, [themeMode]);
+  useEffect(() => { try { localStorage.setItem('admin_accent', accent); } catch (e) {} }, [accent]);
   const [tab, setTab] = useState('Ringkasan');
   const [navOpen, setNavOpen] = useState(false);
   const bukaTab = (t) => { setTab(t); setNavOpen(false); };

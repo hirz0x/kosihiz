@@ -4,6 +4,7 @@ import { getProfile, hitungReferral, listPenarikan, getPenarikan, createPenarika
 import { isAdmin, wajibAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { KOMISI_PERSEN, MIN_TARIK } from '../../lib/affiliate';
+import { catatAktivitas } from '../../lib/adminLog';
 
 const TUJUAN_MAKS = 200;
 
@@ -64,6 +65,7 @@ export default async function handler(req, res) {
       const berhasil = await ubahStatusPenarikan(p.id, 'menunggu', keStatus);
       if (!berhasil) return res.status(400).json({ error: 'Penarikan ini sudah diproses.' });
       if (keStatus === 'ditolak') await kembalikanKomisi(p.userId, p.jumlah);
+      await catatAktivitas(keStatus === 'disetujui' ? 'penarikan_setuju' : 'penarikan_tolak', 'Penarikan komisi ' + (p.username || p.userId) + ' · Rp ' + Number(p.jumlah).toLocaleString('id-ID'));
       return res.status(200).json({ ok: true, status: keStatus });
     }
 

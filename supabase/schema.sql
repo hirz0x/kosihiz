@@ -195,3 +195,14 @@ begin
   return hasil;
 end;
 $$;
+
+-- Log aktivitas admin: jejak tindakan penting (setuju/tolak refund & deposit, ubah markup/kurs,
+-- sinkron katalog, login admin, dll) untuk akuntabilitas. Jalankan sekali.
+create table if not exists admin_log (
+  id bigint generated always as identity primary key,
+  aksi text not null,
+  detail text,
+  dibuat timestamptz not null default now()
+);
+create index if not exists admin_log_dibuat_idx on admin_log (dibuat desc);
+alter table admin_log enable row level security;

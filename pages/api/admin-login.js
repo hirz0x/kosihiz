@@ -1,5 +1,6 @@
 import { adminTerkonfigurasi, cekLoginAdmin, pasangCookie } from '../../lib/auth';
 import { ambilIp, sisaKunci, catatGagal, resetKunci } from '../../lib/loginGuard';
+import { catatAktivitas } from '../../lib/adminLog';
 
 const KELIPATAN_IP = 5;
 const KELIPATAN_GLOBAL = 20;
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
 
     await resetKunci(kunciIp);
     pasangCookie(res);
+    await catatAktivitas('login_admin', 'Login admin dari IP ' + ambilIp(req));
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(502).json({ error: 'Gagal memeriksa login. Coba lagi.' });

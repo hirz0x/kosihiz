@@ -8,6 +8,7 @@ import { buatTransaksi, ambilStatus, jumlahBayar } from '../../lib/paymenku';
 import { hitungKredit } from '../../lib/bonus';
 import { tambahNotif } from '../../lib/notif';
 import { listDeposits, createDeposit, getDeposit, ubahStatusDeposit, addSaldo, getProfile, semuaProfil } from '../../lib/store';
+import { catatAktivitas } from '../../lib/adminLog';
 
 const MIN_DEPOSIT = 10000;
 
@@ -83,6 +84,7 @@ export default async function handler(req, res) {
         await beriKomisi(d.userId, d.nominal);
         await tambahNotif(d.userId, 'deposit', 'Deposit berhasil', 'Saldo bertambah Rp ' + kredit.total.toLocaleString('id-ID') + '.');
       }
+      await catatAktivitas(keStatus === 'disetujui' ? 'deposit_setuju' : 'deposit_tolak', 'Deposit ' + d.id + ' · Rp ' + Number(d.nominal).toLocaleString('id-ID'));
       return res.status(200).json({ ok: true, status: keStatus });
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });

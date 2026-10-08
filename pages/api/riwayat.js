@@ -2,6 +2,7 @@
 
 import { listRiwayat, tambahRiwayat, hapusRiwayat } from '../../lib/store';
 import { wajibAdmin } from '../../lib/auth';
+import { catatAktivitas } from '../../lib/adminLog';
 
 const TIPE = ['up', 'down', 'off', 'new'];
 const TAMPIL_MAKS = 300;
@@ -41,6 +42,7 @@ export default async function handler(req, res) {
       if (!daftar.length || !daftar.every((x) => /^[0-9]{1,15}$/.test(x))) return res.status(400).json({ error: 'ID riwayat tidak valid.' });
       if (daftar.length > 300) return res.status(400).json({ error: 'Maksimal 300 catatan sekali hapus.' });
       await hapusRiwayat(daftar);
+      await catatAktivitas('hapus_riwayat', daftar.length + ' catatan riwayat layanan dihapus');
       return res.status(200).json({ ok: true, dihapus: daftar.length });
     }
 

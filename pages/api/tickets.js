@@ -5,6 +5,7 @@ import { isAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { tambahNotif } from '../../lib/notif';
 import { totalBelanjaSemua, ambilPeringkat, indexPeringkat } from '../../lib/peringkat';
+import { catatAktivitas } from '../../lib/adminLog';
 
 const KATEGORI = ['order', 'service', 'payment', 'other'];
 const SUB_MAKS = 40;
@@ -82,7 +83,9 @@ export default async function handler(req, res) {
 
       if (aksi === 'tutup') {
         if (!admin) return res.status(403).json({ error: 'Hanya admin yang bisa menutup tiket.' });
-        return res.status(200).json({ ticket: keKlien(await updateTicket(t.id, { status: 'closed' })) });
+        const hasil = await updateTicket(t.id, { status: 'closed' });
+        await catatAktivitas('tiket_tutup', 'Tiket #' + t.id + ' (' + (t.username || t.userId) + ') ditutup');
+        return res.status(200).json({ ticket: keKlien(hasil) });
       }
 
       if (aksi === 'balas') {

@@ -22,6 +22,7 @@ import AdminRefund from './AdminRefund';
 import AdminAfiliasi from './AdminAfiliasi';
 import AdminBlog from './AdminBlog';
 import AdminPeringkat from './AdminPeringkat';
+import AdminLogAktivitas from './AdminLogAktivitas';
 import AdminPengaturan from './AdminPengaturan';
 
 export default function AdminPage() {
@@ -205,6 +206,11 @@ export default function AdminPage() {
   const muatRiwayat = () => fetch('/api/riwayat').then((r) => (r.ok ? r.json() : null)).then((d) => {
     if (d && Array.isArray(d.riwayat)) setUpdLog(d.riwayat.map((x) => ({ rid: x.id, date: x.tanggal, id: x.layananId, type: x.tipe, from: x.lama, to: x.baru })));
   }).catch(() => {});
+  /* Log aktivitas admin: jejak setuju/tolak refund & deposit, ubah markup/kurs, sinkron katalog, dll. */
+  const [logAktivitas, setLogAktivitas] = useState([]);
+  const muatLogAktivitas = () => fetch('/api/admin-log').then((r) => (r.ok ? r.json() : null)).then((d) => {
+    if (d && Array.isArray(d.log)) setLogAktivitas(d.log);
+  }).catch(() => {});
   const [updF, setUpdF] = useState('all');
   const [depF, setDepF] = useState('Semua');
   const [siap, setSiap] = useState(false);
@@ -283,6 +289,7 @@ export default function AdminPage() {
   useEffect(() => { muatPeringkat(); }, []);
   useEffect(() => { muatUndian(); }, []);
   useEffect(() => { muatRiwayat(); }, []);
+  useEffect(() => { muatLogAktivitas(); }, []);
   useEffect(() => { fetch('/api/support').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.nama) setSupportProfil({ nama: d.nama, inisial: d.inisial }); }).catch(() => {}); }, []);
   useEffect(() => { muatPengguna(); }, []);
   useEffect(() => {
@@ -654,7 +661,7 @@ export default function AdminPage() {
     );
   };
 
-  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
+  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, logAktivitas, muatLogAktivitas, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
 
   return (
     <>
@@ -839,6 +846,8 @@ button:active:not(:disabled){transform:scale(.97)}
             <AdminBlog v={v} />
 
             <AdminPeringkat v={v} />
+
+            <AdminLogAktivitas v={v} />
 
             <AdminPengaturan v={v} />
           </main>

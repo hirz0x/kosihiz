@@ -4,6 +4,7 @@
 import { getOrders, listRefunds, createRefund, ubahStatusRefund, getProfile, addSaldo } from '../../../lib/store';
 import { wajibAdmin } from '../../../lib/auth';
 import { tambahNotif } from '../../../lib/notif';
+import { catatAktivitas } from '../../../lib/adminLog';
 
 const STATUS_REFUND = ['Canceled', 'Partial'];
 
@@ -45,6 +46,7 @@ export default async function handler(req, res) {
 
     await addSaldo(pesanan.userId, jumlah);
     await tambahNotif(pesanan.userId, 'order', 'Refund disetujui', 'Refund pesanan ' + id + ' sudah masuk ke saldo.');
+    await catatAktivitas('refund_langsung', 'Pesanan ' + id + ' (' + (profil ? profil.username : pesanan.userId) + ') · Rp ' + jumlah.toLocaleString('id-ID'));
     return res.status(200).json({ ok: true, jumlah });
   } catch (e) {
     return res.status(502).json({ error: String(e.message || e) });

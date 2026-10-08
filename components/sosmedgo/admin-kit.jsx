@@ -27,7 +27,8 @@ export const ICON = {
   chev: 'M9 6l6 6-6 6',
   sun: 'M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
   moon: 'M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z',
-  mode: 'M4 4h16v12H4zM8 20h8M12 16v4'
+  mode: 'M4 4h16v12H4zM8 20h8M12 16v4',
+  riwayat: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'
 };
 
 /* Ikon admin dari Font Awesome, sama dengan dashboard user. Kuncinya jalur SVG lama. */
@@ -53,7 +54,8 @@ export const FA_ADMIN = {
   [ICON.chev]: 'fa-solid fa-chevron-right',
   [ICON.sun]: 'fa-solid fa-sun',
   [ICON.moon]: 'fa-solid fa-moon',
-  [ICON.mode]: 'fa-solid fa-circle-half-stroke'
+  [ICON.mode]: 'fa-solid fa-circle-half-stroke',
+  [ICON.riwayat]: 'fa-solid fa-clock-rotate-left'
 };
 
 export const TABS_MAIN = [
@@ -70,9 +72,10 @@ export const TABS_SUPPORT = [
   { id: 'Refund', icon: ICON.refund },
   { id: 'Afiliasi', icon: ICON.affiliate },
   { id: 'Peringkat', icon: ICON.rank },
-  { id: 'Blog', icon: ICON.layers }
+  { id: 'Blog', icon: ICON.layers },
+  { id: 'Log Aktivitas', icon: ICON.riwayat }
 ];
-export const TAB_CRUMB = { Ringkasan: 'Ringkasan', Statistik: 'Statistik', Pengguna: 'Pengguna', Pesanan: 'Pesanan', Deposit: 'Deposit', Layanan: 'Layanan', Tiket: 'Tiket', Update: 'Update', Refund: 'Refund', Afiliasi: 'Afiliasi', Peringkat: 'Peringkat', Blog: 'Blog', Pengaturan: 'Pengaturan' };
+export const TAB_CRUMB = { Ringkasan: 'Ringkasan', Statistik: 'Statistik', Pengguna: 'Pengguna', Pesanan: 'Pesanan', Deposit: 'Deposit', Layanan: 'Layanan', Tiket: 'Tiket', Update: 'Update', Refund: 'Refund', Afiliasi: 'Afiliasi', Peringkat: 'Peringkat', Blog: 'Blog', 'Log Aktivitas': 'Log Aktivitas', Pengaturan: 'Pengaturan' };
 
 
 /* Saldo provider di bawah ini dianggap menipis kalau kurang dari batas ini (dalam Rupiah). */
@@ -124,6 +127,40 @@ export const UPS = {
 
 export const LABEL_KATEGORI = { order: 'Pesanan', service: 'Layanan', payment: 'Pembayaran', other: 'Lainnya' };
 export const LABEL_STATUS_TIKET = { open: 'Terbuka', answered: 'Dibalas', closed: 'Ditutup' };
+
+/* Log aktivitas admin: label tampilan + warna badge per jenis aksi. */
+export const LABEL_AKSI_LOG = {
+  login_admin: 'Login admin',
+  refund_setuju: 'Refund disetujui',
+  refund_tolak: 'Refund ditolak',
+  refund_langsung: 'Refund langsung',
+  deposit_setuju: 'Deposit disetujui',
+  deposit_tolak: 'Deposit ditolak',
+  penarikan_setuju: 'Penarikan komisi disetujui',
+  penarikan_tolak: 'Penarikan komisi ditolak',
+  sinkron_katalog: 'Sinkron katalog layanan',
+  ubah_layanan: 'Markup/status layanan diubah',
+  ubah_kurs: 'Kurs diubah',
+  hapus_riwayat: 'Riwayat layanan dihapus',
+  ubah_peringkat: 'Batas peringkat diubah',
+  tiket_tutup: 'Tiket ditutup'
+};
+export const WARNA_AKSI_LOG = {
+  login_admin: { bg: 'var(--s4)', fg: 'var(--t2)' },
+  refund_setuju: { bg: 'rgba(34,197,94,.12)', fg: 'var(--gr)' },
+  refund_tolak: { bg: 'rgba(255,90,117,.12)', fg: 'var(--rt)' },
+  refund_langsung: { bg: 'rgba(34,197,94,.12)', fg: 'var(--gr)' },
+  deposit_setuju: { bg: 'rgba(34,197,94,.12)', fg: 'var(--gr)' },
+  deposit_tolak: { bg: 'rgba(255,90,117,.12)', fg: 'var(--rt)' },
+  penarikan_setuju: { bg: 'rgba(34,197,94,.12)', fg: 'var(--gr)' },
+  penarikan_tolak: { bg: 'rgba(255,90,117,.12)', fg: 'var(--rt)' },
+  sinkron_katalog: { bg: 'rgba(59,130,246,.12)', fg: 'var(--bl)' },
+  ubah_layanan: { bg: 'rgba(245,158,11,.12)', fg: 'var(--am)' },
+  ubah_kurs: { bg: 'rgba(245,158,11,.12)', fg: 'var(--am)' },
+  hapus_riwayat: { bg: 'rgba(255,90,117,.12)', fg: 'var(--rt)' },
+  ubah_peringkat: { bg: 'rgba(167,139,250,.12)', fg: '#A78BFA' },
+  tiket_tutup: { bg: 'var(--s4)', fg: 'var(--t2)' }
+};
 export const LABEL_STATUS_REFUND = { menunggu: 'Menunggu', disetujui: 'Diterima', ditolak: 'Ditolak' };
 export const refundAdmin = (r) => ({ id: r.id, user: r.username || '—', pesanan: r.pesanan, jumlah: r.jumlah, alasan: r.alasan || '', status: LABEL_STATUS_REFUND[r.status] || r.status });
 export const tiketAdmin = (t) => ({ id: t.id, user: t.username || '—', kategori: LABEL_KATEGORI[t.kategori] || t.kategori, orderId: t.orderId || '', status: LABEL_STATUS_TIKET[t.status] || t.status, update: t.diupdate, msgs: t.pesan.map((m) => ({ from: m.from, text: m.text, time: m.time, lampiran: m.lampiran })), tingkat: t.tingkat || 0 });

@@ -4,6 +4,7 @@ import { getOrders, semuaProfil, setSetting } from '../../lib/store';
 import { isAdmin, wajibAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { ambilPeringkat, indexPeringkat, PERINGKAT_DEFAULT } from '../../lib/peringkat';
+import { catatAktivitas } from '../../lib/adminLog';
 
 export default async function handler(req, res) {
   try {
@@ -46,6 +47,7 @@ export default async function handler(req, res) {
         if (angka[i] <= angka[i - 1]) return res.status(400).json({ error: 'Batas tiap level harus lebih besar dari level sebelumnya.' });
       }
       await setSetting('peringkat', PERINGKAT_DEFAULT.map((d, i) => ({ nama: d.nama, min: angka[i] })));
+      await catatAktivitas('ubah_peringkat', 'Batas peringkat diubah: ' + angka.map((m) => 'Rp ' + m.toLocaleString('id-ID')).join(', '));
       return res.status(200).json({ ok: true });
     }
 

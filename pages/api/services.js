@@ -6,6 +6,7 @@ import { catatPerubahan, simpanRiwayat } from '../../lib/riwayat';
 import { decodeEntitas } from '../../lib/teks';
 import { wajibAdmin } from '../../lib/auth';
 import { sinkronKatalog } from '../../lib/katalog';
+import { catatAktivitas } from '../../lib/adminLog';
 
 export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
 
@@ -30,6 +31,7 @@ export default async function handler(req, res) {
     if (!wajibAdmin(req, res)) return;
     try {
       const hasil = await sinkronKatalog({ kursOverride: req.body && req.body.kurs });
+      await catatAktivitas('sinkron_katalog', hasil.jumlah + ' layanan (' + hasil.baru + ' baru), kurs ' + hasil.kurs);
       return res.status(200).json(hasil);
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
@@ -76,6 +78,12 @@ export default async function handler(req, res) {
 
       if (berubah.length) await saveServices(berubah);
       if (catatan.length) await simpanRiwayat(catatan);
+      if (Array.isArray(updates) && updates.length) {
+        await catatAktivitas('ubah_layanan', updates.length + ' layanan diubah (markup/status aktif)');
+      }
+      if (Number(kurs) > 0 && Number(kurs) !== settings.kurs) {
+        await catatAktivitas('ubah_kurs', 'Kurs diubah ke Rp ' + Number(kurs).toLocaleString('id-ID'));
+      }
       return res.status(200).json({ ok: true, jumlah: services.length });
     } catch (e) {
       return res.status(500).json({ error: String(e.message || e) });

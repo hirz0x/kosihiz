@@ -223,13 +223,12 @@ function DashboardNewOrder({ v }) {
                 ) : null}
                 {v.isMass ? (
                   <>
-                    <div>
-                      <label className="lbl" htmlFor="massal">
-                        Satu pesanan per baris: id_layanan | link | jumlah
-                      </label>
-                      <textarea id="massal" className="inp" rows="8" style={{ height: "auto", padding: "14px", resize: "vertical", fontFamily: "ui-monospace,Menlo,monospace", fontSize: "12px", lineHeight: "1.7" }} placeholder={"101 | https://instagram.com/akun1 | 1000\n301 | https://tiktok.com/@akun2 | 500"} />
-                      <button type="button" className="submit" style={{ width: "100%", marginTop: "16px" }}>
-                        Kirim Pesanan Massal
+                    <div style={{ textAlign: "center", padding: "24px 12px" }}>
+                      <div style={{ fontSize: "13px", color: "var(--t3)", marginBottom: "14px" }}>
+                        Buat banyak pesanan sekaligus di halaman khusus Pesanan Massal.
+                      </div>
+                      <button type="button" className="submit" onClick={v.goMassOrder} style={{ width: "100%" }}>
+                        Buka Pesanan Massal
                       </button>
                     </div>
                   </>

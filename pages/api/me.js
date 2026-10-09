@@ -9,6 +9,6 @@ export default async function handler(req, res) {
     if (!profil) profil = await createProfile(user.id, user.username || 'user' + user.id.slice(0, 6));
     return res.status(200).json({ user: { id: user.id, email: user.email, username: profil.username }, saldo: Number(profil.saldo) });
   } catch (e) {
-    return res.status(502).json({ error: String(e.message || e) });
+    return res.status(502).json({ error: 'Gagal memuat profil. Coba lagi.' });
   }
 }

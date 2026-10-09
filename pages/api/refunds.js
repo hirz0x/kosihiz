@@ -19,13 +19,17 @@ export default async function handler(req, res) {
       return res.status(200).json({ refunds: await listRefunds(admin ? null : user.id) });
     }
 
-    /* User mengajukan refund untuk pesanannya sendiri. Jumlah mengikuti sisa pesanan. */
+    /* User mengajukan refund untuk pesanannya sendiri. Jumlah mengikuti sisa pesanan.
+       orderId di sini adalah ID internal pesanan ("SG-..."), BUKAN nomor pesanan dari provider —
+       harus sama dengan yang dipakai jalur refund admin (pages/api/orders/refund.js), supaya
+       pengecekan "sudah pernah direfund" di kedua jalur saling mendeteksi satu sama lain
+       (sebelumnya beda acuan ID, jadi bisa ke-refund dua kali lewat dua jalur berbeda). */
     if (req.method === 'POST') {
       const user = await userDariRequest(req);
       if (!user) return res.status(401).json({ error: 'Login dulu untuk mengajukan refund.' });
       const pesananId = String((req.body && req.body.orderId) || '').trim();
 
-      const pesanan = (await getOrders()).find((o) => String(o.providerOrder) === pesananId && o.userId === user.id);
+      const pesanan = (await getOrders(user.id)).find((o) => o.id === pesananId);
       if (!pesanan) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
       if (!STATUS_REFUND.includes(pesanan.status)) {
         return res.status(400).json({ error: 'Refund hanya untuk pesanan yang dibatalkan atau selesai sebagian.' });
@@ -74,6 +78,6 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Metode tidak didukung.' });
   } catch (e) {
-    return res.status(502).json({ error: String(e.message || e) });
+    return res.status(502).json({ error: (isAdmin(req) && req.query.as !== 'user') ? String(e.message || e) : 'Gagal memproses refund. Coba lagi.' });
   }
 }

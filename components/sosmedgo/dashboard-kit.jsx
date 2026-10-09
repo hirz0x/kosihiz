@@ -25,7 +25,7 @@ export const FA_MENU = {
 export const PLAT_COLOR = {
   ig: '#E1306C', yt: '#FF0000', tt: '#FFFFFF', tw: '#FFFFFF', sp: '#1DB954', tg: '#229ED9',
   fb: '#1877F2', twitch: '#9146FF', rd: '#FF4500', li: '#0A66C2', wa: '#25D366', gg: '#4285F4',
-  kick: '#53FC18', shp: '#EE4D2D', web: '#3B82F6', seo: '#22C55E'
+  kick: '#53FC18', shp: '#EE4D2D', web: '#3B82F6', seo: '#22C55E', sc: '#FFFC00', cmc: '#3861FB'
 };
 
 /* Ubah warna hex (#rgb atau #rrggbb) jadi "r,g,b" supaya bisa dipakai di dalam rgba(...). */
@@ -44,6 +44,8 @@ export const FA_BY_PATH = {
   "@google": "fa-brands fa-google",
   "@kick": "fa-solid fa-video",
   "@shopee": "fa-solid fa-bag-shopping",
+  "@snapchat": "fa-brands fa-snapchat",
+  "@coinmarketcap": "fa-solid fa-chart-line",
   "M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5z": "fa-solid fa-lock",
   "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2M18 14h2M14 18h6": "fa-solid fa-qrcode",
   "M4 20L20 4M14 4h6v6M5 9l2-2": "fa-solid fa-wand-magic-sparkles",

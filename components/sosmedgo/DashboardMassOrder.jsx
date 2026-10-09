@@ -23,8 +23,8 @@ function DashboardMassOrder({ v }) {
                   101 | https://instagram.com/akunkamu | 1000
                 </span>
               </div>
-              <button type="submit" className="submit" style={{ width: "100%", marginTop: "16px" }}>
-                Kirim
+              <button type="submit" className="submit" disabled={v.massBusy} style={{ width: "100%", marginTop: "16px", opacity: v.massBusy ? 0.6 : 1, cursor: v.massBusy ? "not-allowed" : "pointer" }}>
+                {v.massBusy ? "Mengirim..." : "Kirim"}
               </button>
               {v.massRes ? (
                 <>

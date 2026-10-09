@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         deposits: list.map((d) => ({ ...d, label: LABEL[d.status] || d.status, username: nama[d.userId] || '' })),
       });
     } catch (e) {
-      return res.status(502).json({ error: String(e.message || e) });
+      return res.status(502).json({ error: admin ? String(e.message || e) : 'Gagal memuat riwayat deposit. Coba lagi.' });
     }
   }
 
@@ -96,7 +96,10 @@ export default async function handler(req, res) {
       await createDeposit(deposit);
       return res.status(200).json({ deposit: { ...deposit, label: LABEL.menunggu }, bayarUrl: deposit.bayarUrl });
     } catch (e) {
-      return res.status(502).json({ error: String(e.message || e) });
+      /* Bisa gagal di panggilan Paymenku (pembayaran pihak ketiga) — teks errornya tidak diteruskan
+         mentah-mentah ke pelanggan. */
+      console.error('Gagal membuat deposit:', e && e.message ? e.message : e);
+      return res.status(502).json({ error: 'Gagal membuat permintaan deposit. Coba lagi.' });
     }
   }
 

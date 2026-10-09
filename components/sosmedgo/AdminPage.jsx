@@ -47,6 +47,8 @@ export default function AdminPage() {
         }
       }
       if (accentTersimpan) setAccent(accentTersimpan);
+      const notifTersimpan = localStorage.getItem('admin_notif');
+      if (notifTersimpan) setNotif(JSON.parse(notifTersimpan));
     } catch (e) { /* localStorage tidak tersedia (mis. private mode) — tetap pakai default. */ }
   }, []);
   useEffect(() => { try { localStorage.setItem('admin_themeMode', themeMode); } catch (e) {} }, [themeMode]);
@@ -276,6 +278,9 @@ export default function AdminPage() {
   const [pwMsg, setPwMsg] = useState('');
   const [twofa, setTwofa] = useState(false);
   const [notif, setNotif] = useState({ order: true, deposit: true, ticket: true, refund: true, withdraw: true });
+  /* Preferensi notifikasi admin cuma disimpan di browser ini (localStorage), sama seperti tema &
+     warna aksen — belum ada pengiriman notifikasi beneran, jadi belum butuh disimpan ke server. */
+  useEffect(() => { try { localStorage.setItem('admin_notif', JSON.stringify(notif)); } catch (e) {} }, [notif]);
   const [range, setRange] = useState('7 Hari');
   const [cFrom, setCFrom] = useState(hariLalu(6));
   const [cTo, setCTo] = useState(TODAY);
@@ -360,8 +365,10 @@ export default function AdminPage() {
       : { sub: '▼ turun ' + Math.abs(p) + '% dibanding periode sebelumnya', subColor: '#FF5A75' };
   };
 
-  const setDepositStatus = (id, status) => {
+  const setDepositStatus = async (id, status) => {
     const aksi = status === 'Berhasil' ? 'setujui' : 'tolak';
+    const pesan = status === 'Berhasil' ? 'Setujui deposit ini? Saldo user langsung bertambah, tidak bisa dibatalkan.' : 'Tolak deposit ini?';
+    if (!(await tanyaKonfirmasi(pesan))) return;
     fetch('/api/deposits', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, aksi }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
       .then((res) => { if (!res.ok) tampilkanToast(false, res.d.error); else tampilkanToast(true, status === 'Berhasil' ? 'Deposit disetujui. Saldo user sudah bertambah.' : 'Deposit ditolak.'); muatDeposit(); })
@@ -403,6 +410,8 @@ export default function AdminPage() {
   };
   const toggleService = (id) => { setServices((list) => list.map((s) => (s.id === id ? { ...s, aktif: !s.aktif } : s))); tandai([id]); };
   const setRefundStatus = async (id, aksi) => {
+    const pesan = aksi === 'setujui' ? 'Setujui refund ini? Saldo user langsung bertambah, tidak bisa dibatalkan.' : 'Tolak refund ini?';
+    if (!(await tanyaKonfirmasi(pesan))) return;
     const r = await fetch('/api/refunds', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, aksi }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { tampilkanToast(false, d.error || 'Gagal memproses refund.'); return; }
@@ -540,7 +549,11 @@ export default function AdminPage() {
   const allSelected = useMemo(() => svcFiltered.length > 0 && svcFiltered.every((x) => selSvc[x.id]), [svcFiltered, selSvc]);
   const toggleAll = () => setSelSvc(allSelected ? {} : Object.fromEntries(svcFiltered.map((x) => [x.id, true])));
   const toggleSel = (id) => setSelSvc((m) => ({ ...m, [id]: !m[id] }));
-  const tandai = (ids) => setSvcDirty((d) => { const n = { ...d }; ids.forEach((id) => { n[id] = true; }); return n; });
+  /* massal=true dipakai aksi borongan (markup/aktifkan massal) — ditandai supaya perubahan itu TIDAK
+     ikut dicatat ke riwayat/Update (lihat simpanLayanan & PATCH /api/services), soalnya kalau ribuan
+     layanan diaktifkan/nonaktifkan sekaligus, tab Update bisa kebanjiran ribuan baris sekali klik.
+     Kalau id yang sama disentuh lagi secara satuan setelah itu, aksi terakhir yang menang. */
+  const tandai = (ids, { massal = false } = {}) => setSvcDirty((d) => { const n = { ...d }; ids.forEach((id) => { n[id] = { massal }; }); return n; });
 
   const dirtyCount = Object.keys(svcDirty).length;
   const adaPerubahan = dirtyCount > 0 || kursDirty;
@@ -556,7 +569,7 @@ export default function AdminPage() {
     const ids = Object.keys(svcDirty);
     setSvcSaving(true);
     try {
-      const updates = services.filter((x) => svcDirty[x.id]).map((x) => ({ id: x.id, markup: x.markup, aktif: x.aktif }));
+      const updates = services.filter((x) => svcDirty[x.id]).map((x) => ({ id: x.id, markup: x.markup, aktif: x.aktif, massal: !!svcDirty[x.id].massal }));
       const r = await fetch('/api/services', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -582,13 +595,13 @@ export default function AdminPage() {
     if (massMarkup === '' || !Number.isFinite(m) || m < 0) return;
     const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: m } : x)));
-    tandai(Array.from(kena));
+    tandai(Array.from(kena), { massal: true });
   };
   const resetMarkup = () => {
     const ids = svcInProvider.map((x) => x.id);
     const kena = new Set(ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: 0 } : x)));
-    tandai(ids);
+    tandai(ids, { massal: true });
   };
   /* Nonaktifkan/aktifkan banyak layanan sekaligus (mis. "matikan semua layanan provider ini"
      supaya tidak muncul di halaman pelanggan) — ids=null berarti semua layanan di provider
@@ -596,7 +609,7 @@ export default function AdminPage() {
   const setAktifMassal = (ids, aktif) => {
     const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, aktif } : x)));
-    tandai(Array.from(kena));
+    tandai(Array.from(kena), { massal: true });
   };
   const setServiceMarkup = (id, val) => { setServices((list) => list.map((x) => (x.id === id ? { ...x, markup: Math.max(0, Number(val) || 0) } : x))); tandai([id]); };
 

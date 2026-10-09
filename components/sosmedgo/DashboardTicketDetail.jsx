@@ -76,9 +76,6 @@ function DashboardTicketDetail({ v }) {
                     {v.tr.message}
                   </label>
                   <input id="reply" type="text" placeholder={v.tr.message} value={v.replyTxt} onChange={v.setReply} style={{ flex: "1", minWidth: "0", background: "transparent", border: "none", outline: "none", color: "var(--hi)", fontFamily: "inherit", fontSize: "12px", height: "36px" }} />
-                  <button type="button" className="ibtn" aria-label={v.tr.attach} style={{ width: "34px", height: "34px", borderRadius: "50%" }}>
-                    📎
-                  </button>
                   <button type="submit" aria-label={v.tr.send} style={{ width: "40px", height: "40px", borderRadius: "50%", border: "none", background: "var(--accent)", color: "#FFFFFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <FaIcon d="M21 3L3 10l7 3 3 7z" size={15} />
                   </button>

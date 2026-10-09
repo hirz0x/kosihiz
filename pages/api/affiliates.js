@@ -1,16 +1,14 @@
-/* Afiliasi: data referral, komisi, dan penarikan komisi. User mengajukan, admin menyetujui atau menolak. */
+/* Afiliasi: data referral & komisi. Komisi dipindahkan user ke saldo sendiri (tidak ada pencairan
+   tunai/transfer bank — kalau nanti itu dibutuhkan, baru dibangun lagi). */
 
-import { getProfile, hitungReferral, listPenarikan, getPenarikan, createPenarikan, ubahStatusPenarikan, potongKomisi, kembalikanKomisi, pindahKomisiKeSaldo, semuaProfil } from '../../lib/store';
-import { isAdmin, wajibAdmin } from '../../lib/auth';
+import { getProfile, hitungReferral, pindahKomisiKeSaldo, semuaProfil } from '../../lib/store';
+import { isAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { KOMISI_PERSEN, MIN_TARIK } from '../../lib/affiliate';
-import { catatAktivitas } from '../../lib/adminLog';
-
-const TUJUAN_MAKS = 200;
 
 export default async function handler(req, res) {
   try {
-    /* Data user: komisi, jumlah referral, dan riwayat penarikan. Admin: ringkasan dan semua penarikan. */
+    /* Data user: komisi & jumlah referral. Admin: ringkasan semua afiliasi. */
     if (req.method === 'GET') {
       if (isAdmin(req) && req.query.as !== 'user') {
         const profil = await semuaProfil();
@@ -26,13 +24,12 @@ export default async function handler(req, res) {
       if (!user) return res.status(401).json({ error: 'Perlu login.' });
       const profil = await getProfile(user.id);
       if (!profil) return res.status(400).json({ error: 'Profil belum ada. Muat ulang halaman lalu coba lagi.' });
-      const [pendaftaran, penarikan] = await Promise.all([hitungReferral(profil.username), listPenarikan(user.id)]);
+      const pendaftaran = await hitungReferral(profil.username);
       return res.status(200).json({
         username: profil.username,
         komisi: profil.komisi,
         komisiTotal: profil.komisi_total,
         pendaftaran,
-        penarikan,
         persen: KOMISI_PERSEN,
         minTarik: MIN_TARIK
       });
@@ -51,26 +48,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, saldo: Number(saldoBaru) });
     }
 
-    /* Admin menyetujui (sudah ditransfer manual) atau menolak. Komisi dikembalikan kalau ditolak. */
-    if (req.method === 'PATCH') {
-      if (!wajibAdmin(req, res)) return;
-      const { id, aksi } = req.body || {};
-      if (!id || (aksi !== 'setujui' && aksi !== 'tolak')) return res.status(400).json({ error: 'Data tidak lengkap.' });
-
-      const p = await getPenarikan(String(id));
-      if (!p) return res.status(404).json({ error: 'Penarikan tidak ditemukan.' });
-      if (p.status !== 'menunggu') return res.status(400).json({ error: 'Penarikan ini sudah diproses.' });
-
-      const keStatus = aksi === 'setujui' ? 'disetujui' : 'ditolak';
-      const berhasil = await ubahStatusPenarikan(p.id, 'menunggu', keStatus);
-      if (!berhasil) return res.status(400).json({ error: 'Penarikan ini sudah diproses.' });
-      if (keStatus === 'ditolak') await kembalikanKomisi(p.userId, p.jumlah);
-      await catatAktivitas(keStatus === 'disetujui' ? 'penarikan_setuju' : 'penarikan_tolak', 'Penarikan komisi ' + (p.username || p.userId) + ' · Rp ' + Number(p.jumlah).toLocaleString('id-ID'));
-      return res.status(200).json({ ok: true, status: keStatus });
-    }
-
     return res.status(405).json({ error: 'Metode tidak didukung.' });
   } catch (e) {
-    return res.status(502).json({ error: String(e.message || e) });
+    return res.status(502).json({ error: (isAdmin(req) && req.query.as !== 'user') ? String(e.message || e) : 'Gagal memproses afiliasi. Coba lagi.' });
   }
 }

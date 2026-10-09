@@ -14,16 +14,26 @@ export default async function handler(req, res) {
   /* Daftar layanan. Baca bebas, karena dipakai halaman pelanggan. */
   if (req.method === 'GET') {
     try {
-      const [services, waktu, settings, disinkron] = await Promise.all([
-        getServices(), waktuPerLayanan(), getSettings(), getSetting('services_synced', null)
-      ]);
-      /* Kategori iklan dari provider ("Other ad | Don't use") disembunyikan dari katalog. Datanya tetap ada.
-         Layanan nonaktif juga disembunyikan dari pelanggan (tampil hanya untuk admin, yang butuh lihat
-         semuanya buat atur markup/status) — penting juga buat ukuran respons: ribuan layanan likeo yang
-         sengaja belum diaktifkan tidak perlu ikut terkirim ke tiap pengunjung. */
       const admin = isAdmin(req);
-      const tampil = services.filter((s) => !/don.t use/i.test(String(s.kategori || '')) && (admin || s.aktif !== false));
-      const hasil = tampil.map((s) => ({ ...s, nama: decodeEntitas(s.nama), refill: Boolean(s.refill), ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {}) }));
+      /* Pelanggan: filter "aktif" didorong ke query Supabase-nya langsung (bukan ambil semua
+         puluhan ribu baris dulu baru disaring di JS) — ribuan layanan provider lain yang sengaja
+         belum diaktifkan jadi tidak perlu ditarik dari DB sama sekali, jauh lebih cepat & ringan. */
+      const [services, waktu, settings, disinkron] = await Promise.all([
+        getServices(admin ? undefined : { aktifOnly: true }), waktuPerLayanan(), getSettings(), getSetting('services_synced', null)
+      ]);
+      /* Kategori iklan/promosi dari provider disembunyikan dari katalog. Datanya tetap ada di database,
+         cuma tidak ditampilkan — "Other ad | Don't use" (smmsoc) dan "LIKEO - Private ..." (Ads/Jap/Mf/
+         Heysmm, dkk — kategori reseller internal likeo, bukan layanan beneran buat dijual). */
+      const kategoriTersembunyi = /don.t use|private/i;
+      const tampil = services.filter((s) => !kategoriTersembunyi.test(String(s.kategori || '')));
+      /* "provider" (smmsoc/likeo) cuma dipakai internal — dibuang dari respons pelanggan supaya nama
+         provider upstream tidak kebocor lewat tab Network (admin tetap butuh ini buat sub-tab Layanan).
+         "rate" (harga asli USD dari provider) dan "batal" juga tidak pernah dipakai halaman pelanggan,
+         dan "aktif" jadi redundan karena sudah difilter di query — dibuang biar respons lebih ringkas. */
+      const hasil = tampil.map((s) => {
+        const { provider, rate, batal, aktif, ...sisanya } = s;
+        return { ...sisanya, ...(admin ? { provider, rate, batal, aktif } : {}), nama: decodeEntitas(s.nama), refill: Boolean(s.refill), ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {}) };
+      });
       return res.status(200).json({ services: hasil, settings, disinkron });
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
@@ -63,7 +73,9 @@ export default async function handler(req, res) {
             markup: u.markup === undefined ? s.markup : Math.max(0, Number(u.markup) || 0),
             aktif: u.aktif === undefined ? s.aktif : !!u.aktif
           };
-          const catat = catatPerubahan(s, hasil);
+          /* Perubahan dari aksi borongan (massal) sengaja tidak dicatat ke riwayat/Update — kalau
+             ribuan layanan diaktifkan/nonaktifkan sekaligus, tab Update bisa kebanjiran ribuan baris. */
+          const catat = u.massal ? null : catatPerubahan(s, hasil);
           if (catat) catatan.push(catat);
           berubah.push(hasil);
           return hasil;

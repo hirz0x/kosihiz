@@ -45,7 +45,6 @@ function DashboardOrders({ v }) {
                     <span className="ddic" style={{ width: "32px", height: "32px", color: o.platColor, background: `rgba(${o.platRgb},.12)`, border: `1px solid rgba(${o.platRgb},.3)` }}>
                       <FaIcon d={o.icon} size={15} style={{ color: o.platColor }} />
                     </span>
-                    <input type="checkbox" aria-label="Pilih pesanan" style={{ width: "18px", height: "18px", margin: "0", accentColor: "var(--accent)" }} />
                     <span className="idpill" style={{ background: "var(--accent)", color: "#FFFFFF", borderColor: "var(--accent)" }}>
                       ID: {o.id}
                     </span>

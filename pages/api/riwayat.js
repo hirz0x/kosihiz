@@ -1,7 +1,7 @@
 /* Riwayat perubahan layanan. Baca bebas, karena dipakai halaman Update pelanggan. Admin bisa mencatat manual. */
 
 import { listRiwayat, tambahRiwayat, hapusRiwayat } from '../../lib/store';
-import { wajibAdmin } from '../../lib/auth';
+import { wajibAdmin, isAdmin } from '../../lib/auth';
 import { catatAktivitas } from '../../lib/adminLog';
 
 const TIPE = ['up', 'down', 'off', 'new'];
@@ -48,6 +48,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Metode tidak didukung.' });
   } catch (e) {
-    return res.status(502).json({ error: String(e.message || e) });
+    /* GET dibaca bebas (termasuk pelanggan) — pesan error asli cuma buat admin. */
+    return res.status(502).json({ error: isAdmin(req) ? String(e.message || e) : 'Gagal memuat riwayat. Coba lagi.' });
   }
 }

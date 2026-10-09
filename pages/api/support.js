@@ -1,7 +1,7 @@
 /* Profil tim support: nama dan inisial avatar yang tampil di balasan tiket. GET bebas, PATCH hanya admin. */
 
 import { getSetting, setSetting } from '../../lib/store';
-import { wajibAdmin } from '../../lib/auth';
+import { wajibAdmin, isAdmin } from '../../lib/auth';
 
 const DEFAULT = { nama: 'Tim Support', inisial: 'SG' };
 
@@ -24,6 +24,7 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Metode tidak didukung.' });
   } catch (e) {
-    return res.status(502).json({ error: String(e.message || e) });
+    /* GET dibaca bebas (termasuk pelanggan) — pesan error asli cuma buat admin. */
+    return res.status(502).json({ error: isAdmin(req) ? String(e.message || e) : 'Gagal memuat profil support. Coba lagi.' });
   }
 }

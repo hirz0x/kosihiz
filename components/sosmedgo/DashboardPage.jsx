@@ -33,11 +33,11 @@ class DashboardPage extends React.Component {
       navOpen: false,
       catalog: null, myOrders: [], saldo: 0, username: '', email: '', depErr: '', sending: false, sentOk: false, sentText: '',
       scat: 'all', sq: '', favs: {}, descId: 0, sOpen: '',
-      ostat: 'all', oq: '', ofOpen: false, ostatus: {}, refundList: [], aff: null, wdJumlah: '', wdTujuan: '', wdBusy: false, peringkat: null, riwayat: [], bayarUrl: '', lastDep: '', cekMsg: '', toast: null, support: { nama: 'Tim Support', inisial: 'SG' }, pwForm: { cur: '', baru: '', baru2: '' }, emForm: { baru: '', pw: '' }, prefLoaded: false, invText: '', apiInfo: null, apiBaru: '', mfaAktif: null, mfaSetup: null, mfaKode: '', notifList: [], notifUnread: 0, sLimit: 40, kurs: 16000, siap: false,
+      ostat: 'all', oq: '', ofOpen: false, ostatus: {}, refundList: [], aff: null, wdJumlah: '', wdBusy: false, peringkat: null, riwayat: [], bayarUrl: '', lastDep: '', cekMsg: '', toast: null, support: { nama: 'Tim Support', inisial: 'SG' }, pwForm: { cur: '', baru: '', baru2: '' }, emForm: { baru: '', pw: '' }, prefLoaded: false, invText: '', apiInfo: null, apiBaru: '', mfaAktif: null, mfaSetup: null, mfaKode: '', notifList: [], notifUnread: 0, sLimit: 40, kurs: 16000, siap: false,
       amtKey: 50000, amtCustom: '', met: 'qris', mOpen: false, paid: false, bayarBusy: false, dHistOpen: false, payHist: [],
       tcat: 'order', tsub: 'refill', tid: '', tmsg: '', tfile: null, tsent: false, tHistOpen: false, viewT: 0, replyTxt: '',
       tickets: [],
-      rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null,
+      rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null, massBusy: false,
       atab: 'security', pwSaved: false, emSaved: false, twofa: false, lang: 'id', tz: 'WIB', keyN: 1, invSaved: false,
       notif: { order: true, deposit: true, ticket: true, promo: false }
     };
@@ -88,7 +88,7 @@ class DashboardPage extends React.Component {
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Penarikan gagal diajukan.'); return; }
-        self.setState({ wdJumlah: '', wdTujuan: '' });
+        self.setState({ wdJumlah: '' });
         self.tampilkanToast(true, 'Komisi dipindah ke saldo.');
         self.muatAfiliasi();
         fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
@@ -352,7 +352,7 @@ class DashboardPage extends React.Component {
     var set = function (patch) { return function () { self.setState(patch); }; };
     var I = {
       all: 'M3 5h18l-7 8v6l-4 2v-8z',
-      li: '@linkedin', wa: '@whatsapp', gg: '@google', kick: '@kick', shp: '@shopee',
+      li: '@linkedin', wa: '@whatsapp', gg: '@google', kick: '@kick', shp: '@shopee', sc: '@snapchat', cmc: '@coinmarketcap',
       other: '@lainnya',
       fire: 'M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z',
       ig: 'M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z',
@@ -384,10 +384,10 @@ class DashboardPage extends React.Component {
     /* Hiasan tampilan untuk satu layanan. */
     var hiasi = function (x, peta) {
       x.priceFmt = fmt(x.price); x.priceTxt = 'Rp ' + x.priceFmt + ' / 1K';
-      x.minTxt = fmt(x.min); x.maxTxt = fmt(x.max); x.icon = I[x.p];
+      x.minTxt = fmt(x.min); x.maxTxt = fmt(x.max); x.icon = I[x.ikon || x.p];
       x.hasRefill = x.refill !== 'Tidak tersedia';
       x.desc = ['Link: username atau link postingan/profil', 'Mulai: ' + x.start, 'Kecepatan: ' + x.speed, 'Garansi refill: ' + x.refill, 'Akun harus publik selama proses berjalan'];
-      var warnaAsli = PLAT_COLOR[x.p];
+      var warnaAsli = PLAT_COLOR[x.ikon || x.p];
       x.platColor = warnaAsli || 'var(--accent-l)';
       x.platRgb = warnaAsli ? hexKeRgb(warnaAsli) : 'var(--accent-rgb)';
       peta[x.id] = x;
@@ -398,7 +398,10 @@ class DashboardPage extends React.Component {
       /* Katalog ribuan layanan hanya diolah sekali, lalu dipakai ulang.
          Tanpa ini, setiap ketikan di form memaksa seluruh katalog dihitung ulang. */
       if (!self._kat || self._kat.src !== st.catalog) {
-        var platDari = function (teks) {
+        /* Deteksi platform buat ikon — lebih lengkap dari daftar tab di atas (platListPenuh), karena
+           platform kayak LinkedIn/Snapchat/CoinMarketCap/WhatsApp/Kick/Shopee tidak punya tombol filter
+           sendiri, cuma butuh ikon & warna yang benar waktu tampil di dalam tab "Lainnya". */
+        var platIkon = function (teks) {
           var t = String(teks).toLowerCase();
           if (t.indexOf('instagram') > -1) return 'ig';
           if (t.indexOf('youtube') > -1) return 'yt';
@@ -409,16 +412,27 @@ class DashboardPage extends React.Component {
           if (t.indexOf('facebook') > -1) return 'fb';
           if (t.indexOf('twitch') > -1) return 'twitch';
           if (t.indexOf('reddit') > -1) return 'rd';
+          if (t.indexOf('linkedin') > -1) return 'li';
+          if (t.indexOf('snapchat') > -1) return 'sc';
+          if (t.indexOf('coinmarketcap') > -1) return 'cmc';
+          if (t.indexOf('whatsapp') > -1) return 'wa';
+          if (t.indexOf('kick') > -1) return 'kick';
+          if (t.indexOf('shopee') > -1) return 'shp';
           if (t.indexOf('traffic') > -1) return 'web';
           if (t.indexOf('seo') > -1 || t.indexOf('backlink') > -1) return 'seo';
           return 'other';
         };
+        /* Platform buat tab/pengelompokan: cuma yang ada tombol filternya sendiri (platListPenuh).
+           Selain itu tetap 'other' (tab "Lainnya") persis seperti sebelumnya — supaya nambah ikon
+           baru tidak ikut memindahkan layanannya keluar dari tab "Lainnya" / jadi tidak ketemu. */
+        var TAB_PLAT = { ig: 1, yt: 1, tt: 1, tw: 1, sp: 1, tg: 1, fb: 1, twitch: 1, rd: 1, web: 1, seo: 1 };
+        var platDari = function (teks) { var k = platIkon(teks); return TAB_PLAT[k] ? k : 'other'; };
         var jual = function (x) { return Math.round((x.dasar * (1 + (x.markup || 0) / 100)) / 100) * 100; };
         I.other = '@lainnya';
 
         var daftar = st.catalog.filter(function (x) { return x.aktif !== false; }).map(function (x) {
           return {
-            id: Number(x.id), p: platDari(x.kategori + ' ' + x.nama), ct: 'ww', ty: '',
+            id: Number(x.id), p: platDari(x.kategori + ' ' + x.nama), ikon: platIkon(x.kategori + ' ' + x.nama), ct: 'ww', ty: '',
             name: namaIndo(x.nama), price: jual(x), min: Number(x.min), max: Number(x.maks),
             start: x.waktuN >= 3 ? '± ' + x.waktuRata + ' menit' : 'Sesuai antrean provider', speed: x.jenis || 'Default',
             refill: x.refill ? 'Tersedia' : 'Tidak tersedia', kategori: x.kategori
@@ -432,7 +446,7 @@ class DashboardPage extends React.Component {
           adaPlat[x.p] = true;
           if (!(x.kategori in idxKat)) {
             idxKat[x.kategori] = kategori.length;
-            kategori.push({ v: 'c' + kategori.length, p: x.p, t: namaIndo(x.kategori), ids: [], icon: I[x.p] || I.all, bg: 'var(--accent)' });
+            kategori.push({ v: 'c' + kategori.length, p: x.p, t: namaIndo(x.kategori), ids: [], icon: I[x.ikon] || I.all, bg: 'var(--accent)' });
           }
           kategori[idxKat[x.kategori]].ids.push(x.id);
         });
@@ -571,7 +585,11 @@ class DashboardPage extends React.Component {
       var petaStatus = { 'Pending': 'pending', 'In progress': 'processing', 'Processing': 'processing', 'Completed': 'completed', 'Partial': 'partial', 'Canceled': 'canceled', 'Refunded': 'canceled' };
       orderData = st.myOrders.map(function (o) {
         return {
-          id: o.providerOrder, svcId: Number(o.layananId), link: o.link, qty: o.jumlah,
+          /* "id" dipakai buat DITAMPILKAN ke pelanggan (nomor pesanan dari provider, yang mereka kenal).
+             "orderId" adalah ID internal kita sendiri ("SG-..."), dipakai buat batalkan/refund — dua-duanya
+             beda nilai, jangan ketuker. Sebelumnya cancel/refund salah kirim "id" (nomor provider) padahal
+             backend-nya mencari berdasar "orderId" (ID internal), jadi selalu gagal "tidak ditemukan". */
+          id: o.providerOrder, orderId: o.id, svcId: Number(o.layananId), link: o.link, qty: o.jumlah,
           startC: o.awal === undefined || o.awal === null ? '—' : String(o.awal),
           remains: o.sisa === undefined || o.sisa === null ? o.jumlah : Number(o.sisa),
           status: petaStatus[o.status] || 'pending',
@@ -593,7 +611,7 @@ class DashboardPage extends React.Component {
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
         cancel: function () {
-          fetch('/api/orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: o.id }) })
+          fetch('/api/orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: o.orderId }) })
             .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
             .then(function (res) {
               if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Pesanan gagal dibatalkan.'); return; }
@@ -610,10 +628,10 @@ class DashboardPage extends React.Component {
     var rql = st.rq.trim();
     var REF_S = { menunggu: ['Menunggu ⏱', 'rgba(245,158,11,.12)', 'var(--am)'], disetujui: ['Disetujui ✓', 'rgba(34,197,94,.12)', 'var(--gr)'], ditolak: ['Ditolak ✕', '#7A1022', '#FFFFFF'], belum: ['Belum diajukan', 'var(--s3)', 'var(--t3)'] };
     var refunds = orderData.filter(function (o) { return o.status === 'canceled' || o.status === 'partial'; }).filter(function (o) { return !rql || String(o.id).indexOf(rql) > -1; }).map(function (o) {
-      var rf = (st.refundList || []).filter(function (x) { return x.pesanan === String(o.id); })[0];
+      var rf = (st.refundList || []).filter(function (x) { return x.pesanan === String(o.orderId); })[0];
       var pk = REF_S[rf ? rf.status : 'belum'];
       var est = o.biaya > 0 && o.qty > 0 ? Math.round(o.biaya * Math.min(o.remains, o.qty) / o.qty) : 0;
-      return { id: o.id, date: o.date, amt: 'Rp ' + fmt(rf ? rf.jumlah : est), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanFn: function () { self.ajukanRefund(o.id); } };
+      return { id: o.id, date: o.date, amt: 'Rp ' + fmt(rf ? rf.jumlah : est), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanFn: function () { self.ajukanRefund(o.orderId); } };
     });
 
     /* ---------- add funds ---------- */
@@ -915,22 +933,53 @@ class DashboardPage extends React.Component {
       goTicketsBack: set({ page: 'tickets', tHistOpen: true }),
       tsent: st.tsent,
 
-      /* mass order */
+      /* mass order — dikirim beneran satu-satu ke /api/orders (bukan cuma validasi lalu diam),
+         supaya pelanggan tidak dikira pesanannya terkirim padahal tidak terjadi apa-apa. */
       massTxt: st.massTxt, setMass: function (e) { self.setState({ massTxt: e.target.value, massRes: null }); },
+      massBusy: st.massBusy,
       sendMass: function (e) {
         if (e && e.preventDefault) e.preventDefault();
+        if (st.massBusy) return;
         var lines = st.massTxt.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
-        var ok = 0, bad = [], total = 0;
+        if (lines.length === 0) { self.setState({ massRes: { ok: 0, bad: [], gagal: [], total: 0, empty: true } }); return; }
+
+        var bad = [];
+        var valid = [];
         lines.forEach(function (l, i) {
           var p = l.split('|').map(function (x) { return x.trim(); });
-          var sv = byId[parseInt(p[0], 10)] || { name: 'Layanan ' + p[0], icon: I.all, price: 0 }, q = parseInt(p[2], 10);
-          if (p.length !== 3 || !sv || !/^https?:\/\//.test(p[1]) || isNaN(q) || q < sv.min || q > sv.max) bad.push(i + 1);
-          else { ok++; total += sv.price * q / 1000; }
+          var sv = p.length === 3 ? byId[parseInt(p[0], 10)] : null;
+          var q = p.length === 3 ? parseInt(p[2], 10) : NaN;
+          if (!sv || p.length !== 3 || !/^https?:\/\//.test(p[1]) || isNaN(q) || q < sv.min || q > sv.max) bad.push(i + 1);
+          else valid.push({ baris: i + 1, service: sv.id, link: p[1], quantity: q });
         });
-        self.setState({ massRes: { ok: ok, bad: bad, total: total, empty: lines.length === 0 } });
+        if (valid.length === 0) { self.setState({ massRes: { ok: 0, bad: bad, gagal: [], total: 0, empty: false } }); return; }
+
+        self.setState({ massBusy: true, massRes: null });
+        var ok = 0, gagal = [], total = 0;
+        var kirimSatu = function (idx) {
+          if (idx >= valid.length) {
+            self.setState({ massBusy: false, massRes: { ok: ok, bad: bad, gagal: gagal, total: total, empty: false } });
+            fetch('/api/orders?as=user').then(function (r) { return r.json(); }).then(function (d) { if (Array.isArray(d.orders)) self.setState({ myOrders: d.orders }); }).catch(function () {});
+            fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
+            return;
+          }
+          var item = valid[idx];
+          fetch('/api/orders?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service: item.service, link: item.link, quantity: item.quantity }) })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (res) {
+              if (res.ok && res.d && res.d.order) { ok++; total += Number(res.d.order.biaya) || 0; } else { gagal.push({ baris: item.baris, error: (res.d && res.d.error) || 'Gagal dikirim.' }); }
+            })
+            .catch(function () { gagal.push({ baris: item.baris, error: 'Gagal terhubung ke server.' }); })
+            .then(function () { kirimSatu(idx + 1); });
+        };
+        kirimSatu(0);
       },
       massRes: !!st.massRes,
-      massMsg: !st.massRes ? '' : st.massRes.empty ? 'Isi minimal satu baris pesanan.' : ('✓ ' + st.massRes.ok + ' pesanan valid — total Rp ' + fmt(st.massRes.total) + ' (perkiraan)' + (st.massRes.bad.length ? '\n✕ Baris bermasalah: ' + st.massRes.bad.join(', ') + ' (cek ID layanan, link, atau jumlah min/maks)' : '')),
+      massMsg: !st.massRes ? '' : st.massRes.empty ? 'Isi minimal satu baris pesanan.' : (
+        (st.massRes.ok ? '✓ ' + st.massRes.ok + ' pesanan berhasil dikirim — total Rp ' + fmt(st.massRes.total) : (st.massRes.bad.length ? '' : '✕ Tidak ada pesanan yang berhasil dikirim.')) +
+        (st.massRes.bad.length ? (st.massRes.ok ? '\n' : '') + '✕ Format baris salah: ' + st.massRes.bad.join(', ') + ' (cek ID layanan, link, atau jumlah min/maks)' : '') +
+        (st.massRes.gagal.length ? '\n✕ Gagal dikirim: ' + st.massRes.gagal.map(function (g) { return 'baris ' + g.baris + ' (' + g.error + ')'; }).join(', ') : '')
+      ),
       massBg: st.massRes && (st.massRes.bad.length || st.massRes.empty) ? 'rgba(var(--accent-rgb),.08)' : 'rgba(34,197,94,.08)',
       massBc: st.massRes && (st.massRes.bad.length || st.massRes.empty) ? 'var(--r5)' : 'rgba(34,197,94,.3)',
       massFg: st.massRes && (st.massRes.bad.length || st.massRes.empty) ? 'var(--rt2)' : 'var(--gr)',
@@ -941,15 +990,10 @@ class DashboardPage extends React.Component {
       minTarikTxt: 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000),
       afiliasiTxt: 'Bagikan link ini. Setiap kali orang yang kamu ajak isi saldo, kamu dapat komisi ' + (st.aff ? st.aff.persen : 5) + '% dari depositnya. Komisi bisa dipindah ke saldo untuk belanja layanan.',
       wdJumlah: st.wdJumlah, setWdJumlah: function (e) { self.setState({ wdJumlah: e.target.value }); },
-      wdTujuan: st.wdTujuan, setWdTujuan: function (e) { self.setState({ wdTujuan: e.target.value }); },
       wdBusy: st.wdBusy, tarikKomisi: function () { self.tarikKomisi(); },
-      wdList: (st.aff ? st.aff.penarikan : []).map(function (p) {
-        var s = { menunggu: ['Menunggu ⏱', 'rgba(245,158,11,.12)', 'var(--am)'], disetujui: ['Berhasil ✓', 'rgba(34,197,94,.12)', 'var(--gr)'], ditolak: ['Ditolak ✕', '#7A1022', '#FFFFFF'] }[p.status] || ['—', 'var(--s3)', 'var(--t3)'];
-        return { id: p.id, jumlah: 'Rp ' + fmt(p.jumlah), tujuan: p.tujuan, tgl: String(p.dibuat).slice(0, 16).replace('T', ' '), statusTxt: s[0], statusBg: s[1], statusFg: s[2] };
-      }),
       copyTxt: st.copied ? 'Tersalin!' : 'Salin Link',
       copyRef: function () { try { navigator.clipboard.writeText(st.aff ? (typeof window !== 'undefined' ? window.location.origin : '') + '/register?ref=' + encodeURIComponent(st.aff.username) : ''); } catch (e) {} self.setState({ copied: true }); },
-      goAff: go('affiliates'), goAccount: go('account'),
+      goAff: go('affiliates'), goAccount: go('account'), goMassOrder: go('massorder'),
       setIc: st.page === 'account' ? '#FFFFFF' : ('currentColor'), setBg: st.page === 'account' ? 'var(--accent)' : 'transparent', setFg: st.page === 'account' ? '#FFFFFF' : 'var(--t3)',
 
       /* account */

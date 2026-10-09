@@ -3,7 +3,7 @@ import { ICON, NOTIF_ITEMS, rp, Svg, Toggle } from './admin-kit';
 
 function AdminPengaturan({ v }) {
   const {
-    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn
+    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn
   } = v;
   return tab === 'Pengaturan' && (
         <>
@@ -85,21 +85,25 @@ function AdminPengaturan({ v }) {
           )}
 
           {settingsTab === 'Provider' && (
-            <div className="card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '640px' }}>
-              <div style={{ fontSize: '14px', fontWeight: '700' }}>Provider layanan</div>
-              <div className="muted" style={{ fontSize: '12px' }}>
-                Tersambung ke <strong style={{ color: 'var(--hi)' }}>smmsoc.com</strong>. API key disimpan di file <strong style={{ color: 'var(--hi)' }}>.env.local</strong> di server, dan tidak pernah dikirim ke browser.
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                <button type="button" className="submit" onClick={cekProvider} disabled={provBusy}>Cek koneksi &amp; saldo</button>
-                <button type="button" className="ghost" onClick={importServices} disabled={provBusy}>Ambil daftar layanan</button>
-              </div>
-              {provBusy ? <div className="muted" style={{ fontSize: '12px' }}>Menghubungi provider...</div> : null}
-              {provMsg ? (
-                <div style={{ fontSize: '12px', color: provMsg.ok ? '#22C55E' : '#FF5A75', lineHeight: '1.6' }}>{provMsg.text}</div>
-              ) : null}
-              <div className="muted" style={{ fontSize: '11px', lineHeight: '1.6' }}>
-                Harga dasar dihitung dari rate provider dikali kurs di tab Layanan ({rp(kurs)} per $1). Markup diatur sendiri setelah layanan masuk.
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {PROVIDER_LIST.map((provider) => (
+                <div key={provider} className="card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '640px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700' }}>Provider layanan — {PROVIDER_LABEL[provider] || provider}</div>
+                  <div className="muted" style={{ fontSize: '12px' }}>
+                    Tersambung ke <strong style={{ color: 'var(--hi)' }}>{PROVIDER_LABEL[provider] || provider}</strong>. API key disimpan di file <strong style={{ color: 'var(--hi)' }}>.env.local</strong> di server, dan tidak pernah dikirim ke browser.
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                    <button type="button" className="submit" onClick={() => cekProvider(provider)} disabled={provBusy[provider]}>Cek koneksi &amp; saldo</button>
+                    <button type="button" className="ghost" onClick={() => importServices(provider)} disabled={provBusy[provider]}>Ambil daftar layanan</button>
+                  </div>
+                  {provBusy[provider] ? <div className="muted" style={{ fontSize: '12px' }}>Menghubungi provider...</div> : null}
+                  {provMsg[provider] ? (
+                    <div style={{ fontSize: '12px', color: provMsg[provider].ok ? '#22C55E' : '#FF5A75', lineHeight: '1.6' }}>{provMsg[provider].text}</div>
+                  ) : null}
+                </div>
+              ))}
+              <div className="muted" style={{ fontSize: '11px', lineHeight: '1.6', maxWidth: '640px' }}>
+                Harga dasar dihitung dari rate provider dikali kurs di tab Layanan ({rp(kurs)} per $1). Markup diatur sendiri setelah layanan masuk. Layanan baru dari likeo.net masuk dalam keadaan nonaktif — aktifkan satu-satu di tab Layanan setelah dicek.
               </div>
             </div>
           )}

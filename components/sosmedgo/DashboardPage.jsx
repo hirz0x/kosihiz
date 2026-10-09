@@ -28,7 +28,7 @@ class DashboardPage extends React.Component {
     super(p);
     this.state = {
       page: 'neworder', hdd: '', cur: 'IDR',
-      plat: 'all', cat: 'new', svcId: 103, open: '', tab: 'new', qty: '', link: '', q: '', sent: false,
+      plat: 'all', cat: 'new', svcId: 103, open: '', tab: 'new', qty: '', link: '', comments: '', q: '', sent: false,
       navOpen: false,
       catalog: null, myOrders: [], saldo: 0, username: '', email: '', depErr: '', sending: false, sentOk: false, sentText: '',
       scat: 'all', sq: '', favs: {}, descId: 0, sOpen: '',
@@ -496,7 +496,13 @@ class DashboardPage extends React.Component {
     var cat = visCats.filter(function (c) { return c.v === st.cat; })[0] || visCats[0] || null;
     var inCat = cat ? cat.ids.map(function (id) { return byId[id]; }) : [];
     var svc = inCat.filter(function (s) { return s.id === st.svcId; })[0] || inCat[0] || null;
-    var qtyN = parseInt(st.qty, 10), hasQty = !isNaN(qtyN) && qtyN > 0;
+    /* Layanan "Custom Comments" minta teks komentar sendiri, bukan cuma link+jumlah — providernya
+       menghitung banyak baris komentar sebagai jumlah pesanan (dicoba & dikonfirmasi langsung ke
+       provider), jadi jumlah di sini mengikuti banyak baris komentar, bukan diketik manual. */
+    var perluKomentar = !!(svc && /custom comment/i.test(svc.speed || ''));
+    var komentarBaris = st.comments.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    var qtyN = perluKomentar ? komentarBaris.length : parseInt(st.qty, 10);
+    var hasQty = !isNaN(qtyN) && qtyN > 0;
     var qtyOk = svc && hasQty && qtyN >= svc.min && qtyN <= svc.max;
     var ql = st.q.trim().toLowerCase();
     /* Cocok di ID (bukan cuma persis sama) atau nama. Kecocokan ID diurutkan duluan sebelum
@@ -510,7 +516,7 @@ class DashboardPage extends React.Component {
       return 3;
     };
     var found = (st.page !== 'neworder' || st.tab !== 'search') ? [] : (ql ? services.filter(function (s) { return s.name.toLowerCase().indexOf(ql) > -1 || String(s.id).indexOf(ql) > -1; }).sort(function (a, b) { return skorLayanan(a) - skorLayanan(b); }) : services).slice(0, ql ? 50 : 5);
-    var choose = function (patch) { patch.open = ''; patch.sent = false; self.setState(patch); };
+    var choose = function (patch) { patch.open = ''; patch.sent = false; patch.comments = ''; self.setState(patch); };
     var buyGo = function (s) { var c = catOf(s.id); return go('neworder', { plat: s.p, cat: c ? c.v : '', svcId: s.id, tab: 'new', sent: false }); };
 
     /* ---------- services page ---------- */
@@ -721,8 +727,13 @@ class DashboardPage extends React.Component {
       hasSvc: !!svc, noSvc: !svc,
       linkPh: ({ ig: "https://instagram.com/username", tt: "https://tiktok.com/@username", yt: "https://youtube.com/@channel", tw: "https://x.com/username", sp: "https://open.spotify.com/...", tg: "https://t.me/channel", fb: "https://facebook.com/halaman", web: "https://domainkamu.com", seo: "https://domainkamu.com", twitch: "https://twitch.tv/username", rd: "https://reddit.com/u/username", other: "https://link-atau-username" })[svc ? svc.p : ""] || "https://link-atau-username",
       link: st.link, setLink: function (e) { self.setState({ link: e.target.value, sent: false }); },
-      qty: st.qty, setQty: function (e) { self.setState({ qty: e.target.value, sent: false }); },
-      qtyHint: svc ? (hasQty && !qtyOk ? 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt : 'Min: ' + svc.minTxt + ' — Maks: ' + svc.maxTxt) : '',
+      perluKomentar: perluKomentar,
+      comments: st.comments, setComments: function (e) { self.setState({ comments: e.target.value, sent: false }); },
+      komentarCount: komentarBaris.length,
+      qty: perluKomentar ? String(qtyN) : st.qty, setQty: function (e) { self.setState({ qty: e.target.value, sent: false }); },
+      qtyHint: svc ? (perluKomentar
+        ? (hasQty && !qtyOk ? 'Jumlah baris komentar harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt : 'Jumlah mengikuti banyak baris komentar (Min: ' + svc.minTxt + ' — Maks: ' + svc.maxTxt + ')')
+        : (hasQty && !qtyOk ? 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt : 'Min: ' + svc.minTxt + ' — Maks: ' + svc.maxTxt)) : '',
       qtyColor: hasQty && !qtyOk ? 'var(--rt)' : 'var(--t5)',
       subtotal: svc && hasQty ? 'Rp ' + fmt(svc.price * qtyN / 1000 * (1 - (st.peringkat && st.peringkat.index !== undefined ? (st.peringkat.tiers[st.peringkat.index].diskon || 0) : 0) / 100)) : 'Rp 0',
       submitOrder: function (e) {
@@ -730,12 +741,18 @@ class DashboardPage extends React.Component {
         if (st.sending) return;
         if (!svc) { self.tampilkanToast(false, 'Pilih layanan dulu.'); return; }
         if (!st.link.trim()) { self.tampilkanToast(false, 'Link belum diisi.'); return; }
-        if (!qtyOk) { self.tampilkanToast(false, 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt + '.'); return; }
+        if (perluKomentar && komentarBaris.length === 0) { self.tampilkanToast(false, 'Isi komentar dulu, satu per baris.'); return; }
+        if (!qtyOk) {
+          self.tampilkanToast(false, perluKomentar
+            ? 'Jumlah baris komentar harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt + '.'
+            : 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt + '.');
+          return;
+        }
         self.setState({ sending: true, sent: false, sentText: '' });
         fetch('/api/orders?as=user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ service: String(svc.id), link: st.link.trim(), quantity: qtyN })
+          body: JSON.stringify(Object.assign({ service: String(svc.id), link: st.link.trim(), quantity: qtyN }, perluKomentar ? { comments: komentarBaris.join('\n') } : {}))
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
@@ -747,7 +764,7 @@ class DashboardPage extends React.Component {
               fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
               var pesanSukses = 'Pesanan ' + res.d.order.providerOrder + ' dibayar dengan saldo. Sedang diproses.';
               /* Link dan jumlah dikosongkan lagi, supaya tidak tersubmit ulang tanpa sengaja. Layanan yang dipilih dibiarkan, untuk pesan ulang layanan sama. */
-              self.setState({ sending: false, sent: true, sentOk: true, sentText: pesanSukses, link: '', qty: '' });
+              self.setState({ sending: false, sent: true, sentOk: true, sentText: pesanSukses, link: '', qty: '', comments: '' });
               self.tampilkanToast(true, pesanSukses);
             }
           })

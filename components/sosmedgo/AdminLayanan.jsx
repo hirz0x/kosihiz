@@ -3,15 +3,23 @@ import { rp, hargaJual, Badge } from './admin-kit';
 
 function AdminLayanan({ v }) {
   const {
-    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn
+    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, setAktifMassal, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn
   } = v;
   return tab === 'Layanan' && (
         <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {PROVIDER_LIST.map((provider) => (
+              <button key={provider} type="button" className={'sub' + (svcProvider === provider ? ' on' : '')} onClick={() => setSvcProvider(provider)}>
+                {PROVIDER_LABEL[provider] || provider}
+              </button>
+            ))}
+          </div>
+
           <div className="card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ fontSize: '14px', fontWeight: '700' }}>Markup massal</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
               <input className="inp" type="number" min="0" placeholder="Markup %" value={massMarkup} onChange={(e) => setMassMarkup(e.target.value)} style={{ maxWidth: '160px', margin: 0 }} aria-label="Markup persen" />
-              <button type="button" className="submit" disabled={massMarkup === ''} onClick={() => applyMarkup(null)}>Terapkan ke semua ({services.length})</button>
+              <button type="button" className="submit" disabled={massMarkup === ''} onClick={() => applyMarkup(null)}>Terapkan ke semua ({svcInProvider.length})</button>
               <button type="button" className="ghost" disabled={selCount === 0 || massMarkup === ''} onClick={() => applyMarkup(selectedIds)}>Terapkan ke {selCount} dipilih</button>
               <button type="button" className="ghost" onClick={resetMarkup}>Reset ke harga dasar</button>
               <button type="button" className="submit" disabled={!adaPerubahan || svcSaving} onClick={simpanLayanan}>
@@ -20,6 +28,20 @@ function AdminLayanan({ v }) {
             </div>
             <div className="muted" style={{ fontSize: '12px' }}>
               Contoh: harga dasar Rp 12.000 dengan markup {massMarkup || 0}% menjadi {rp(hargaJual({ dasar: 12000, markup: Number(massMarkup) || 0 }))} ({usd(hargaJual({ dasar: 12000, markup: Number(massMarkup) || 0 }))}).
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '14px', fontWeight: '700' }}>Status layanan ({PROVIDER_LABEL[svcProvider] || svcProvider})</div>
+            <div className="muted" style={{ fontSize: '12px' }}>Layanan nonaktif tidak muncul di halaman pesan pelanggan, meski datanya tetap tersimpan.</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+              <button type="button" className="ghost" disabled={svcInProvider.length === 0} onClick={() => setAktifMassal(null, false)}>Nonaktifkan semua ({svcInProvider.length})</button>
+              <button type="button" className="ghost" disabled={svcInProvider.length === 0} onClick={() => setAktifMassal(null, true)}>Aktifkan semua ({svcInProvider.length})</button>
+              <button type="button" className="ghost" disabled={selCount === 0} onClick={() => setAktifMassal(selectedIds, false)}>Nonaktifkan {selCount} dipilih</button>
+              <button type="button" className="ghost" disabled={selCount === 0} onClick={() => setAktifMassal(selectedIds, true)}>Aktifkan {selCount} dipilih</button>
+              <button type="button" className="submit" disabled={!adaPerubahan || svcSaving} onClick={simpanLayanan}>
+                {labelSimpan}
+              </button>
             </div>
           </div>
 
@@ -76,7 +98,7 @@ function AdminLayanan({ v }) {
                     </tr>
                   );
                 })}
-                {svcRows.length === 0 && <tr><td colSpan={12} className="muted">{services.length === 0 ? "Belum ada layanan. Buka Pengaturan → Provider lalu klik Ambil daftar layanan." : "Tidak ada layanan yang cocok."}</td></tr>}
+                {svcRows.length === 0 && <tr><td colSpan={12} className="muted">{svcInProvider.length === 0 ? "Belum ada layanan dari " + (PROVIDER_LABEL[svcProvider] || svcProvider) + ". Buka Pengaturan → Provider lalu klik Ambil daftar layanan." : "Tidak ada layanan yang cocok."}</td></tr>}
               </tbody>
             </table>
           </div>

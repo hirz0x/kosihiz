@@ -206,3 +206,10 @@ create table if not exists admin_log (
 );
 create index if not exists admin_log_dibuat_idx on admin_log (dibuat desc);
 alter table admin_log enable row level security;
+
+-- Provider kedua (likeo.net). ID layanannya disimpan dengan offset supaya tidak bentrok
+-- dengan ID smmsoc — kolom ini cuma menandai baris itu milik provider yang mana.
+alter table services add column if not exists provider text not null default 'smmsoc';
+alter table orders   add column if not exists provider text not null default 'smmsoc';
+create index if not exists services_provider_idx on services (provider);
+create index if not exists orders_provider_idx on orders (provider);

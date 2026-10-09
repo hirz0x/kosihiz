@@ -145,10 +145,21 @@ function DashboardNewOrder({ v }) {
                         Link
                       </label>
                       <input id="link" className="inp" type="url" placeholder={v.linkPh} value={v.link} onChange={v.setLink} />
+                      {v.perluKomentar ? (
+                        <>
+                          <label className="lbl" htmlFor="komentar">
+                            Komentar (satu per baris)
+                          </label>
+                          <textarea id="komentar" className="inp" rows="5" style={{ height: "auto", padding: "14px", resize: "vertical", fontSize: "13px", lineHeight: "1.6" }} placeholder={"Komentar pertama\nKomentar kedua\nKomentar ketiga"} value={v.comments} onChange={v.setComments} />
+                          <div style={{ fontSize: "10px", color: "var(--t5)", marginTop: "6px" }}>
+                            {v.komentarCount} baris komentar — jumlah pesanan mengikuti ini
+                          </div>
+                        </>
+                      ) : null}
                       <label className="lbl" htmlFor="jumlah">
                         {v.tr.qty}
                       </label>
-                      <input id="jumlah" className="inp" type="number" inputMode="numeric" value={v.qty} onChange={v.setQty} />
+                      <input id="jumlah" className="inp" type="number" inputMode="numeric" value={v.qty} onChange={v.setQty} readOnly={v.perluKomentar} style={v.perluKomentar ? { opacity: 0.7, cursor: "not-allowed" } : undefined} />
                       <div style={{ fontSize: "10px", color: v.qtyColor, marginTop: "6px" }}>
                         {v.qtyHint}
                       </div>

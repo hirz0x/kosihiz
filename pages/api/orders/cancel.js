@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     if (!pesanan.providerOrder) return res.status(400).json({ error: 'Pesanan ini belum punya ID provider.' });
 
     /* Provider membalas daftar hasil per ID. Balasan berisi "error" berarti pembatalan ditolak. */
-    const hasil = await callProvider('cancel', { orders: String(pesanan.providerOrder) });
+    const hasil = await callProvider(pesanan.provider || 'smmsoc', 'cancel', { orders: String(pesanan.providerOrder) });
     const item = Array.isArray(hasil) ? hasil[0] : hasil;
     if (!item || item.error) {
       return res.status(400).json({ error: 'Provider menolak pembatalan' + (item && item.error ? ': ' + item.error : '.') });

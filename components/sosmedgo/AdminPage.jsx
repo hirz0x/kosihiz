@@ -56,7 +56,10 @@ export default function AdminPage() {
   const bukaTab = (t) => { setTab(t); setNavOpen(false); };
   const [q, setQ] = useState('');
   const [pengguna, setPengguna] = useState([]);
-  const [saldoProv, setSaldoProv] = useState({ saldo: null, currency: '', error: '' });
+  const PROVIDER_LIST = ['smmsoc', 'likeo'];
+  const PROVIDER_LABEL = { smmsoc: 'smmsoc.com', likeo: 'likeo.net' };
+  const kosongSaldoProv = { saldo: null, currency: '', error: '' };
+  const [saldoProv, setSaldoProv] = useState({ smmsoc: kosongSaldoProv, likeo: kosongSaldoProv });
   const muatPengguna = () => fetch('/api/pengguna').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.pengguna)) setPengguna(d.pengguna); }).catch(() => {});
   const [orderFilter, setOrderFilter] = useState('Semua');
   const [deposits, setDeposits] = useState([]);
@@ -166,11 +169,17 @@ export default function AdminPage() {
      saldonya berubah sendiri padahal cuma kurs konversinya yang baru siap. */
   const [kursSiap, setKursSiap] = useState(false);
   /* Saldo provider ditampilkan dalam Rupiah. Kalau provider membalas dalam USD, dikonversi pakai kurs, dengan nilai USD aslinya sebagai keterangan kecil. */
-  const saldoAsliUsd = saldoProv.currency && saldoProv.currency !== 'IDR';
-  const saldoIdr = saldoProv.saldo === null ? null : (saldoAsliUsd ? saldoProv.saldo * kurs : saldoProv.saldo);
-  const saldoTxt = saldoIdr === null || (saldoAsliUsd && !kursSiap) ? '—' : rp(saldoIdr) + (saldoAsliUsd ? ' (≈ ' + saldoProv.saldo.toFixed(2) + ' ' + saldoProv.currency + ')' : '');
-  const provMenipis = saldoIdr !== null && saldoIdr < PROVIDER_LOW;
+  const saldoInfo = (provider) => {
+    const sp = saldoProv[provider] || kosongSaldoProv;
+    const asliUsd = sp.currency && sp.currency !== 'IDR';
+    const idr = sp.saldo === null ? null : (asliUsd ? sp.saldo * kurs : sp.saldo);
+    const txt = idr === null || (asliUsd && !kursSiap) ? '—' : rp(idr) + (asliUsd ? ' (≈ ' + sp.saldo.toFixed(2) + ' ' + sp.currency + ')' : '');
+    return { idr, txt, menipis: idr !== null && idr < PROVIDER_LOW, label: PROVIDER_LABEL[provider] || provider };
+  };
   const [massMarkup, setMassMarkup] = useState('');
+  const [svcProvider, setSvcProvider] = useState('smmsoc');
+  /* Ganti sub-tab provider: filter/pencarian/halaman tab Layanan direset supaya tidak kebawa dari provider sebelumnya. */
+  useEffect(() => { setSvcQ(''); setSvcCat('all'); setSvcPage(1); }, [svcProvider]);
   const [selSvc, setSelSvc] = useState({});
   const [svcQ, setSvcQ] = useState('');
   const [svcCat, setSvcCat] = useState('all');
@@ -293,13 +302,15 @@ export default function AdminPage() {
   useEffect(() => { fetch('/api/support').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && d.nama) setSupportProfil({ nama: d.nama, inisial: d.inisial }); }).catch(() => {}); }, []);
   useEffect(() => { muatPengguna(); }, []);
   useEffect(() => {
-    fetch('/api/provider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'balance' }) })
-      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (!ok || d.error) throw new Error(d.error || 'Gagal mengambil saldo provider.');
-        setSaldoProv({ saldo: Number(d.balance), currency: d.currency || '', error: '' });
-      })
-      .catch((e) => setSaldoProv({ saldo: null, currency: '', error: e.message || 'Gagal mengambil saldo provider.' }));
+    PROVIDER_LIST.forEach((provider) => {
+      fetch('/api/provider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'balance', provider }) })
+        .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          if (!ok || d.error) throw new Error(d.error || 'Gagal mengambil saldo provider.');
+          setSaldoProv((m) => ({ ...m, [provider]: { saldo: Number(d.balance), currency: d.currency || '', error: '' } }));
+        })
+        .catch((e) => setSaldoProv((m) => ({ ...m, [provider]: { saldo: null, currency: '', error: e.message || 'Gagal mengambil saldo provider.' } })));
+    });
   }, []);
   const openTickets = tickets.filter((t) => t.status !== 'Ditutup').length;
   const pendingRefunds = refunds.filter((r) => r.status === 'Menunggu').length;
@@ -384,42 +395,42 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
-  const [provBusy, setProvBusy] = useState(false);
-  const [provMsg, setProvMsg] = useState(null);
+  const [provBusy, setProvBusy] = useState({ smmsoc: false, likeo: false });
+  const [provMsg, setProvMsg] = useState({ smmsoc: null, likeo: null });
 
   /* Panggilan selalu lewat server kita, supaya API key tidak ikut ke browser. */
-  const callProvider = async (action, params) => {
+  const callProvider = async (provider, action, params) => {
     const r = await fetch('/api/provider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...params })
+      body: JSON.stringify({ action, provider, ...params })
     });
     const data = await r.json();
     if (!r.ok || (data && data.error)) throw new Error((data && data.error) || 'Gagal memanggil provider.');
     return data;
   };
 
-  const cekProvider = async () => {
-    setProvBusy(true);
-    setProvMsg(null);
+  const cekProvider = async (provider) => {
+    setProvBusy((m) => ({ ...m, [provider]: true }));
+    setProvMsg((m) => ({ ...m, [provider]: null }));
     try {
-      const d = await callProvider('balance');
+      const d = await callProvider(provider, 'balance');
       const idr = d.currency && d.currency !== 'IDR' ? Number(d.balance) * kurs : Number(d.balance);
-      setProvMsg({ ok: true, text: 'Tersambung. Saldo provider: ' + rp(idr) + (d.currency && d.currency !== 'IDR' ? ' (≈ ' + Number(d.balance).toFixed(2) + ' ' + d.currency + ')' : '') });
+      setProvMsg((m) => ({ ...m, [provider]: { ok: true, text: 'Tersambung. Saldo provider: ' + rp(idr) + (d.currency && d.currency !== 'IDR' ? ' (≈ ' + Number(d.balance).toFixed(2) + ' ' + d.currency + ')' : '') } }));
     } catch (e) {
-      setProvMsg({ ok: false, text: e.message });
+      setProvMsg((m) => ({ ...m, [provider]: { ok: false, text: e.message } }));
     }
-    setProvBusy(false);
+    setProvBusy((m) => ({ ...m, [provider]: false }));
   };
 
-  const importServices = async () => {
-    setProvBusy(true);
-    setProvMsg(null);
+  const importServices = async (provider) => {
+    setProvBusy((m) => ({ ...m, [provider]: true }));
+    setProvMsg((m) => ({ ...m, [provider]: null }));
     try {
       const r = await fetch('/api/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kurs })
+        body: JSON.stringify({ provider, kurs })
       });
       const d = await r.json();
       if (!r.ok || d.error) throw new Error(d.error || 'Gagal menarik layanan.');
@@ -431,22 +442,25 @@ export default function AdminPage() {
       setSvcQ('');
       setSvcCat('all');
       setSvcPage(1);
-      setProvMsg({ ok: true, text: d.jumlah + ' layanan dari ' + d.kategori + ' kategori tersimpan. Markup yang sudah diatur tetap dipertahankan.' });
+      setProvMsg((m) => ({ ...m, [provider]: { ok: true, text: d.jumlah + ' layanan dari ' + d.kategori + ' kategori tersimpan. Markup yang sudah diatur tetap dipertahankan.' } }));
     } catch (e) {
-      setProvMsg({ ok: false, text: e.message });
+      setProvMsg((m) => ({ ...m, [provider]: { ok: false, text: e.message } }));
     }
-    setProvBusy(false);
+    setProvBusy((m) => ({ ...m, [provider]: false }));
   };
 
   const usd = (rupiah) => '$' + (rupiah / kurs).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const SVC_PER_PAGE = 50;
+  /* Tab Layanan menampilkan satu provider dalam satu waktu (sub-tab), supaya 5000+ layanan
+     likeo tidak campur dengan katalog smmsoc. */
+  const svcInProvider = useMemo(() => services.filter((x) => (x.provider || 'smmsoc') === svcProvider), [services, svcProvider]);
   /* Hasil hitungan berat disimpan, supaya tidak diulang tiap kali layar berubah. */
-  const svcCats = useMemo(() => Array.from(new Set(services.map((x) => x.kategori).filter(Boolean))).sort(), [services]);
+  const svcCats = useMemo(() => Array.from(new Set(svcInProvider.map((x) => x.kategori).filter(Boolean))).sort(), [svcInProvider]);
   /* Nama layanan diubah ke huruf kecil sekali saja, bukan tiap render. */
-  const svcIndex = useMemo(() => services.map((x) => (x.nama + ' ' + x.id).toLowerCase()), [services]);
+  const svcIndex = useMemo(() => svcInProvider.map((x) => (x.nama + ' ' + x.id).toLowerCase()), [svcInProvider]);
   const svcFiltered = useMemo(() => {
     const q = svcQ.trim().toLowerCase();
-    const cocok = services.filter((x, i) => {
+    const cocok = svcInProvider.filter((x, i) => {
       if (svcCat !== 'all' && x.kategori !== svcCat) return false;
       return q === '' || svcIndex[i].includes(q);
     });
@@ -461,7 +475,7 @@ export default function AdminPage() {
       return 3;
     };
     return [...cocok].sort((a, b) => skor(a) - skor(b));
-  }, [services, svcIndex, svcQ, svcCat]);
+  }, [svcInProvider, svcIndex, svcQ, svcCat]);
   /* Daftar selalu dibatasi (biar tidak menggambar ribuan baris sekaligus), dan kalau sedang dicari,
      diurutkan supaya kecocokan di ID selalu muncul duluan — bukan ketimbun layanan lain yang
      namanya kebetulan memuat angka yang sama (mis. cari "100" gampang ketimbun "Max 100K", "100%
@@ -522,9 +536,9 @@ export default function AdminPage() {
       /* Kurs baru mengubah harga dasar di server, jadi katalog dimuat ulang. */
       const segar = await (await fetch('/api/services')).json();
       if (Array.isArray(segar.services) && segar.services.length) setServices(segar.services);
-      setProvMsg({ ok: true, text: ids.length ? ids.length + ' layanan tersimpan.' : 'Kurs tersimpan.' });
+      setProvMsg((m) => ({ ...m, [svcProvider]: { ok: true, text: ids.length ? ids.length + ' layanan tersimpan.' : 'Kurs tersimpan.' } }));
     } catch (e) {
-      setProvMsg({ ok: false, text: e.message });
+      setProvMsg((m) => ({ ...m, [svcProvider]: { ok: false, text: e.message } }));
     }
     setSvcSaving(false);
   };
@@ -532,11 +546,24 @@ export default function AdminPage() {
   const applyMarkup = (ids) => {
     const m = Number(massMarkup);
     if (massMarkup === '' || !Number.isFinite(m) || m < 0) return;
-    const kena = new Set(ids === null ? services.map((x) => x.id) : ids);
+    const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: m } : x)));
     tandai(Array.from(kena));
   };
-  const resetMarkup = () => { setServices((list) => list.map((x) => ({ ...x, markup: 0 }))); tandai(services.map((x) => x.id)); };
+  const resetMarkup = () => {
+    const ids = svcInProvider.map((x) => x.id);
+    const kena = new Set(ids);
+    setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: 0 } : x)));
+    tandai(ids);
+  };
+  /* Nonaktifkan/aktifkan banyak layanan sekaligus (mis. "matikan semua layanan provider ini"
+     supaya tidak muncul di halaman pelanggan) — ids=null berarti semua layanan di provider
+     yang sedang dibuka di tab Layanan. */
+  const setAktifMassal = (ids, aktif) => {
+    const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
+    setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, aktif } : x)));
+    tandai(Array.from(kena));
+  };
   const setServiceMarkup = (id, val) => { setServices((list) => list.map((x) => (x.id === id ? { ...x, markup: Math.max(0, Number(val) || 0) } : x))); tandai([id]); };
 
   const updMsg = (u) => (u.from ? UPS[u.type].label + ' dari ' + u.from + ' ke ' + u.to : UPS[u.type].label);
@@ -661,7 +688,7 @@ export default function AdminPage() {
     );
   };
 
-  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoAsliUsd, saldoIdr, saldoTxt, provMenipis, massMarkup, setMassMarkup, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, logAktivitas, muatLogAktivitas, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
+  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setAktifMassal, setServiceMarkup, updMsg, updDays, addUpdate, logAktivitas, muatLogAktivitas, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
 
   return (
     <>

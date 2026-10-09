@@ -30,8 +30,9 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     if (!wajibAdmin(req, res)) return;
     try {
-      const hasil = await sinkronKatalog({ kursOverride: req.body && req.body.kurs });
-      await catatAktivitas('sinkron_katalog', hasil.jumlah + ' layanan (' + hasil.baru + ' baru), kurs ' + hasil.kurs);
+      const provider = (req.body && req.body.provider) || 'smmsoc';
+      const hasil = await sinkronKatalog({ provider, kursOverride: req.body && req.body.kurs });
+      await catatAktivitas('sinkron_katalog', provider + ': ' + hasil.jumlah + ' layanan (' + hasil.baru + ' baru), kurs ' + hasil.kurs);
       return res.status(200).json(hasil);
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });

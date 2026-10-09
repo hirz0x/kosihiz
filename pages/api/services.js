@@ -4,7 +4,7 @@ import { getServices, saveServices, getSetting, setSetting, getSettings } from '
 import { waktuPerLayanan } from '../../lib/orders';
 import { catatPerubahan, simpanRiwayat } from '../../lib/riwayat';
 import { decodeEntitas } from '../../lib/teks';
-import { wajibAdmin } from '../../lib/auth';
+import { wajibAdmin, isAdmin } from '../../lib/auth';
 import { sinkronKatalog } from '../../lib/katalog';
 import { catatAktivitas } from '../../lib/adminLog';
 
@@ -17,8 +17,12 @@ export default async function handler(req, res) {
       const [services, waktu, settings, disinkron] = await Promise.all([
         getServices(), waktuPerLayanan(), getSettings(), getSetting('services_synced', null)
       ]);
-      /* Kategori iklan dari provider ("Other ad | Don't use") disembunyikan dari katalog. Datanya tetap ada. */
-      const tampil = services.filter((s) => !/don.t use/i.test(String(s.kategori || '')));
+      /* Kategori iklan dari provider ("Other ad | Don't use") disembunyikan dari katalog. Datanya tetap ada.
+         Layanan nonaktif juga disembunyikan dari pelanggan (tampil hanya untuk admin, yang butuh lihat
+         semuanya buat atur markup/status) — penting juga buat ukuran respons: ribuan layanan likeo yang
+         sengaja belum diaktifkan tidak perlu ikut terkirim ke tiap pengunjung. */
+      const admin = isAdmin(req);
+      const tampil = services.filter((s) => !/don.t use/i.test(String(s.kategori || '')) && (admin || s.aktif !== false));
       const hasil = tampil.map((s) => ({ ...s, nama: decodeEntitas(s.nama), refill: Boolean(s.refill), ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {}) }));
       return res.status(200).json({ services: hasil, settings, disinkron });
     } catch (e) {

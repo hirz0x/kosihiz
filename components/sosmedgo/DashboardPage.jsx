@@ -322,7 +322,10 @@ class DashboardPage extends React.Component {
     fetch('/api/services')
       .then(function (r) { return r.json(); })
       .then(function (d) { self.setState({ siap: true }); if (Array.isArray(d.services)) self.setState({ catalog: d.services }); if (d.settings && d.settings.kurs) self.setState({ kurs: d.settings.kurs }); })
-      .catch(function () {});
+      /* Kalau gagal total (network error/response bukan JSON), tetap tandai "siap" supaya layar tidak
+         nyangkut selamanya di "Memuat dashboard..." tanpa pesan apa pun — katalognya tetap kosong,
+         tapi pelanggan setidaknya melihat halamannya, bukan spinner tanpa akhir. */
+      .catch(function () { self.setState({ siap: true }); });
     fetch('/api/me')
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) { if (d && typeof d.saldo === 'number') self.setState({ saldo: d.saldo, username: d.user.username, email: d.user.email || '' }); })

@@ -32,6 +32,42 @@ export default async function handler(req, res) {
     }
   }
 
+  /* Admin menambah deposit manual langsung disetujui — dipakai utk transfer yang dikonfirmasi
+     di luar aplikasi (WhatsApp/bank/tunai), tidak lewat Paymenku. Saldo langsung bertambah.
+     Pakai userId (bukan username ketik bebas) supaya tidak salah pilih orang karena typo. */
+  if (req.method === 'POST' && req.body && req.body.manual) {
+    if (!wajibAdmin(req, res)) return;
+    const userId = String(req.body.userId || '').trim();
+    const nominal = Math.round(Number(req.body.nominal));
+    const catatan = String(req.body.catatan || '').trim();
+    if (!userId) return res.status(400).json({ error: 'Pilih user dulu dari daftar.' });
+    if (!Number.isFinite(nominal) || nominal <= 0) return res.status(400).json({ error: 'Nominal harus angka lebih dari 0.' });
+    try {
+      const profil = await getProfile(userId);
+      if (!profil) return res.status(404).json({ error: 'User tidak ditemukan.' });
+      const id = 'DEP-' + Date.now();
+      const kredit = await hitungKredit(userId, nominal);
+      const deposit = {
+        id,
+        userId,
+        nominal,
+        metode: 'Manual (Admin)' + (catatan ? ' — ' + catatan : ''),
+        status: 'disetujui',
+        dibuat: new Date().toISOString(),
+        trxId: null,
+        bayarUrl: null
+      };
+      await createDeposit(deposit);
+      await addSaldo(userId, kredit.total);
+      await beriKomisi(userId, nominal);
+      await tambahNotif(userId, 'deposit', 'Deposit berhasil', 'Saldo bertambah Rp ' + kredit.total.toLocaleString('id-ID') + ' (deposit manual oleh admin).');
+      await catatAktivitas('deposit_manual', profil.username + ' · Rp ' + nominal.toLocaleString('id-ID') + (catatan ? ' · ' + catatan : ''));
+      return res.status(200).json({ ok: true, deposit: { ...deposit, label: LABEL.disetujui } });
+    } catch (e) {
+      return res.status(502).json({ error: String(e.message || e) });
+    }
+  }
+
   /* User membuat permintaan deposit. */
   if (req.method === 'POST') {
     const user = await userDariRequest(req);

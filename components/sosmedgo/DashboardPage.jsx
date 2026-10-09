@@ -312,7 +312,7 @@ class DashboardPage extends React.Component {
         if (!c || !c.disetujui) return;
         fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
         fetch('/api/deposits?as=user').then(function (r) { return r.ok ? r.json() : null; }).then(function (x) {
-          if (x && Array.isArray(x.deposits)) self.setState({ payHist: x.deposits.map(function (y) { return { id: y.id, tgl: String(y.dibuat).slice(0, 16).replace('T', ' '), metode: y.metode, jumlah: y.nominal, status: y.label }; }) });
+          if (x && Array.isArray(x.deposits)) self.setState({ payHist: x.deposits.map(function (y) { return { id: y.id, tgl: String(y.dibuat).slice(0, 16).replace('T', ' '), metode: y.metode, jumlah: y.nominal, status: y.label, bayarUrl: y.bayarUrl || '' }; }) });
         }).catch(function () {});
       })
       .catch(function () {});
@@ -332,7 +332,7 @@ class DashboardPage extends React.Component {
       .then(function (d) {
         if (!d || !Array.isArray(d.deposits)) return;
         self.setState({ payHist: d.deposits.map(function (x) {
-          return { id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label };
+          return { id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label, bayarUrl: x.bayarUrl || '' };
         }) });
       })
       .catch(function () {});
@@ -842,7 +842,7 @@ class DashboardPage extends React.Component {
             if (!res.ok) { self.setState({ bayarBusy: false }); self.tampilkanToast(false, res.d.error || 'Gagal membuat permintaan.'); return; }
             var x = res.d.deposit;
             if (res.d.bayarUrl) { try { localStorage.setItem('sg_dep_pending', x.id); } catch (e) {} window.location.href = res.d.bayarUrl; return; }
-            self.setState({ bayarBusy: false, paid: true, bayarUrl: res.d.bayarUrl || '', lastDep: x.id, cekMsg: '', depErr: '', payHist: [{ id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label }].concat(st.payHist) });
+            self.setState({ bayarBusy: false, paid: true, bayarUrl: res.d.bayarUrl || '', lastDep: x.id, cekMsg: '', depErr: '', payHist: [{ id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label, bayarUrl: res.d.bayarUrl || '' }].concat(st.payHist) });
           })
           .catch(function (err) { self.setState({ bayarBusy: false }); self.tampilkanToast(false, String(err && err.message ? err.message : err)); });
       },
@@ -855,7 +855,7 @@ class DashboardPage extends React.Component {
         var lbl = { Berhasil: T('Berhasil', 'Success'), Menunggu: T('Menunggu', 'Pending'), Gagal: T('Gagal', 'Failed') }[p.status] || p.status;
         var c = { Berhasil: '#22C55E', Menunggu: '#F59E0B', Gagal: '#FF5A75' }[p.status] || 'var(--t3)';
         var pill = { Berhasil: '#14532D', Menunggu: '#78350F', Gagal: '#7F1D1D' }[p.status] || '#27272A';
-        return { id: p.id, tgl: p.tgl, metode: p.metode, jumlah: st.cur === 'IDR' ? 'Rp ' + fmt(p.jumlah) : '$ ' + (p.jumlah / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), status: lbl, c: c, pill: pill };
+        return { id: p.id, tgl: p.tgl, metode: p.metode, jumlah: st.cur === 'IDR' ? 'Rp ' + fmt(p.jumlah) : '$ ' + (p.jumlah / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), status: lbl, c: c, pill: pill, bisaDibayar: p.status === 'Menunggu' && !!p.bayarUrl, bayarUrl: p.bayarUrl };
       }),
       paid: st.paid, bayarBusy: st.bayarBusy, bayarUrl: st.bayarUrl, uname: st.username || '—', notifList: st.notifList, notifUnread: st.notifUnread, notifWaktu: function (iso) { var t = new Date(iso).getTime(); return Number.isNaN(t) ? '' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' WIB'; }, toast: st.toast, closeToast: function () { self.tutupToast(); }, uemail: st.email || '—', uinit: (st.username || '?').charAt(0).toUpperCase(), rankName: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', bonusTxt: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus ' + bonusDariPeringkat(st.peringkat) + '% untuk setiap deposit sesuai peringkat kamu. Biaya QRIS ditanggung kamu.' : 'Biaya QRIS ditanggung kamu.', bonusJudul: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus Deposit ' + bonusDariPeringkat(st.peringkat) + '%' : 'Bonus Deposit', bonusDesk: bonusDariPeringkat(st.peringkat) > 0 ? 'Setiap deposit yang disetujui otomatis mendapat bonus ' + bonusDariPeringkat(st.peringkat) + '% sesuai peringkat kamu, dan masuk ke saldo bersama nominal deposit.' : 'Peringkat kamu saat ini belum mendapat bonus deposit. Naik peringkat untuk mendapat bonus.', lastDep: st.lastDep, cekMsg: st.cekMsg, cekBayar: function () { self.cekBayar(); }, depErr: st.depErr, saldo: st.saldo,
 
@@ -1472,11 +1472,18 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                     <div style={{ flex: "1", overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
                       {v.dhRows.map((p, $index) => (
                         <div key={$index} style={{ background: "var(--s0)", border: "1px solid var(--b2)", borderRadius: "14px", padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
                             <span style={{ fontSize: "13px", fontWeight: "700" }}>{p.metode}</span>
-                            <button type="button" onClick={function () { window.open("/api/invoice?id=" + encodeURIComponent(p.id), "_blank"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.35)", borderRadius: "999px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", color: "#F4F4F5", cursor: "pointer", whiteSpace: "nowrap" }}>
-                              Unduh invoice
-                            </button>
+                            <span style={{ display: "flex", gap: "8px" }}>
+                              {p.bisaDibayar ? (
+                                <button type="button" onClick={function () { window.open(p.bayarUrl, "_blank"); }} style={{ background: "var(--accent)", border: "1px solid var(--accent)", borderRadius: "999px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", color: "#FFFFFF", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                  Bayar
+                                </button>
+                              ) : null}
+                              <button type="button" onClick={function () { window.open("/api/invoice?id=" + encodeURIComponent(p.id), "_blank"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.35)", borderRadius: "999px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", color: "#F4F4F5", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                Unduh invoice
+                              </button>
+                            </span>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginTop: "12px" }}>
                             <div style={{ fontSize: "12px", color: "var(--t3)", minWidth: "0" }}>

@@ -30,8 +30,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Pembatalan ditolak. Pesanan mungkin sudah mulai diproses.' });
     }
 
-    await saveOrders([{ ...pesanan, status: 'Canceled' }]);
-    return res.status(200).json({ ok: true, status: 'Canceled' });
+    /* Provider di titik ini cuma MENERIMA permintaan pembatalan — belum tentu statusnya langsung
+       berubah di provider. Kalau langsung disimpan "Canceled" di sini, status jadi final dan tidak
+       pernah dicek ulang lagi (lihat FINAL di lib/orders.js), padahal provider bisa saja masih
+       memprosesnya sebagai "Pending" — berisiko direfund padahal pesanan masih berjalan di provider.
+       Tarik status asli lewat action "status" dan simpan itu; kalau gagal, status lama dipertahankan
+       dan akan disegarkan otomatis lewat refreshOrders selama belum final. */
+    let statusBaru = pesanan.status;
+    try {
+      const cek = await callProvider(pesanan.provider || 'smmsoc', 'status', { orders: String(pesanan.providerOrder) });
+      const info = cek && cek[String(pesanan.providerOrder)];
+      if (info && info.status) statusBaru = info.status;
+    } catch { /* status lama dipertahankan */ }
+
+    await saveOrders([{ ...pesanan, status: statusBaru, cekAt: new Date().toISOString() }]);
+    return res.status(200).json({ ok: true, status: statusBaru });
   } catch (e) {
     return res.status(502).json({ error: 'Gagal memproses pembatalan. Coba lagi sebentar lagi.' });
   }

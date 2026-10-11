@@ -7,7 +7,7 @@ import { beriKomisi } from '../../lib/affiliate';
 import { buatTransaksi, ambilStatus, jumlahBayar } from '../../lib/paymenku';
 import { hitungKredit } from '../../lib/bonus';
 import { tambahNotif } from '../../lib/notif';
-import { listDeposits, createDeposit, getDeposit, ubahStatusDeposit, addSaldo, getProfile, semuaProfil } from '../../lib/store';
+import { listDeposits, createDeposit, getDeposit, ubahStatusDeposit, addSaldoAman, getProfile, semuaProfil } from '../../lib/store';
 import { catatAktivitas } from '../../lib/adminLog';
 
 const MIN_DEPOSIT = 10000;
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
         bayarUrl: null
       };
       await createDeposit(deposit);
-      await addSaldo(userId, kredit.total);
+      await addSaldoAman(userId, kredit.total, 'deposit manual ' + id);
       await beriKomisi(userId, nominal);
       await tambahNotif(userId, 'deposit', 'Deposit berhasil', 'Saldo bertambah Rp ' + kredit.total.toLocaleString('id-ID') + ' (deposit manual oleh admin).');
       await catatAktivitas('deposit_manual', profil.username + ' · Rp ' + nominal.toLocaleString('id-ID') + (catatan ? ' · ' + catatan : ''));
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       const berhasil = await ubahStatusDeposit(d.id, 'menunggu', keStatus);
       if (!berhasil) return res.status(400).json({ error: 'Deposit ini sudah diproses.' });
       if (kredit) {
-        await addSaldo(d.userId, kredit.total);
+        await addSaldoAman(d.userId, kredit.total, 'deposit ' + d.id);
         await beriKomisi(d.userId, d.nominal);
         await tambahNotif(d.userId, 'deposit', 'Deposit berhasil', 'Saldo bertambah Rp ' + kredit.total.toLocaleString('id-ID') + '.');
       }

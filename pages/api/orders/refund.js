@@ -1,7 +1,7 @@
 /* Refund langsung dari admin untuk pesanan yang dibatalkan atau selesai sebagian. User tidak perlu mengajukan dulu.
  * Jumlahnya dihitung dengan cara yang sama seperti refund dari user. Saldo langsung bertambah. */
 
-import { getOrders, listRefunds, createRefund, ubahStatusRefund, getProfile, addSaldo } from '../../../lib/store';
+import { getOrders, listRefunds, createRefund, ubahStatusRefund, getProfile, addSaldoAman } from '../../../lib/store';
 import { wajibAdmin } from '../../../lib/auth';
 import { tambahNotif } from '../../../lib/notif';
 import { catatAktivitas } from '../../../lib/adminLog';
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     const berhasil = await ubahStatusRefund(refund.id, 'menunggu', 'disetujui');
     if (!berhasil) return res.status(502).json({ error: 'Refund dibuat tapi gagal disetujui. Cek tab Refund.' });
 
-    await addSaldo(pesanan.userId, jumlah);
+    await addSaldoAman(pesanan.userId, jumlah, 'refund ' + id);
     await tambahNotif(pesanan.userId, 'order', 'Refund disetujui', 'Refund pesanan ' + id + ' sudah masuk ke saldo.');
     await catatAktivitas('refund_langsung', 'Pesanan ' + id + ' (' + (profil ? profil.username : pesanan.userId) + ') · Rp ' + jumlah.toLocaleString('id-ID'));
     return res.status(200).json({ ok: true, jumlah });

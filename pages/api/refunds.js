@@ -1,6 +1,6 @@
 /* Refund pesanan yang dibatalkan atau selesai sebagian. Saldo bertambah setelah admin menyetujui. */
 
-import { listRefunds, getRefund, createRefund, ubahStatusRefund, getOrders, getProfile, addSaldo } from '../../lib/store';
+import { listRefunds, getRefund, createRefund, ubahStatusRefund, getOrders, getProfile, addSaldoAman } from '../../lib/store';
 import { isAdmin, wajibAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { tambahNotif } from '../../lib/notif';
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       const keStatus = aksi === 'setujui' ? 'disetujui' : 'ditolak';
       const berhasil = await ubahStatusRefund(r.id, 'menunggu', keStatus);
       if (!berhasil) return res.status(400).json({ error: 'Refund ini sudah diproses.' });
-      if (keStatus === 'disetujui') await addSaldo(r.userId, r.jumlah);
+      if (keStatus === 'disetujui') await addSaldoAman(r.userId, r.jumlah, 'refund ' + r.id);
       await tambahNotif(r.userId, 'order', keStatus === 'disetujui' ? 'Refund disetujui' : 'Refund ditolak', 'Refund pesanan ' + r.pesanan + (keStatus === 'disetujui' ? ' sudah masuk ke saldo.' : ' tidak disetujui.'));
       await catatAktivitas(keStatus === 'disetujui' ? 'refund_setuju' : 'refund_tolak', 'Pesanan ' + r.pesanan + ' (' + (r.username || r.userId) + ') · Rp ' + Number(r.jumlah).toLocaleString('id-ID'));
       return res.status(200).json({ ok: true, status: keStatus });

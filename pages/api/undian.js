@@ -1,7 +1,7 @@
 /* Undian bulanan untuk peringkat Insider ke atas. Admin menarik satu pemenang acak per bulan. */
 
 import crypto from 'crypto';
-import { getSetting, klaimSetting, semuaProfil, addSaldo } from '../../lib/store';
+import { getSetting, klaimSetting, semuaProfil, addSaldoAman } from '../../lib/store';
 import { wajibAdmin } from '../../lib/auth';
 import { totalBelanjaSemua, ambilPeringkat, indexPeringkat, UNDIAN_HADIAH, UNDIAN_INDEX_MIN } from '../../lib/peringkat';
 import { tambahNotif } from '../../lib/notif';
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
          yang berhasil klaim; yang satunya lagi berhenti di sini, tidak ikut nambah saldo dobel. */
       const berhasilKlaim = await klaimSetting(kunci, pemenang);
       if (!berhasilKlaim) return res.status(400).json({ error: 'Undian bulan ini sudah diundi.' });
-      await addSaldo(menang.userId, UNDIAN_HADIAH);
+      await addSaldoAman(menang.userId, UNDIAN_HADIAH, 'undian ' + kunci);
       await tambahNotif(menang.userId, 'deposit', 'Selamat, kamu menang undian!', 'Undian bulanan Rp ' + UNDIAN_HADIAH.toLocaleString('id-ID') + ' sudah masuk ke saldo kamu.');
       return res.status(200).json({ ok: true, pemenang });
     }

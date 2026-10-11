@@ -204,6 +204,7 @@ export default function AdminPage() {
     if (!r.ok) { tampilkanToast(false, d.error || 'Refund gagal.'); return; }
     tampilkanToast(true, 'Refund Rp ' + Number(d.jumlah).toLocaleString('id-ID') + ' masuk ke saldo user.');
     muatRefund();
+    muatPengguna();
   };
   const [updLog, setUpdLog] = useState([]);
   const hapusRiwayatAdmin = async (rid) => {
@@ -371,7 +372,7 @@ export default function AdminPage() {
     if (!(await tanyaKonfirmasi(pesan))) return;
     fetch('/api/deposits', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, aksi }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then((res) => { if (!res.ok) tampilkanToast(false, res.d.error); else tampilkanToast(true, status === 'Berhasil' ? 'Deposit disetujui. Saldo user sudah bertambah.' : 'Deposit ditolak.'); muatDeposit(); })
+      .then((res) => { if (!res.ok) tampilkanToast(false, res.d.error); else tampilkanToast(true, status === 'Berhasil' ? 'Deposit disetujui. Saldo user sudah bertambah.' : 'Deposit ditolak.'); muatDeposit(); muatPengguna(); })
       .catch(() => muatDeposit());
   };
   /* Deposit manual: admin langsung menambah saldo user (transfer dikonfirmasi di luar aplikasi), tidak lewat Paymenku.
@@ -417,6 +418,7 @@ export default function AdminPage() {
     if (!r.ok) { tampilkanToast(false, d.error || 'Gagal memproses refund.'); return; }
     tampilkanToast(true, aksi === 'setujui' ? 'Refund disetujui. Saldo user sudah bertambah.' : 'Refund ditolak.');
     await muatRefund();
+    muatPengguna();
   };
   const setRankMin = (i, val) => setRanks((list) => list.map((r, j) => (j === i ? { ...r, min: Math.max(0, Number(val) || 0) } : r)));
 

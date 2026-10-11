@@ -36,8 +36,8 @@ function DashboardRefunds({ v }) {
                       + {r.amt}
                     </span>
                     {r.ajukan ? (
-                      <button type="button" className="pill" onClick={r.ajukanFn} style={{ background: "var(--rt)", color: "#FFFFFF", border: "none", cursor: "pointer" }}>
-                        Ajukan refund
+                      <button type="button" className="pill" disabled={r.ajukanBusy} onClick={r.ajukanFn} style={{ background: "var(--rt)", color: "#FFFFFF", border: "none", cursor: r.ajukanBusy ? "not-allowed" : "pointer", opacity: r.ajukanBusy ? 0.6 : 1 }}>
+                        {r.ajukanBusy ? "Mengirim..." : "Ajukan refund"}
                       </button>
                     ) : null}
                     <span className="pill" style={{ background: r.statusBg, color: r.statusFg }}>

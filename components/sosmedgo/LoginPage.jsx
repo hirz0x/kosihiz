@@ -37,6 +37,9 @@ class LoginPage extends React.Component {
       if (!r.ok) throw new Error(d.error || 'Gagal.');
       if (d.mfa) { this.setState({ busy: false, mfa: true, kode: '', err: '' }); return; }
       if (d.perluKonfirmasi) { this.setState({ busy: false, err: 'Akun dibuat. Cek email untuk konfirmasi, lalu masuk.' }); return; }
+      /* Dibaca sekali oleh dashboard buat nampilin peringatan "pastikan link/ID pesanan benar" —
+         ditandai di sini (bukan tersimpan terus) supaya munculnya tiap habis login, bukan cuma sekali per tab. */
+      try { sessionStorage.setItem('sg_warn_order_pending', '1'); } catch (e) {}
       window.location.href = '/dashboard';
     } catch (ex) {
       this.setState({ busy: false, err: ex.message });

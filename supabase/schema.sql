@@ -213,3 +213,9 @@ alter table services add column if not exists provider text not null default 'sm
 alter table orders   add column if not exists provider text not null default 'smmsoc';
 create index if not exists services_provider_idx on services (provider);
 create index if not exists orders_provider_idx on orders (provider);
+
+-- Cegah satu pesanan direfund dobel kalau tombol "Ajukan/Refund" diklik dua kali hampir
+-- bersamaan (atau dua request paralel) — pengecekan di kode saja (baca dulu baru tulis) punya
+-- celah race condition. Index unique parsial ini jadi penjaga terakhir di level database:
+-- cuma boleh ada SATU baris refund aktif (bukan "ditolak") per pesanan.
+create unique index if not exists refunds_pesanan_aktif_idx on refunds (pesanan) where status <> 'ditolak';

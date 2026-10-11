@@ -1,9 +1,9 @@
 /* Peringkat user berdasarkan total belanja. Admin mengatur batas minimal tiap level. */
 
-import { getOrders, semuaProfil, setSetting } from '../../lib/store';
+import { semuaProfil, setSetting } from '../../lib/store';
 import { isAdmin, wajibAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
-import { ambilPeringkat, indexPeringkat, PERINGKAT_DEFAULT } from '../../lib/peringkat';
+import { ambilPeringkat, indexPeringkat, PERINGKAT_DEFAULT, totalBelanjaUser, totalBelanjaSemua } from '../../lib/peringkat';
 import { catatAktivitas } from '../../lib/adminLog';
 
 export default async function handler(req, res) {
@@ -15,13 +15,12 @@ export default async function handler(req, res) {
       if (!admin && !user) return res.status(401).json({ error: 'Perlu login.' });
 
       const tiers = await ambilPeringkat();
-      const totalPerUser = new Map();
-      for (const o of await getOrders()) {
-        if (o.status === 'Canceled' || !(o.biaya > 0) || !o.userId) continue;
-        totalPerUser.set(o.userId, (totalPerUser.get(o.userId) || 0) + o.biaya);
-      }
 
+      /* Admin butuh total belanja SEMUA user (buat hitung jumlah user per level) — scan penuh
+         memang perlu di sini. User biasa cuma butuh totalnya sendiri, jadi dihitung lewat
+         totalBelanjaUser yang sudah difilter per user_id di database, bukan tarik semua pesanan. */
       if (admin) {
+        const totalPerUser = await totalBelanjaSemua();
         const jumlah = tiers.map(() => 0);
         for (const p of await semuaProfil()) {
           jumlah[indexPeringkat(totalPerUser.get(p.user_id) || 0, tiers)] += 1;
@@ -29,7 +28,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ tiers: tiers.map((t, i) => ({ ...t, pengguna: jumlah[i] })) });
       }
 
-      const total = totalPerUser.get(user.id) || 0;
+      const total = await totalBelanjaUser(user.id);
       return res.status(200).json({ tiers, total, index: indexPeringkat(total, tiers) });
     }
 

@@ -76,7 +76,7 @@ function DashboardTicketDetail({ v }) {
                     {v.tr.message}
                   </label>
                   <input id="reply" type="text" placeholder={v.tr.message} value={v.replyTxt} onChange={v.setReply} style={{ flex: "1", minWidth: "0", background: "transparent", border: "none", outline: "none", color: "var(--hi)", fontFamily: "inherit", fontSize: "12px", height: "36px" }} />
-                  <button type="submit" aria-label={v.tr.send} style={{ width: "40px", height: "40px", borderRadius: "50%", border: "none", background: "var(--accent)", color: "#FFFFFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button type="submit" disabled={v.ticketBusy} aria-label={v.tr.send} style={{ width: "40px", height: "40px", borderRadius: "50%", border: "none", background: "var(--accent)", color: "#FFFFFF", cursor: v.ticketBusy ? "not-allowed" : "pointer", opacity: v.ticketBusy ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <FaIcon d="M21 3L3 10l7 3 3 7z" size={15} />
                   </button>
                 </form>

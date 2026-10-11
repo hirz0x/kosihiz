@@ -62,9 +62,8 @@ function DashboardTickets({ v }) {
                 </label>
                 {v.tfile ? <button type="button" className="ghost" onClick={v.hapusFile} style={{ marginLeft: "8px" }}>Hapus</button> : null}
               </div>
-              <button type="submit" className="submit" style={{ width: "100%", marginTop: "14px" }}>
-                Kirim Tiket{" "}
-                <FaIcon d="M21 3L3 10l7 3 3 7z" size={14} />
+              <button type="submit" className="submit" disabled={v.ticketBusy} style={{ width: "100%", marginTop: "14px", opacity: v.ticketBusy ? 0.6 : 1 }}>
+                {v.ticketBusy ? "Mengirim..." : (<>Kirim Tiket{" "}<FaIcon d="M21 3L3 10l7 3 3 7z" size={14} /></>)}
               </button>
               {v.tsent ? (
                 <>

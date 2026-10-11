@@ -474,6 +474,12 @@ export function TrendTable({ rows }) {
 }
 
 export function OrdersTable({ rows, onRefund, refundedIds }) {
+  const [refundingId, setRefundingId] = React.useState(null);
+  const klikRefund = async (id) => {
+    if (refundingId) return;
+    setRefundingId(id);
+    try { await onRefund(id); } finally { setRefundingId(null); }
+  };
   return (
     <table className="tbl">
       <thead>
@@ -483,14 +489,14 @@ export function OrdersTable({ rows, onRefund, refundedIds }) {
         {rows.map((o) => (
           <tr key={o.id}>
             <td className="muted">{o.id}</td>
-            <td className="muted">{o.providerOrder}</td>
+            <td className="muted">{o.provider || 'smmsoc'}</td>
             <td style={{ whiteSpace: 'normal', minWidth: '240px', maxWidth: '360px' }}>{o.layananNama}</td>
             <td className="muted" style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.link}</td>
             <td>{Number(o.jumlah).toLocaleString('id-ID')}</td>
             <td>{rp(o.biaya)}</td>
             <td><Badge text={o.status} /></td>
             <td className="muted">{String(o.dibuat).slice(0, 16).replace('T', ' ')}</td>
-            <td>{onRefund && ['Canceled', 'Partial'].includes(o.status) ? (refundedIds && refundedIds.has(o.id) ? <span className="muted">—</span> : <button type="button" className="sub" onClick={() => onRefund(o.id)}>Refund</button>) : null}</td>
+            <td>{onRefund && ['Canceled', 'Partial'].includes(o.status) ? (refundedIds && refundedIds.has(o.id) ? <span className="muted">—</span> : <button type="button" className="sub" disabled={!!refundingId} onClick={() => klikRefund(o.id)}>{refundingId === o.id ? 'Memproses...' : 'Refund'}</button>) : null}</td>
             <td>{o.selesaiAt ? 'Selesai dalam ' + Math.max(0, Math.round((new Date(o.selesaiAt) - new Date(o.dibuat)) / 60000)) + ' menit' : (['Completed', 'Canceled', 'Refunded', 'Partial'].includes(o.status) ? '—' : 'Berjalan ' + Math.max(0, Math.round((Date.now() - new Date(o.dibuat)) / 60000)) + ' menit')}</td>
           </tr>
         ))}

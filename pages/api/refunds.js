@@ -47,13 +47,19 @@ export default async function handler(req, res) {
       if (aktif) return res.status(400).json({ error: 'Refund untuk pesanan ini sudah diajukan.' });
 
       const profil = await getProfile(user.id);
-      const refund = await createRefund({
-        userId: user.id,
-        username: profil ? profil.username : '',
-        pesanan: pesananId,
-        jumlah,
-        alasan: pesanan.status === 'Canceled' ? 'Pesanan dibatalkan' : 'Pesanan selesai sebagian'
-      });
+      let refund;
+      try {
+        refund = await createRefund({
+          userId: user.id,
+          username: profil ? profil.username : '',
+          pesanan: pesananId,
+          jumlah,
+          alasan: pesanan.status === 'Canceled' ? 'Pesanan dibatalkan' : 'Pesanan selesai sebagian'
+        });
+      } catch (e) {
+        if (e.duplikat) return res.status(400).json({ error: e.message });
+        throw e;
+      }
       return res.status(200).json({ refund });
     }
 

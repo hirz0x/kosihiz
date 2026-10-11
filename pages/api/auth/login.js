@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import { supaAuth, pasangSesi } from '../../../lib/account';
+import { supaAuth, pasangSesi, emailDariUid } from '../../../lib/account';
+import { getProfileByUsername } from '../../../lib/store';
 import { faktorUser, totpAktif } from '../../../lib/mfa';
 import { ambilIp, sisaKunci, catatGagal, resetKunci } from '../../../lib/loginGuard';
 
@@ -8,11 +9,23 @@ const JEDA_GAGAL_MS = 600;
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Gunakan POST.' });
   const { email, password, ingat } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'Email dan kata sandi wajib diisi.' });
-  const emailBersih = String(email).trim().toLowerCase();
-  if (emailBersih.length > 254 || String(password).length > 128) return res.status(400).json({ error: 'Email atau kata sandi terlalu panjang.' });
+  if (!email || !password) return res.status(400).json({ error: 'Username/email dan kata sandi wajib diisi.' });
+  const masukan = String(email).trim().toLowerCase();
+  if (masukan.length > 254 || String(password).length > 128) return res.status(400).json({ error: 'Email atau kata sandi terlalu panjang.' });
 
   try {
+    /* Form login memakai field "Username" (lihat components/sosmedgo/LoginPage.jsx), bukan email —
+       tapi Supabase Auth cuma menerima email. Kalau yang diketik bukan format email, cari dulu
+       emailnya lewat username. Kalau usernamenya tidak ada, tetap lanjut ke Supabase Auth dengan
+       nilai aslinya (pasti ditolak juga) supaya alur & waktu balasannya sama seperti username yang
+       ada tapi salah password — tidak membocorkan username mana yang terdaftar. */
+    let emailBersih = masukan;
+    if (!masukan.includes('@')) {
+      const profil = await getProfileByUsername(masukan);
+      const resolved = profil ? await emailDariUid(profil.user_id) : null;
+      if (resolved) emailBersih = resolved;
+    }
+
     /* Kunci per IP dan per akun (email di-hash supaya tidak tersimpan mentah). */
     const kunciIp = 'user_ip:' + ambilIp(req);
     const kunciAkun = 'user_akun:' + crypto.createHash('sha256').update(emailBersih).digest('hex');

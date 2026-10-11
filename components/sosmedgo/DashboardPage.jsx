@@ -1,6 +1,7 @@
 import React from 'react';
 import Toast from './Toast';
 import KotakKonfirmasi from './Konfirmasi';
+import PeringatanOrder from './PeringatanOrder';
 import { namaIndo } from './terjemah';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -39,7 +40,8 @@ class DashboardPage extends React.Component {
       tickets: [],
       rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null, massBusy: false,
       atab: 'security', pwSaved: false, emSaved: false, twofa: false, lang: 'id', tz: 'WIB', keyN: 1, invSaved: false,
-      notif: { order: true, deposit: true, ticket: true, promo: false }
+      notif: { order: true, deposit: true, ticket: true, promo: false },
+      warnOrder: false, refundBusy: false, cancelBusyId: null, ticketBusy: false
     };
   }
   muatTiket() {
@@ -64,14 +66,17 @@ class DashboardPage extends React.Component {
   }
   ajukanRefund(orderId) {
     var self = this;
+    if (this.state.refundBusy) return;
+    this.setState({ refundBusy: true });
     fetch('/api/refunds?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: String(orderId) }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
+        self.setState({ refundBusy: false });
         if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Refund gagal diajukan.'); return; }
         self.tampilkanToast(true, 'Refund diajukan. Menunggu persetujuan admin.');
         self.muatRefund();
       })
-      .catch(function () { self.tampilkanToast(false, 'Refund gagal diajukan. Coba lagi.'); });
+      .catch(function () { self.setState({ refundBusy: false }); self.tampilkanToast(false, 'Refund gagal diajukan. Coba lagi.'); });
   }
   muatAfiliasi() {
     var self = this;
@@ -300,6 +305,15 @@ class DashboardPage extends React.Component {
     var self0 = this;
     this._siapTimer = setTimeout(function () { self0.setState({ siap: true }); }, 4000);
     this.muatPreferensi();
+    /* Peringatan tiap habis login (ditandai oleh LoginPage, dibaca & dihapus di sini sekali) —
+       pelanggan sering ngasal isi link/username/ID layanan, pesanan yang salah tetap diproses
+       provider dan susah/lama dibatalkan. Refresh biasa di /dashboard tidak memicu ini lagi. */
+    try {
+      if (sessionStorage.getItem('sg_warn_order_pending')) {
+        sessionStorage.removeItem('sg_warn_order_pending');
+        self0.setState({ warnOrder: true });
+      }
+    } catch (e) { /* mode privat/sessionStorage diblokir — abaikan, tidak kritis */ }
     /* Katalog layanan diambil dari server, bukan lagi contoh di dalam file ini. */
     var self = this;
     self.muatTiket();
@@ -610,15 +624,19 @@ class DashboardPage extends React.Component {
       return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, platColor: s.platColor, platRgb: s.platRgb, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
+        cancelBusy: st.cancelBusyId === o.orderId,
         cancel: function () {
+          if (st.cancelBusyId) return;
+          self.setState({ cancelBusyId: o.orderId });
           fetch('/api/orders/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: o.orderId }) })
             .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
             .then(function (res) {
+              self.setState({ cancelBusyId: null });
               if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Pesanan gagal dibatalkan.'); return; }
               self.tampilkanToast(true, 'Pesanan dibatalkan di provider.');
               return fetch('/api/orders?as=user').then(function (r) { return r.json(); }).then(function (d) { if (Array.isArray(d.orders)) self.setState({ myOrders: d.orders }); });
             })
-            .catch(function () { self.tampilkanToast(false, 'Pembatalan gagal. Coba lagi.'); });
+            .catch(function () { self.setState({ cancelBusyId: null }); self.tampilkanToast(false, 'Pembatalan gagal. Coba lagi.'); });
         },
         refill: function () { var x = Object.assign({}, st.ostatus); x['r' + o.id] = true; self.setState({ ostatus: x }); } };
     });
@@ -631,7 +649,7 @@ class DashboardPage extends React.Component {
       var rf = (st.refundList || []).filter(function (x) { return x.pesanan === String(o.orderId); })[0];
       var pk = REF_S[rf ? rf.status : 'belum'];
       var est = o.biaya > 0 && o.qty > 0 ? Math.round(o.biaya * Math.min(o.remains, o.qty) / o.qty) : 0;
-      return { id: o.id, date: o.date, amt: 'Rp ' + fmt(rf ? rf.jumlah : est), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanFn: function () { self.ajukanRefund(o.orderId); } };
+      return { id: o.id, date: o.date, amt: 'Rp ' + fmt(rf ? rf.jumlah : est), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanBusy: !!st.refundBusy, ajukanFn: function () { self.ajukanRefund(o.orderId); } };
     });
 
     /* ---------- add funds ---------- */
@@ -899,17 +917,20 @@ class DashboardPage extends React.Component {
       },
       sendTicket: function (e) {
         if (e && e.preventDefault) e.preventDefault();
-        if (!st.tmsg.trim()) return;
+        if (!st.tmsg.trim() || st.ticketBusy) return;
+        self.setState({ ticketBusy: true });
         fetch('/api/tickets?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: st.tcat, sub: st.tsub, orderId: st.tcat === 'order' ? st.tid.trim() : '', pesan: st.tmsg.trim(), lampiran: st.tfile || undefined }) })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
+            self.setState({ ticketBusy: false });
             if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Tiket gagal dikirim.'); return; }
             self.setState({ tsent: false, tmsg: '', tfile: null, tid: '', page: 'ticket', viewT: res.d.ticket.id });
             self.tampilkanToast(true, 'Tiket terkirim. Tim support akan membalas secepatnya.');
             self.muatTiket();
           })
-          .catch(function () { self.tampilkanToast(false, 'Tiket gagal dikirim. Coba lagi.'); });
+          .catch(function () { self.setState({ ticketBusy: false }); self.tampilkanToast(false, 'Tiket gagal dikirim. Coba lagi.'); });
       },
+      ticketBusy: st.ticketBusy,
       tHistOpen: st.tHistOpen, openTHist: set({ tHistOpen: true }), closeTHist: set({ tHistOpen: false }),
       tlist: st.tickets.map(function (t) { var m = TS[t.status]; return { id: t.id, title: tTitle(t), updated: t.updated, unread: t.unread, sTxt: m[0], sBg: m[1], sFg: m[2],
         open: function () { self.setState({ tickets: st.tickets.map(function (x) { return x.id === t.id ? Object.assign({}, x, { unread: false }) : x; }), tHistOpen: false, page: 'ticket', viewT: t.id, hdd: '' }); self.bacaTiket(t.id); } }; }),
@@ -918,17 +939,18 @@ class DashboardPage extends React.Component {
       replyTxt: st.replyTxt, setReply: function (e) { self.setState({ replyTxt: e.target.value }); },
       sendReply: function (e) {
         if (e && e.preventDefault) e.preventDefault();
-        if (!vt || !st.replyTxt.trim()) return;
+        if (!vt || !st.replyTxt.trim() || st.ticketBusy) return;
         var teks = st.replyTxt.trim();
-        self.setState({ replyTxt: '' });
+        self.setState({ replyTxt: '', ticketBusy: true });
         fetch('/api/tickets?as=user', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vt.id, aksi: 'balas', text: teks }) })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
+            self.setState({ ticketBusy: false });
             if (!res.ok) { self.tampilkanToast(false, res.d.error || 'Balasan gagal dikirim.'); self.setState({ replyTxt: teks }); return; }
             self.tampilkanToast(true, 'Balasan terkirim.');
             self.muatTiket();
           })
-          .catch(function () { self.tampilkanToast(false, 'Balasan gagal dikirim. Coba lagi.'); self.setState({ replyTxt: teks }); });
+          .catch(function () { self.setState({ ticketBusy: false }); self.tampilkanToast(false, 'Balasan gagal dikirim. Coba lagi.'); self.setState({ replyTxt: teks }); });
       },
       goTicketsBack: set({ page: 'tickets', tHistOpen: true }),
       tsent: st.tsent,
@@ -1614,6 +1636,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
           <main className="dash-main" style={{ position: "relative", zIndex: v.mainZ, padding: "34px 40px 60px", display: "flex", flexDirection: "column", gap: "22px", background: v.mainBg }}>
           <Toast toast={v.toast} onClose={v.closeToast} />
           {this.state.konfirm ? <KotakKonfirmasi pesan={this.state.konfirm.pesan} onJawab={(ya) => { var k = this.state.konfirm; this.setState({ konfirm: null }); if (ya) k.lanjut(); }} /> : null}
+          {this.state.warnOrder ? <PeringatanOrder onClose={() => this.setState({ warnOrder: false })} onHubungiAdmin={() => this.setState({ warnOrder: false, page: 'tickets', tcat: 'order', tsub: 'refill', hdd: '', open: '', sOpen: '', ofOpen: false, mOpen: false, navOpen: false })} /> : null}
             <DashboardNewOrder v={v} />
             <DashboardServices v={v} />
             <DashboardOrders v={v} />

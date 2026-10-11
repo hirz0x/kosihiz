@@ -97,8 +97,8 @@ function DashboardOrders({ v }) {
                     <span style={{ marginLeft: "auto" }}>
                       {o.canCancel ? (
                         <>
-                          <button type="button" className="ghost" onClick={o.cancel}>
-                            Batalkan ✕
+                          <button type="button" className="ghost" disabled={o.cancelBusy} onClick={o.cancel} style={o.cancelBusy ? { opacity: 0.6, cursor: "not-allowed" } : undefined}>
+                            {o.cancelBusy ? "Membatalkan..." : "Batalkan ✕"}
                           </button>
                         </>
                       ) : null}

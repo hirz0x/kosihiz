@@ -34,13 +34,19 @@ export default async function handler(req, res) {
     if (sudahAda) return res.status(400).json({ error: 'Pesanan ini sudah pernah direfund atau sedang diajukan.' });
 
     const profil = await getProfile(pesanan.userId);
-    const refund = await createRefund({
-      userId: pesanan.userId,
-      username: profil ? profil.username : '',
-      pesanan: id,
-      jumlah,
-      alasan: 'Refund dari admin'
-    });
+    let refund;
+    try {
+      refund = await createRefund({
+        userId: pesanan.userId,
+        username: profil ? profil.username : '',
+        pesanan: id,
+        jumlah,
+        alasan: 'Refund dari admin'
+      });
+    } catch (e) {
+      if (e.duplikat) return res.status(400).json({ error: e.message });
+      throw e;
+    }
     const berhasil = await ubahStatusRefund(refund.id, 'menunggu', 'disetujui');
     if (!berhasil) return res.status(502).json({ error: 'Refund dibuat tapi gagal disetujui. Cek tab Refund.' });
 

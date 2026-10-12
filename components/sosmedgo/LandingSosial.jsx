@@ -2,6 +2,7 @@ import React from 'react';
 import { FictionalAvatar } from './FictionalAvatar';
 
 function LandingSosial({ v, state }) {
+  const testiNyata = (v.testi || []).filter((t) => t.text);
   return (
     <>
   <section style={{ padding: "20px 0 90px" }}>
@@ -26,8 +27,12 @@ function LandingSosial({ v, state }) {
       </div>
     </div>
     <div style={{ position: "relative", marginTop: "28px", overflow: "hidden", padding: "0 0 10px" }}>
-      <div className="mq2">
-        {(v.testi || []).map((t, $index) => (
+      {/* Carousel geser-terus cuma masuk akal kalau testimoninya banyak — kalau masih sedikit
+          (belum banyak pelanggan yang kasih testimoni), satu-dua kartu yang terus-menerus geser
+          sendirian malah kelihatan kayak nyangkut/rusak. Di bawah ambang ini ditampilkan statis
+          di tengah, baru otomatis jadi carousel lagi begitu testimoninya cukup banyak. */}
+      <div className={testiNyata.length >= 4 ? 'mq2' : ''} style={testiNyata.length >= 4 ? undefined : { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '18px', maxWidth: '860px', margin: '0 auto' }}>
+        {testiNyata.map((t, $index) => (
           <React.Fragment key={$index}>
             <div className="card" style={{ width: "360px", flex: "none", borderRadius: "14px", overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "16px" }}>
@@ -42,7 +47,7 @@ function LandingSosial({ v, state }) {
                 </div>
               </div>
               <div style={{ borderTop: "1px solid #1F1F25", padding: "14px 16px 18px", fontSize: "12px", lineHeight: "1.7", color: "#A1A3AB" }}>
-                [Tempel testimoni asli dari pelanggan SosmedGo di sini — 2 sampai 4 kalimat.]
+                {t.text}
               </div>
             </div>
           </React.Fragment>

@@ -74,10 +74,14 @@ class LandingPage extends React.Component {
     ];
     var bgs = ['#F4C7A1', '#E8C3A4', '#C9B79C', '#F4D9DE', '#B07752'];
     var testi = [];
-    var testiNames = ['Nadia S.', 'Raka P.', 'Mira A.', 'Doni K.', 'Sinta W.', 'Yoga B.', 'Lia R.', 'Fajar H.', 'Ayu N.', 'Bima T.'];
-    var testiKinds = ['bun', 'beard', 'bob', 'curly', 'cap'];
+    var testiNames = ['Rizky A.', 'Raka P.', 'Mira A.', 'Doni K.', 'Sinta W.', 'Yoga B.', 'Lia R.', 'Fajar H.', 'Ayu N.', 'Bima T.'];
+    var testiKinds = ['cap', 'beard', 'bob', 'curly', 'bun'];
     var testiBgs = ['#F4B6C2', '#9CC4E8', '#A8E0C0', '#C9B6F2', '#FBD38D'];
-    for (var i = 0; i < 10; i++) testi.push({ name: testiNames[i], kind: testiKinds[i % 5], bg: testiBgs[i % 5] });
+    /* Testimoni asli dari pelanggan (nama disamarkan, kata-kata dirangkum ulang dari chat asli).
+       Slot lain dikosongkan dulu (ditempel di sini satu per satu kalau ada testimoni baru) —
+       bukan ditampilkan sebagai placeholder, lihat LandingSosial.jsx yang menyaring yang kosong. */
+    var testiText = ['Pesanannya kelar cepet banget, nggak nyangka bisa secepat itu prosesnya! Admin-nya juga fast response pas aku tanya-tanya progressnya. Pasti order lagi di sini.', '', '', '', '', '', '', '', '', ''];
+    for (var i = 0; i < 10; i++) testi.push({ name: testiNames[i], kind: testiKinds[i % 5], bg: testiBgs[i % 5], text: testiText[i] });
     var faqData = [
       { q: 'Apa itu panel SMM?', a: 'Panel SMM adalah toko online tempat kamu membeli layanan sosial media seperti followers, likes, views, dan komentar dengan harga murah dan proses otomatis.' },
       { q: 'Layanan SMM apa saja yang bisa saya beli?', a: 'Instagram, TikTok, YouTube, Facebook, Telegram, Twitter/X, Spotify, dan banyak lagi. Daftar lengkap ada di halaman Layanan.' },

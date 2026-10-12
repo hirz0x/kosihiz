@@ -1,4 +1,4 @@
-import { userDariRequest, supaAuth, supaUbahAkun, tokenUser } from '../../../lib/account';
+import { userDariRequest, supaAuth, supaUbahAkun, supaReq, tokenUser } from '../../../lib/account';
 import { sisaKunci, catatGagal, resetKunci } from '../../../lib/loginGuard';
 
 /* Ganti password. Password lama diperiksa dulu, dan percobaan yang salah dibatasi seperti login. */
@@ -30,6 +30,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: pesan });
     }
     await resetKunci(kunci);
+    /* Cabut sesi di perangkat lain (sesi di perangkat ini sendiri dibiarkan, "scope=others") —
+       kalau ada token yang sempat bocor/dicuri sebelum password diganti, token itu langsung tidak
+       berlaku lagi. Best-effort: kalau gagal, password sudah terlanjur berhasil diganti, jangan
+       bikin permintaan ini gagal cuma karena langkah pembersihan sesi ini bermasalah. */
+    await supaReq('POST', 'logout?scope=others', undefined, tokenUser(req)).catch(() => {});
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(502).json({ error: 'Password gagal diperbarui. Coba lagi.' });

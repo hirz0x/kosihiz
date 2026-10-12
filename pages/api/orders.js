@@ -23,10 +23,12 @@ export default async function handler(req, res) {
       return admin ? punya : punya.map(sembunyikanProvider);
     };
     try {
-      const { orders } = await refreshOrders({ force: false });
+      /* Pelanggan cuma butuh pesanannya sendiri disegarkan, bukan ikut menarik & memproses
+         pesanan semua pelanggan lain (yang sudah ditangani cron terjadwal secara berkala). */
+      const { orders } = await refreshOrders({ force: false, userId: admin ? undefined : user.id });
       return res.status(200).json({ orders: milik(orders) });
     } catch (e) {
-      const simpan = await getOrders().catch(() => []);
+      const simpan = await getOrders(admin ? undefined : user.id).catch(() => []);
       /* Pesan error asli (bisa memuat istilah/teks dari provider upstream) cuma ditampilkan ke
          admin buat diagnosis — pelanggan cukup tahu statusnya mungkin belum ter-update terbaru. */
       const peringatan = admin ? String(e.message || e) : 'Status pesanan belum sempat diperbarui, coba muat ulang.';

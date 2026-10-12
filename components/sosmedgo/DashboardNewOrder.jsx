@@ -44,6 +44,12 @@ function DashboardNewOrder({ v }) {
                 </React.Fragment>
               ))}
             </div>
+            {v.katalogGagal ? (
+              <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
+                <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat daftar layanan. Coba lagi?</span>
+                <button type="button" className="ghost" onClick={v.cobaLagiKatalog}>Coba Lagi</button>
+              </div>
+            ) : null}
             <div role="group" aria-label="Filter platform" className="plat-grid" style={{ "--plat-cols": v.platCols }}>
               {(v.plats || []).map((p, $index) => (
                 <React.Fragment key={$index}>

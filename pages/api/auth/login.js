@@ -16,14 +16,21 @@ export default async function handler(req, res) {
   try {
     /* Form login memakai field "Username" (lihat components/sosmedgo/LoginPage.jsx), bukan email —
        tapi Supabase Auth cuma menerima email. Kalau yang diketik bukan format email, cari dulu
-       emailnya lewat username. Kalau usernamenya tidak ada, tetap lanjut ke Supabase Auth dengan
-       nilai aslinya (pasti ditolak juga) supaya alur & waktu balasannya sama seperti username yang
-       ada tapi salah password — tidak membocorkan username mana yang terdaftar. */
+       emailnya lewat username.
+       Supaya waktu balasan "username ada tapi salah password" vs "username tidak ada" tidak beda
+       jauh (bisa jadi celah timing buat nebak username terdaftar), kedua jalur SELALU menempuh
+       jumlah panggilan jaringan yang sama — query profil, lalu panggilan ke Admin API Supabase —
+       bedanya cuma argumennya. Kalau usernamenya memang tidak ada, panggilan kedua dikirim dengan
+       uid palsu (pasti dapat 404, tapi tetap satu round-trip yang sama bentuknya) alih-alih dilewati
+       sama sekali. Ini tidak menjamin paritas waktu 100% (bcrypt-compare asli di Supabase Auth untuk
+       email yang valid tetap lebih lambat dari penolakan format untuk string bukan-email — itu
+       perilaku internal Supabase Auth sendiri, di luar kendali kode ini), tapi menutup selisih yang
+       kita tambahkan sendiri lewat langkah resolusi ini. */
     let emailBersih = masukan;
     if (!masukan.includes('@')) {
       const profil = await getProfileByUsername(masukan);
-      const resolved = profil ? await emailDariUid(profil.user_id) : null;
-      if (resolved) emailBersih = resolved;
+      const resolved = await emailDariUid(profil ? profil.user_id : '00000000-0000-0000-0000-000000000000');
+      if (profil && resolved) emailBersih = resolved;
     }
 
     /* Kunci per IP dan per akun (email di-hash supaya tidak tersimpan mentah). */

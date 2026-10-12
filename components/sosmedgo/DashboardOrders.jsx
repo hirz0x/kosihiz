@@ -114,7 +114,12 @@ function DashboardOrders({ v }) {
                 </div>
               </React.Fragment>
             ))}
-            {v.oEmpty ? (
+            {v.oEmpty && v.myOrdersGagal ? (
+              <div className="card" style={{ padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <div style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat daftar pesanan.</div>
+                <button type="button" className="ghost" onClick={v.cobaLagiOrders}>Coba Lagi</button>
+              </div>
+            ) : v.oEmpty ? (
               <>
                 <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--t5)", fontSize: "13px" }}>
                   Tidak ada pesanan.

@@ -25,6 +25,27 @@ import AdminPeringkat from './AdminPeringkat';
 import AdminLogAktivitas from './AdminLogAktivitas';
 import AdminPengaturan from './AdminPengaturan';
 
+/* Ambil JSON dari API, dicoba ulang sampai 3x (jeda 1.5/3 detik) kalau gagal — supaya gangguan
+   jaringan/server sesaat waktu panel admin dibuka tidak bikin satu section diam-diam kelihatan
+   kosong selamanya (sebelumnya semua pemuat data admin cuma `.catch(() => {})`, sekali gagal ya
+   sudah, baru ketahuan kalau admin kebetulan reload manual). Melempar error kalau tetap gagal
+   setelah 3x, supaya pemanggil bisa beda-beda kan "gagal dimuat" dari "memang kosong". */
+async function ambilJson(url, opts, percobaan) {
+  const ke = percobaan || 1;
+  try {
+    const r = await fetch(url, opts);
+    const d = await r.json();
+    if (!r.ok) throw new Error((d && d.error) || ('HTTP ' + r.status));
+    return d;
+  } catch (e) {
+    if (ke < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 1500 * ke));
+      return ambilJson(url, opts, ke + 1);
+    }
+    throw e;
+  }
+}
+
 export default function AdminPage() {
   const [theme, setTheme] = useState('dark');
   const [themeMode, setThemeMode] = useState('dark');
@@ -62,25 +83,31 @@ export default function AdminPage() {
   const PROVIDER_LABEL = { smmsoc: 'smmsoc.com', likeo: 'likeo.net' };
   const kosongSaldoProv = { saldo: null, currency: '', error: '' };
   const [saldoProv, setSaldoProv] = useState({ smmsoc: kosongSaldoProv, likeo: kosongSaldoProv });
-  const muatPengguna = () => fetch('/api/pengguna').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.pengguna)) setPengguna(d.pengguna); }).catch(() => {});
+  const muatPengguna = async () => { try { const d = await ambilJson('/api/pengguna'); if (d && Array.isArray(d.pengguna)) setPengguna(d.pengguna); } catch (e) { /* dicoba ulang 3x di ambilJson, kalau tetap gagal data lama (kalau ada) dipertahankan */ } };
   const [orderFilter, setOrderFilter] = useState('Semua');
   const [deposits, setDeposits] = useState([]);
-  const muatDeposit = () => fetch('/api/deposits').then((r) => r.json()).then((d) => {
-    if (Array.isArray(d.deposits)) setDeposits(d.deposits.map((x) => ({ id: x.id, user: x.username || x.userId, metode: x.metode, nominal: x.nominal, waktu: String(x.dibuat).slice(0, 16).replace('T', ' '), status: x.label })));
-  }).catch(() => {});
+  const muatDeposit = async () => {
+    try {
+      const d = await ambilJson('/api/deposits');
+      if (Array.isArray(d.deposits)) setDeposits(d.deposits.map((x) => ({ id: x.id, user: x.username || x.userId, metode: x.metode, nominal: x.nominal, waktu: String(x.dibuat).slice(0, 16).replace('T', ' '), status: x.label })));
+    } catch (e) { /* dicoba ulang 3x di ambilJson */ }
+  };
   const [services, setServices] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const muatTiket = () => fetch('/api/tickets').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.tickets)) setTickets(d.tickets.map(tiketAdmin)); }).catch(() => {});
+  const muatTiket = async () => { try { const d = await ambilJson('/api/tickets'); if (d && Array.isArray(d.tickets)) setTickets(d.tickets.map(tiketAdmin)); } catch (e) {} };
   const [selTicket, setSelTicket] = useState(null);
   const [reply, setReply] = useState('');
   const [refunds, setRefunds] = useState([]);
-  const muatRefund = () => fetch('/api/refunds').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.refunds)) setRefunds(d.refunds.map(refundAdmin)); }).catch(() => {});
+  const muatRefund = async () => { try { const d = await ambilJson('/api/refunds'); if (d && Array.isArray(d.refunds)) setRefunds(d.refunds.map(refundAdmin)); } catch (e) {} };
   const [ringkasAfiliasi, setRingkasAfiliasi] = useState({ totalAfiliasi: 0, totalKomisi: 0, komisiTersedia: 0 });
-  const muatAfiliasiAdmin = () => fetch('/api/affiliates').then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (d && typeof d.totalAfiliasi === 'number') setRingkasAfiliasi({ totalAfiliasi: d.totalAfiliasi, totalKomisi: d.totalKomisi, komisiTersedia: d.komisiTersedia });
-  }).catch(() => {});
+  const muatAfiliasiAdmin = async () => {
+    try {
+      const d = await ambilJson('/api/affiliates');
+      if (d && typeof d.totalAfiliasi === 'number') setRingkasAfiliasi({ totalAfiliasi: d.totalAfiliasi, totalKomisi: d.totalKomisi, komisiTersedia: d.komisiTersedia });
+    } catch (e) {}
+  };
   const [ranks, setRanks] = useState([]);
-  const muatPeringkat = () => fetch('/api/peringkat').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.tiers)) setRanks(d.tiers); }).catch(() => {});
+  const muatPeringkat = async () => { try { const d = await ambilJson('/api/peringkat'); if (d && Array.isArray(d.tiers)) setRanks(d.tiers); } catch (e) {} };
   const simpanPeringkat = async () => {
     const r = await fetch('/api/peringkat', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mins: ranks.map((x) => x.min) }) });
     const d = await r.json().catch(() => ({}));
@@ -95,7 +122,7 @@ export default function AdminPage() {
   const [artikelForm, setArtikelForm] = useState(kosongArtikel);
   const [artikelBusy, setArtikelBusy] = useState(false);
   const [artikelPratinjau, setArtikelPratinjau] = useState(false);
-  const muatArtikel = () => fetch('/api/artikel').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d && Array.isArray(d.artikel)) setArtikelList(d.artikel); }).catch(() => {});
+  const muatArtikel = async () => { try { const d = await ambilJson('/api/artikel'); if (d && Array.isArray(d.artikel)) setArtikelList(d.artikel); } catch (e) {} };
   useEffect(() => { if (tab === 'Blog') muatArtikel(); }, [tab]);
   const pilihArtikel = (i) => {
     const a = artikelList[i];
@@ -215,14 +242,17 @@ export default function AdminPage() {
     tampilkanToast(true, 'Catatan riwayat dihapus.');
     await muatRiwayat();
   };
-  const muatRiwayat = () => fetch('/api/riwayat').then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (d && Array.isArray(d.riwayat)) setUpdLog(d.riwayat.map((x) => ({ rid: x.id, date: x.tanggal, id: x.layananId, type: x.tipe, from: x.lama, to: x.baru })));
-  }).catch(() => {});
+  const muatRiwayat = async () => {
+    try {
+      const d = await ambilJson('/api/riwayat');
+      if (d && Array.isArray(d.riwayat)) setUpdLog(d.riwayat.map((x) => ({ rid: x.id, date: x.tanggal, id: x.layananId, type: x.tipe, from: x.lama, to: x.baru })));
+    } catch (e) {}
+  };
   /* Log aktivitas admin: jejak setuju/tolak refund & deposit, ubah markup/kurs, sinkron katalog, dll. */
   const [logAktivitas, setLogAktivitas] = useState([]);
-  const muatLogAktivitas = () => fetch('/api/admin-log').then((r) => (r.ok ? r.json() : null)).then((d) => {
-    if (d && Array.isArray(d.log)) setLogAktivitas(d.log);
-  }).catch(() => {});
+  const muatLogAktivitas = async () => {
+    try { const d = await ambilJson('/api/admin-log'); if (d && Array.isArray(d.log)) setLogAktivitas(d.log); } catch (e) {}
+  };
   const [updF, setUpdF] = useState('all');
   const [depF, setDepF] = useState('Semua');
   const [siap, setSiap] = useState(false);
@@ -232,7 +262,7 @@ export default function AdminPage() {
     return () => clearTimeout(t);
   }, []);
   const [undian, setUndian] = useState(null);
-  const muatUndian = () => fetch('/api/undian').then((r) => (r.ok ? r.json() : null)).then((d) => { if (d) setUndian(d); }).catch(() => {});
+  const muatUndian = async () => { try { const d = await ambilJson('/api/undian'); if (d) setUndian(d); } catch (e) {} };
   const undiUndian = async () => {
     if (!(await tanyaKonfirmasi('Undi pemenang undian bulan ini sekarang? Hanya bisa dilakukan sekali per bulan.'))) return;
     const r = await fetch('/api/undian', { method: 'POST' });
@@ -422,23 +452,38 @@ export default function AdminPage() {
   };
   const setRankMin = (i, val) => setRanks((list) => list.map((r, j) => (j === i ? { ...r, min: Math.max(0, Number(val) || 0) } : r)));
 
-  /* Katalog dan pesanan diambil dari penyimpanan di server. */
-  useEffect(() => {
-    fetch('/api/services')
-      .then((r) => r.json())
-      .then((d) => {
-        setSiap(true);
-        if (Array.isArray(d.services)) setServices(d.services);
-        if (d.settings && d.settings.kurs) setKurs(d.settings.kurs);
-        setKursSiap(true);
-        if (d.disinkron) setSyncedAt(d.disinkron);
-      })
-      .catch(() => { setKursSiap(true); });
-    fetch('/api/orders')
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d.orders)) setLiveOrders(d.orders); })
-      .catch(() => {});
-  }, []);
+  /* Katalog dan pesanan diambil dari penyimpanan di server. Dicoba ulang otomatis (lewat ambilJson)
+     kalau gagal, dan kalau tetap gagal ditandai "gagal" (BEDA dari "memang kosong") — sebelumnya
+     kalau fetch gagal sekali, tabel Pesanan/Layanan kelihatan kosong sama persis seperti memang
+     kosong, dan pesan kosong Layanan bahkan aktif menyuruh admin klik "Ambil daftar layanan" (sinkron
+     ulang penuh dari provider) padahal masalahnya cuma GET yang gagal, bukan katalognya kosong. */
+  const [svcMuatGagal, setSvcMuatGagal] = useState(false);
+  const [ordersMuatGagal, setOrdersMuatGagal] = useState(false);
+  const muatServicesAwal = async () => {
+    try {
+      const d = await ambilJson('/api/services');
+      setSiap(true);
+      setSvcMuatGagal(false);
+      if (Array.isArray(d.services)) setServices(d.services);
+      if (d.settings && d.settings.kurs) setKurs(d.settings.kurs);
+      setKursSiap(true);
+      if (d.disinkron) setSyncedAt(d.disinkron);
+    } catch (e) {
+      setSiap(true);
+      setKursSiap(true);
+      setSvcMuatGagal(true);
+    }
+  };
+  const muatOrdersAwal = async () => {
+    try {
+      const d = await ambilJson('/api/orders');
+      setOrdersMuatGagal(false);
+      if (Array.isArray(d.orders)) setLiveOrders(d.orders);
+    } catch (e) {
+      setOrdersMuatGagal(true);
+    }
+  };
+  useEffect(() => { muatServicesAwal(); muatOrdersAwal(); }, []);
 
   const [provBusy, setProvBusy] = useState({ smmsoc: false, likeo: false });
   const [provMsg, setProvMsg] = useState({ smmsoc: null, likeo: null });
@@ -737,7 +782,7 @@ export default function AdminPage() {
     );
   };
 
-  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, depManualQ, setDepManualQ, depManualSel, pilihDepManual, batalDepManual, depManualHasil, depManual, setDepManual, depManualBusy, kirimDepositManual, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setAktifMassal, setServiceMarkup, updMsg, updDays, addUpdate, logAktivitas, muatLogAktivitas, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn };
+  const v = { theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, recPickOpen, setRecPickOpen, recPickQ, setRecPickQ, recPickFiltered, recPickLebihBanyak, recSelected, pilihRecSvc, tipePickOpen, setTipePickOpen, pilihTipe, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, depManualQ, setDepManualQ, depManualSel, pilihDepManual, batalDepManual, depManualHasil, depManual, setDepManual, depManualBusy, kirimDepositManual, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setAktifMassal, setServiceMarkup, updMsg, updDays, addUpdate, logAktivitas, muatLogAktivitas, selUpd, setSelUpd, selUpdCount, allUpdSelected, toggleAllUpd, toggleSelUpd, hapusRiwayatMassal, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn, svcMuatGagal, muatServicesAwal, ordersMuatGagal, muatOrdersAwal };
 
   return (
     <>

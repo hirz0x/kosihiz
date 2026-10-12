@@ -1,7 +1,7 @@
 /* Refund langsung dari admin untuk pesanan yang dibatalkan atau selesai sebagian. User tidak perlu mengajukan dulu.
  * Jumlahnya dihitung dengan cara yang sama seperti refund dari user. Saldo langsung bertambah. */
 
-import { getOrders, listRefunds, createRefund, ubahStatusRefund, getProfile, addSaldoAman } from '../../../lib/store';
+import { getOrder, listRefunds, createRefund, ubahStatusRefund, getProfile, addSaldoAman } from '../../../lib/store';
 import { wajibAdmin } from '../../../lib/auth';
 import { tambahNotif } from '../../../lib/notif';
 import { catatAktivitas } from '../../../lib/adminLog';
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ error: 'ID pesanan tidak valid.' });
 
   try {
-    const pesanan = (await getOrders()).find((o) => o.id === id);
+    const pesanan = await getOrder(id);
     if (!pesanan) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
     if (!STATUS_REFUND.includes(pesanan.status)) {
       return res.status(400).json({ error: 'Refund hanya untuk pesanan yang dibatalkan atau selesai sebagian.' });

@@ -1,7 +1,7 @@
 /* Pembatalan pesanan oleh user. Hanya untuk pesanan miliknya yang masih menunggu, lalu diteruskan ke provider. */
 
 import { callProvider } from '../../../lib/provider';
-import { getOrders, saveOrders } from '../../../lib/store';
+import { getOrder, saveOrders } from '../../../lib/store';
 import { userDariRequest } from '../../../lib/account';
 
 export default async function handler(req, res) {
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ error: 'ID pesanan tidak valid.' });
 
   try {
-    const pesanan = (await getOrders(user.id)).find((o) => o.id === id);
+    const pesanan = await getOrder(id, user.id);
     if (!pesanan) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
     if (String(pesanan.status).toLowerCase() !== 'pending') {
       return res.status(400).json({ error: 'Hanya pesanan yang masih menunggu yang bisa dibatalkan.' });

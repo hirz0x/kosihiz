@@ -219,3 +219,87 @@ create index if not exists orders_provider_idx on orders (provider);
 -- celah race condition. Index unique parsial ini jadi penjaga terakhir di level database:
 -- cuma boleh ada SATU baris refund aktif (bukan "ditolak") per pesanan.
 create unique index if not exists refunds_pesanan_aktif_idx on refunds (pesanan) where status <> 'ditolak';
+
+-- Rata-rata menit penyelesaian per layanan, dihitung di database lewat agregasi SQL, bukan tarik
+-- SELURUH tabel orders ke Node lalu diagregasi di JS (lib/orders.js waktuPerLayanan). Dipanggil
+-- tiap kali katalog layanan dimuat — termasuk halaman depan & katalog PUBLIK (bukan cuma dashboard
+-- yang login) — jadi harus tetap murah walau tabel orders sudah sangat besar.
+create index if not exists orders_layanan_selesai_idx on orders (layanan_id) where selesai_at is not null;
+create or replace function waktu_per_layanan()
+returns table(layanan_id text, rata bigint, n bigint)
+language sql stable as $$
+  select layanan_id,
+         round(avg(extract(epoch from (selesai_at - dibuat)) / 60)::numeric)::bigint as rata,
+         count(*)::bigint as n
+  from orders
+  where selesai_at is not null and layanan_id is not null
+  group by layanan_id;
+$$;
+-- Defense-in-depth: fungsi ini aman dipanggil publik sekarang (RLS tabel orders tanpa policy
+-- apa pun menolak semua baris untuk role anon/authenticated, jadi hasilnya selalu kosong), tapi
+-- dibatasi eksplisit di sini juga supaya tetap aman kalau suatu saat RLS orders berubah.
+revoke execute on function waktu_per_layanan() from public, anon, authenticated;
+grant execute on function waktu_per_layanan() to service_role;
+
+-- Ledger idempoten untuk penambahan saldo (refund/deposit/undian/pengembalian pesanan gagal).
+-- addSaldoAman (lib/store.js) sebelumnya cuma retry RPC add_saldo kalau gagal — tapi kalau yang
+-- gagal cuma KONEKSINYA setelah transaksi sebenarnya sukses commit di database (realistis untuk
+-- fungsi serverless yang nyambung ke Supabase lintas region), retry itu bisa menambah saldo DUA
+-- KALI untuk satu transaksi yang sama. ref_id di sini + transaksi tunggal per pemanggilan RPC
+-- memastikan satu transaksi logis cuma pernah menambah saldo SATU KALI, berapa kali pun RPC-nya
+-- dipanggil ulang dengan ref_id yang sama.
+create table if not exists saldo_log (
+  ref_id text primary key,
+  uid text not null,
+  amount bigint not null,
+  dibuat timestamptz not null default now()
+);
+alter table saldo_log enable row level security;
+
+create or replace function add_saldo_aman(p_uid text, p_amount bigint, p_ref_id text) returns bigint
+language plpgsql as $$
+declare hasil bigint; klaim text;
+begin
+  insert into saldo_log (ref_id, uid, amount) values (p_ref_id, p_uid, p_amount)
+    on conflict (ref_id) do nothing
+    returning ref_id into klaim;
+  if klaim is null then
+    /* ref_id ini sudah pernah diklaim & dieksekusi sebelumnya (pemanggilan ini adalah retry) —
+       jangan nambah saldo lagi, cukup kembalikan saldo saat ini apa adanya. */
+    select saldo into hasil from profiles where user_id = p_uid;
+    return hasil;
+  end if;
+  update profiles set saldo = saldo + p_amount where user_id = p_uid returning saldo into hasil;
+  return hasil;
+end;
+$$;
+revoke execute on function add_saldo_aman(text, bigint, text) from public, anon, authenticated;
+grant execute on function add_saldo_aman(text, bigint, text) to service_role;
+
+-- Balas tiket sebelumnya baca kolom "pesan" (array jsonb) di Node, tambah satu pesan di JS, lalu
+-- tulis ulang SELURUH array — read-modify-write tanpa penjaga. Dua balasan yang hampir bersamaan
+-- (mis. admin klik kirim dua kali cepat lewat script yang melewati tombol, atau admin & pelanggan
+-- membalas bersamaan) bisa saling menimpa, salah satu balasan hilang diam-diam dari riwayat tiket.
+-- Fungsi ini menambah pesan secara ATOMIC lewat operator jsonb "||" langsung di satu UPDATE,
+-- tidak pernah baca-dulu-baru-tulis, jadi tidak ada celah race di tengahnya.
+-- Perbaikan: p_id sebelumnya salah dideklarasikan "text", padahal kolom tickets.id itu bigint —
+-- "where id = p_id" gagal dengan error "No operator matches the given name and argument types"
+-- (ketahuan pas verifikasi langsung ke produksi). Overload lama (parameter text) dihapus dulu
+-- supaya tidak nyangkut jadi fungsi duplikat yang bikin PostgREST bingung pilih yang mana.
+drop function if exists tambah_pesan_tiket(text, jsonb, text, boolean);
+create or replace function tambah_pesan_tiket(p_id bigint, p_pesan_baru jsonb, p_status text, p_user_baca boolean)
+returns setof tickets
+language plpgsql as $$
+begin
+  return query
+  update tickets
+  set pesan = pesan || p_pesan_baru,
+      status = coalesce(p_status, status),
+      user_baca = coalesce(p_user_baca, user_baca),
+      diupdate = now()
+  where id = p_id
+  returning *;
+end;
+$$;
+revoke execute on function tambah_pesan_tiket(bigint, jsonb, text, boolean) from public, anon, authenticated;
+grant execute on function tambah_pesan_tiket(bigint, jsonb, text, boolean) to service_role;

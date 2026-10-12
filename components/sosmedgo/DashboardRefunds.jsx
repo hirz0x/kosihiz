@@ -22,6 +22,12 @@ function DashboardRefunds({ v }) {
                 </span>
               </div>
             </div>
+            {v.refundGagal ? (
+              <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
+                <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat refund. Coba lagi?</span>
+                <button type="button" className="ghost" onClick={v.cobaLagiRefund}>Coba Lagi</button>
+              </div>
+            ) : null}
             {(v.refunds || []).map((r, $index) => (
               <React.Fragment key={$index}>
                 <div className="card" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "14px", padding: "14px 14px 14px 16px", borderRadius: "12px" }}>

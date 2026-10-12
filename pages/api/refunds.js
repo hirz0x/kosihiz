@@ -1,6 +1,6 @@
 /* Refund pesanan yang dibatalkan atau selesai sebagian. Saldo bertambah setelah admin menyetujui. */
 
-import { listRefunds, getRefund, createRefund, ubahStatusRefund, getOrders, getProfile, addSaldoAman } from '../../lib/store';
+import { listRefunds, getRefund, createRefund, ubahStatusRefund, getOrder, getProfile, addSaldoAman } from '../../lib/store';
 import { isAdmin, wajibAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { tambahNotif } from '../../lib/notif';
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       if (!user) return res.status(401).json({ error: 'Login dulu untuk mengajukan refund.' });
       const pesananId = String((req.body && req.body.orderId) || '').trim();
 
-      const pesanan = (await getOrders(user.id)).find((o) => o.id === pesananId);
+      const pesanan = await getOrder(pesananId, user.id);
       if (!pesanan) return res.status(404).json({ error: 'Pesanan tidak ditemukan.' });
       if (!STATUS_REFUND.includes(pesanan.status)) {
         return res.status(400).json({ error: 'Refund hanya untuk pesanan yang dibatalkan atau selesai sebagian.' });

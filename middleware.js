@@ -35,9 +35,14 @@ export async function middleware(req) {
       body: JSON.stringify({ refresh_token: refresh })
     });
     if (!r.ok) {
-      res.cookies.delete('sg_user');
-      res.cookies.delete('sg_refresh');
-      res.cookies.delete('sg_ingat');
+      /* JANGAN hapus cookie di sini. Supabase merotasi refresh token tiap dipakai — kalau dua
+         request datang nyaris bersamaan dan sama-sama mendeteksi token "akan habis", keduanya
+         memakai refresh token LAMA yang sama; yang kedua akan selalu gagal (refresh token-nya
+         sudah dirotasi duluan oleh yang pertama) walau user sebenarnya masih berhak login. Dulu
+         kegagalan ini menghapus cookie sesi, jadi user bisa ter-logout mendadak gara-gara
+         concurrency, bukan karena sesinya beneran habis. Biarkan saja lanjut dengan cookie lama —
+         kalau access token-nya memang sudah benar-benar invalid, itu akan ketahuan secara wajar
+         saat dipakai (userDariRequest akan mengembalikan null), bukan ditebak di sini. */
       return res;
     }
     const d = await r.json();

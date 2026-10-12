@@ -14,6 +14,12 @@ function DashboardUpdates({ v }) {
                 </React.Fragment>
               ))}
             </div>
+            {v.riwayatGagal ? (
+              <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
+                <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat update. Coba lagi?</span>
+                <button type="button" className="ghost" onClick={v.cobaLagiRiwayat}>Coba Lagi</button>
+              </div>
+            ) : null}
             {(v.updPageDays || []).map((d, $index) => (
               <React.Fragment key={$index}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "12px" }}>

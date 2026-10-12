@@ -1,6 +1,6 @@
 /* Tiket support. User membuka dan membalas tiket sendiri. Admin membalas dan menutup semua tiket. */
 
-import { listTickets, getTicket, createTicket, updateTicket, getProfile } from '../../lib/store';
+import { listTickets, getTicket, createTicket, updateTicket, tambahPesanTiket, getProfile } from '../../lib/store';
 import { isAdmin } from '../../lib/auth';
 import { userDariRequest } from '../../lib/account';
 import { tambahNotif } from '../../lib/notif';
@@ -92,8 +92,8 @@ export default async function handler(req, res) {
         const teks = String(text || '').trim();
         if (!teks) return res.status(400).json({ error: 'Balasan belum diisi.' });
         if (teks.length > PESAN_MAKS) return res.status(400).json({ error: 'Balasan terlalu panjang (maks 2000 karakter).' });
-        const pesan = t.pesan.concat([{ from: admin ? 'admin' : 'user', text: teks, time: sekarangWib() }]);
-        const hasil = await updateTicket(t.id, admin ? { pesan, status: 'answered', userBaca: false } : { pesan, status: 'open', userBaca: true });
+        const pesanBaru = { from: admin ? 'admin' : 'user', text: teks, time: sekarangWib() };
+        const hasil = await tambahPesanTiket(t.id, pesanBaru, admin ? { status: 'answered', userBaca: false } : { status: 'open', userBaca: true });
         if (admin) await tambahNotif(t.userId, 'ticket', 'Balasan tiket', 'Tim support membalas tiket #' + t.id + '.');
         return res.status(200).json({ ticket: keKlien(hasil) });
       }

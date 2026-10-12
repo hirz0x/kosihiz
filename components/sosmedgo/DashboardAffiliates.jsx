@@ -24,8 +24,11 @@ function DashboardAffiliates({ v }) {
                   ⧉ {v.copyTxt}
                 </button>
                 <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--rt)", wordBreak: "break-all" }}>
-                  {v.refLink || (v.affGagal ? "Gagal memuat link. Muat ulang halaman." : "Memuat link...")}
+                  {v.refLink || (v.affGagal ? "Gagal memuat link." : "Memuat link...")}
                 </span>
+                {!v.refLink && v.affGagal ? (
+                  <button type="button" className="ghost" onClick={v.cobaLagiAfiliasi} style={{ height: "38px" }}>Coba Lagi</button>
+                ) : null}
               </div>
               <p style={{ margin: "16px 0 0", fontSize: "12px", color: "var(--t4)", lineHeight: "1.7" }}>
                 {v.afiliasiTxt}

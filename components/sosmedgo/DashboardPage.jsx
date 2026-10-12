@@ -25,6 +25,26 @@ import DashboardAffiliates from './DashboardAffiliates';
 import DashboardAccount from './DashboardAccount';
 import DashboardSoon from './DashboardSoon';
 
+/* Ambil JSON dari API, dicoba ulang sampai 3x (jeda 1.5/3 detik) kalau gagal — supaya gangguan
+   jaringan/server sesaat tidak bikin satu section (peringkat, tiket, refund, riwayat, dll) diam-diam
+   kelihatan kosong selamanya sampai pelanggan reload manual. Melempar error kalau tetap gagal
+   setelah 3x percobaan. */
+function ambilJson(url, opts, percobaan) {
+  var ke = percobaan || 1;
+  return fetch(url, opts)
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (res) {
+      if (!res.ok) throw new Error((res.d && res.d.error) || 'Gagal memuat.');
+      return res.d;
+    })
+    .catch(function (e) {
+      if (ke < 3) {
+        return new Promise(function (resolve) { setTimeout(resolve, 1500 * ke); }).then(function () { return ambilJson(url, opts, ke + 1); });
+      }
+      throw e;
+    });
+}
+
 class DashboardPage extends React.Component {
   constructor(p) {
     super(p);
@@ -41,15 +61,39 @@ class DashboardPage extends React.Component {
       rq: '', copied: false, theme: 'dark', themeMode: 'dark', accent: 'red', rankOpen: false, updOpen: false, updSeen: false, updF: 'all', fOpen: false, fd: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, fa: { kw: '', pmin: '', pmax: '', ct: [], pl: [], ty: [] }, massTxt: '', massRes: null, massBusy: false,
       atab: 'security', pwSaved: false, emSaved: false, twofa: false, lang: 'id', tz: 'WIB', keyN: 1, invSaved: false,
       notif: { order: true, deposit: true, ticket: true, promo: false },
-      warnOrder: false, refundBusy: false, cancelBusyId: null, ticketBusy: false
+      warnOrder: false, refundBusy: false, cancelBusyId: null, ticketBusy: false, katalogGagal: false,
+      peringkatGagal: false, tiketGagal: false, refundGagal: false, riwayatGagal: false, notifGagal: false, payHistGagal: false, myOrdersGagal: false
     };
+  }
+  /* Katalog layanan gagal dimuat kadang-kadang (jaringan lambat, server lagi sibuk) — sebelumnya
+     kalau gagal sekali, halaman cuma diam ("Belum ada layanan") tanpa coba lagi, pelanggan harus
+     refresh manual. Sekarang dicoba ulang beberapa kali dulu sebelum menyerah. */
+  muatKatalog(percobaan) {
+    var self = this;
+    var ke = percobaan || 1;
+    fetch('/api/services')
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (res.ok && res.d && Array.isArray(res.d.services)) {
+          self.setState({ siap: true, catalog: res.d.services, katalogGagal: false });
+          if (res.d.settings && res.d.settings.kurs) self.setState({ kurs: res.d.settings.kurs });
+          return;
+        }
+        throw new Error('respons tidak valid');
+      })
+      .catch(function () {
+        if (ke < 3) { setTimeout(function () { self.muatKatalog(ke + 1); }, 1500 * ke); return; }
+        /* Tetap tandai "siap" supaya layar tidak nyangkut selamanya di "Memuat dashboard..." —
+           tapi beda dari katalog yang genuinely kosong, ditandai gagal supaya UI bisa kasih
+           tombol "coba lagi" alih-alih kelihatan kayak tidak ada layanan sama sekali. */
+        self.setState({ siap: true, katalogGagal: true });
+      });
   }
   muatTiket() {
     var self = this;
-    return fetch('/api/tickets?as=user')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && Array.isArray(d.tickets)) self.setState({ tickets: d.tickets.map(tiketDariApi) }); })
-      .catch(function () {});
+    return ambilJson('/api/tickets?as=user')
+      .then(function (d) { if (d && Array.isArray(d.tickets)) self.setState({ tickets: d.tickets.map(tiketDariApi), tiketGagal: false }); })
+      .catch(function () { self.setState({ tiketGagal: true }); });
   }
   bacaTiket(id) {
     var self = this;
@@ -59,10 +103,9 @@ class DashboardPage extends React.Component {
   }
   muatRefund() {
     var self = this;
-    return fetch('/api/refunds?as=user')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && Array.isArray(d.refunds)) self.setState({ refundList: d.refunds }); })
-      .catch(function () {});
+    return ambilJson('/api/refunds?as=user')
+      .then(function (d) { if (d && Array.isArray(d.refunds)) self.setState({ refundList: d.refunds, refundGagal: false }); })
+      .catch(function () { self.setState({ refundGagal: true }); });
   }
   ajukanRefund(orderId) {
     var self = this;
@@ -80,8 +123,7 @@ class DashboardPage extends React.Component {
   }
   muatAfiliasi() {
     var self = this;
-    return fetch('/api/affiliates?as=user')
-      .then(function (r) { return r.ok ? r.json() : null; })
+    return ambilJson('/api/affiliates?as=user')
       .then(function (d) { if (d && d.username) self.setState({ aff: d, affGagal: false }); else self.setState({ affGagal: true }); })
       .catch(function () { self.setState({ affGagal: true }); });
   }
@@ -103,17 +145,15 @@ class DashboardPage extends React.Component {
   }
   muatPeringkat() {
     var self = this;
-    return fetch('/api/peringkat?as=user')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && Array.isArray(d.tiers) && d.index !== undefined) self.setState({ peringkat: d }); })
-      .catch(function () {});
+    return ambilJson('/api/peringkat?as=user')
+      .then(function (d) { if (d && Array.isArray(d.tiers) && d.index !== undefined) self.setState({ peringkat: d, peringkatGagal: false }); })
+      .catch(function () { self.setState({ peringkatGagal: true }); });
   }
   muatRiwayat() {
     var self = this;
-    return fetch('/api/riwayat')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d && Array.isArray(d.riwayat)) self.setState({ riwayat: d.riwayat }); })
-      .catch(function () {});
+    return ambilJson('/api/riwayat')
+      .then(function (d) { if (d && Array.isArray(d.riwayat)) self.setState({ riwayat: d.riwayat, riwayatGagal: false }); })
+      .catch(function () { self.setState({ riwayatGagal: true }); });
   }
   cekBayar(idArg, diam) {
     var self = this;
@@ -185,10 +225,9 @@ class DashboardPage extends React.Component {
   }
   muatNotif() {
     var self = this;
-    return fetch('/api/notif')
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) { if (d) self.setState({ notifList: d.notif || [], notifUnread: d.belumDibaca || 0 }); })
-      .catch(function () {});
+    return ambilJson('/api/notif')
+      .then(function (d) { if (d) self.setState({ notifList: d.notif || [], notifUnread: d.belumDibaca || 0, notifGagal: false }); })
+      .catch(function () { self.setState({ notifGagal: true }); });
   }
   bacaNotif() {
     var self = this;
@@ -333,30 +372,33 @@ class DashboardPage extends React.Component {
     var pending = null;
     try { pending = localStorage.getItem('sg_dep_pending'); } catch (e) {}
     if (pending) { self.setState({ lastDep: pending }); self.cekBayar(pending, true); }
-    fetch('/api/services')
-      .then(function (r) { return r.json(); })
-      .then(function (d) { self.setState({ siap: true }); if (Array.isArray(d.services)) self.setState({ catalog: d.services }); if (d.settings && d.settings.kurs) self.setState({ kurs: d.settings.kurs }); })
-      /* Kalau gagal total (network error/response bukan JSON), tetap tandai "siap" supaya layar tidak
-         nyangkut selamanya di "Memuat dashboard..." tanpa pesan apa pun — katalognya tetap kosong,
-         tapi pelanggan setidaknya melihat halamannya, bukan spinner tanpa akhir. */
-      .catch(function () { self.setState({ siap: true }); });
-    fetch('/api/me')
-      .then(function (r) { return r.ok ? r.json() : null; })
+    this.muatKatalog();
+    this.muatMe();
+    this.muatPayHist();
+    this.muatOrdersAwal();
+  }
+  muatMe() {
+    var self = this;
+    return ambilJson('/api/me')
       .then(function (d) { if (d && typeof d.saldo === 'number') self.setState({ saldo: d.saldo, username: d.user.username, email: d.user.email || '' }); })
       .catch(function () {});
-    fetch('/api/deposits?as=user')
-      .then(function (r) { return r.ok ? r.json() : null; })
+  }
+  muatPayHist() {
+    var self = this;
+    return ambilJson('/api/deposits?as=user')
       .then(function (d) {
         if (!d || !Array.isArray(d.deposits)) return;
         self.setState({ payHist: d.deposits.map(function (x) {
           return { id: x.id, tgl: String(x.dibuat).slice(0, 16).replace('T', ' '), metode: x.metode, jumlah: x.nominal, status: x.label, bayarUrl: x.bayarUrl || '' };
-        }) });
+        }), payHistGagal: false });
       })
-      .catch(function () {});
-    fetch('/api/orders?as=user')
-      .then(function (r) { return r.json(); })
-      .then(function (d) { if (Array.isArray(d.orders)) self.setState({ myOrders: d.orders }); })
-      .catch(function () {});
+      .catch(function () { self.setState({ payHistGagal: true }); });
+  }
+  muatOrdersAwal() {
+    var self = this;
+    return ambilJson('/api/orders?as=user')
+      .then(function (d) { if (Array.isArray(d.orders)) self.setState({ myOrders: d.orders, myOrdersGagal: false }); })
+      .catch(function () { self.setState({ myOrdersGagal: true }); });
   }
 
   renderVals() {
@@ -699,6 +741,7 @@ class DashboardPage extends React.Component {
 
     return {
       rankOpen: st.rankOpen, closeRank: set({ rankOpen: false }),
+      peringkatGagal: st.peringkatGagal, cobaLagiPeringkat: function () { self.muatPeringkat(); },
       ranks: (st.peringkat ? st.peringkat.tiers : []).map(function (r, i, arr) {
         var next = arr[i + 1];
         var cur = st.peringkat && i === st.peringkat.index;
@@ -722,6 +765,7 @@ class DashboardPage extends React.Component {
       updDays: groupDays(updData), goUpdates: go('updates', { updOpen: false }),
       updFilters: [['all', T('Semua', 'All')], ['up', T('Harga naik', 'Rate increased')], ['down', T('Harga turun', 'Rate decreased')], ['off', T('Dinonaktifkan', 'Disabled')], ['new', T('Layanan baru', 'New')]].map(function (f) { var on = st.updF === f[0]; return { t: f[1], on: on, bg: on ? 'var(--accent)' : 'var(--s1)', fg: on ? '#FFFFFF' : 'var(--hi)', bc: on ? 'var(--accent)' : 'var(--b3)', pick: set({ updF: f[0] }) }; }),
       updPageDays: groupDays(updPage), updEmpty: updPage.length === 0,
+      riwayatGagal: st.riwayatGagal, cobaLagiRiwayat: function () { self.muatRiwayat(); },
       is: is, pg: pg, showBanner: st.page !== 'neworder' && st.page !== 'account' && st.page !== 'ticket',
       mainBg: st.page === 'neworder' ? (L ? 'radial-gradient(900px 340px at 85% 0%,rgba(var(--accent-rgb),.07),rgba(var(--accent-rgb),0) 70%),#FFFFFF' : 'linear-gradient(180deg,var(--g1) 0,var(--bg) 340px)') : 'var(--bg)',
       menu1: menu1,
@@ -758,6 +802,8 @@ class DashboardPage extends React.Component {
       }),
       otabs: [['new', T('Pesanan Baru', 'New Order')], ['search', T('Cari', 'Search')], ['mass', T('Pesanan Massal', 'Mass order')]].map(function (t) { var on = st.tab === t[0]; return { t: t[1], on: on, bg: on ? (L ? '#FFFFFF' : 'var(--accent)') : 'transparent', fg: on ? (L ? 'var(--hi)' : '#FFFFFF') : 'var(--t3)', sh: on && L ? '0 1px 3px rgba(16,24,40,.12)' : 'none', pick: set({ tab: t[0], open: '' }) }; }),
       isNew: st.tab === 'new', isSearch: st.tab === 'search', isMass: st.tab === 'mass',
+      katalogGagal: st.katalogGagal,
+      cobaLagiKatalog: function () { self.setState({ katalogGagal: false }); self.muatKatalog(); },
       cat: cat || { t: 'Belum ada kategori untuk platform ini', icon: I.fire, bg: 'var(--b5)' },
       catOpen: st.open === 'cat', catBc: st.open === 'cat' ? 'var(--accent)' : 'var(--b3)',
       toggleCat: function () { if (visCats.length) self.setState({ open: st.open === 'cat' ? '' : 'cat' }); },
@@ -859,9 +905,11 @@ class DashboardPage extends React.Component {
       ofLabel: ofDef.filter(function (o) { return o[0] === st.ostat; })[0][1],
       ofOpts: ofDef.map(function (o) { var on = st.ostat === o[0]; return { t: o[1], on: on, rowBg: on ? 'var(--r3)' : 'transparent', pick: set({ ostat: o[0], ofOpen: false }) }; }),
       orders: orders, oEmpty: orders.length === 0,
+      myOrdersGagal: st.myOrdersGagal, cobaLagiOrders: function () { self.muatOrdersAwal(); },
 
       /* refunds */
       rq: st.rq, setRq: function (e) { self.setState({ rq: e.target.value }); }, refunds: refunds, rEmpty: refunds.length === 0,
+      refundGagal: st.refundGagal, cobaLagiRefund: function () { self.muatRefund(); },
 
       /* add funds */
       amts: amtList.map(function (a) { var on = st.amtKey === a; var s2 = segStyle(on); return { t: a === 'custom' ? 'Custom' : 'Rp ' + fmt(a), on: on, bg: s2.bg, fg: s2.fg, pick: set({ amtKey: a, paid: false }) }; }),
@@ -886,6 +934,7 @@ class DashboardPage extends React.Component {
           .catch(function (err) { self.setState({ bayarBusy: false }); self.tampilkanToast(false, String(err && err.message ? err.message : err)); });
       },
       dHistOpen: st.dHistOpen, openDHist: set({ dHistOpen: true }), closeDHist: set({ dHistOpen: false }),
+      payHistGagal: st.payHistGagal, cobaLagiPayHist: function () { self.muatPayHist(); },
       dh: {
         title: T('Riwayat pembayaran', 'Payment history'), empty: T('Belum ada riwayat pembayaran', 'No payment history'),
         emptySub: T('Kamu belum pernah melakukan pembayaran.', 'You have not made any payments yet.'), addFunds: T('Isi saldo', 'Add funds'), close: T('Tutup', 'Close')
@@ -931,6 +980,7 @@ class DashboardPage extends React.Component {
           .catch(function () { self.setState({ ticketBusy: false }); self.tampilkanToast(false, 'Tiket gagal dikirim. Coba lagi.'); });
       },
       ticketBusy: st.ticketBusy,
+      tiketGagal: st.tiketGagal, cobaLagiTiket: function () { self.muatTiket(); },
       tHistOpen: st.tHistOpen, openTHist: set({ tHistOpen: true }), closeTHist: set({ tHistOpen: false }),
       tlist: st.tickets.map(function (t) { var m = TS[t.status]; return { id: t.id, title: tTitle(t), updated: t.updated, unread: t.unread, sTxt: m[0], sBg: m[1], sFg: m[2],
         open: function () { self.setState({ tickets: st.tickets.map(function (x) { return x.id === t.id ? Object.assign({}, x, { unread: false }) : x; }), tHistOpen: false, page: 'ticket', viewT: t.id, hdd: '' }); self.bacaTiket(t.id); } }; }),
@@ -1013,6 +1063,7 @@ class DashboardPage extends React.Component {
       afiliasiTxt: 'Bagikan link ini. Setiap kali orang yang kamu ajak isi saldo, kamu dapat komisi ' + (st.aff ? st.aff.persen : 5) + '% dari depositnya. Komisi bisa dipindah ke saldo untuk belanja layanan.',
       wdJumlah: st.wdJumlah, setWdJumlah: function (e) { self.setState({ wdJumlah: e.target.value }); },
       wdBusy: st.wdBusy, tarikKomisi: function () { self.tarikKomisi(); },
+      cobaLagiAfiliasi: function () { self.muatAfiliasi(); },
       copyTxt: st.copied ? 'Tersalin!' : 'Salin Link',
       copyRef: function () { try { navigator.clipboard.writeText(st.aff ? (typeof window !== 'undefined' ? window.location.origin : '') + '/register?ref=' + encodeURIComponent(st.aff.username) : ''); } catch (e) {} self.setState({ copied: true }); },
       goAff: go('affiliates'), goAccount: go('account'), goMassOrder: go('massorder'),
@@ -1474,6 +1525,12 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       </button>
                     </div>
                     <div style={{ flex: "1", overflow: "auto", padding: "14px" }}>
+                      {v.peringkatGagal ? (
+                        <div className="card" style={{ padding: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)", marginBottom: "12px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--rt)" }}>Gagal memuat data peringkat kamu. Coba lagi?</span>
+                          <button type="button" className="ghost" onClick={v.cobaLagiPeringkat}>Coba Lagi</button>
+                        </div>
+                      ) : null}
                       {(v.ranks || []).map((r, $index) => (
                         <React.Fragment key={$index}>
                           <div style={{ border: `1px solid ${r.bc}`, background: r.bg, borderRadius: "14px", padding: "6px", marginBottom: "12px" }}>
@@ -1528,7 +1585,12 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       ✕
                     </button>
                   </div>
-                  {v.dhRows.length === 0 ? (
+                  {v.dhRows.length === 0 && v.payHistGagal ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "60px 24px", margin: "auto 0" }}>
+                      <div style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat pembayaran.</div>
+                      <button type="button" className="submit" onClick={v.cobaLagiPayHist} style={{ padding: "0 18px" }}>Coba Lagi</button>
+                    </div>
+                  ) : v.dhRows.length === 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "60px 24px", margin: "auto 0" }}>
                       <span style={{ width: "56px", height: "56px", borderRadius: "14px", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <i className="fa-solid fa-bag-shopping" aria-hidden="true" style={{ color: "#FFFFFF", fontSize: 24, width: 24, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center' }} />
@@ -1586,6 +1648,12 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       </button>
                     </div>
                     <div style={{ flex: "1", overflow: "auto", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {v.tiketGagal ? (
+                        <div className="card" style={{ padding: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
+                          <span style={{ fontSize: "12px", color: "var(--rt)" }}>Gagal memuat daftar tiket. Coba lagi?</span>
+                          <button type="button" className="ghost" onClick={v.cobaLagiTiket}>Coba Lagi</button>
+                        </div>
+                      ) : null}
                       {(v.tlist || []).map((t, $index) => (
                         <React.Fragment key={$index}>
                           <button type="button" onClick={t.open} style={{ textAlign: "left", background: "var(--s2)", border: "1px solid var(--b3)", borderRadius: "12px", padding: "14px", cursor: "pointer", color: "var(--hi)", fontFamily: "inherit", display: "flex", flexDirection: "column", gap: "10px" }}>

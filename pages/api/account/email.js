@@ -1,4 +1,4 @@
-import { userDariRequest, supaAuth, supaUbahAkun, tokenUser } from '../../../lib/account';
+import { userDariRequest, supaAuth, supaUbahAkun, supaReq, tokenUser } from '../../../lib/account';
 import { sisaKunci, catatGagal, resetKunci } from '../../../lib/loginGuard';
 
 const POLA_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,6 +32,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: pesan });
     }
     await resetKunci(kunci);
+    /* Cabut sesi di perangkat lain (sesi di perangkat ini sendiri dibiarkan) — best-effort, lihat
+       penjelasan sama di pages/api/account/password.js. */
+    await supaReq('POST', 'logout?scope=others', undefined, tokenUser(req)).catch(() => {});
     return res.status(200).json({ ok: true });
   } catch (e) {
     return res.status(502).json({ error: 'Email gagal diganti. Coba lagi.' });

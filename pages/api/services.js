@@ -1,6 +1,7 @@
 /* Katalog layanan: tarik dari provider, simpan di Supabase, dan atur markup. */
 
 import { getServices, saveServices, getSetting, setSetting, getSettings } from '../../lib/store';
+import { LIKEO_ID_OFFSET } from '../../lib/provider';
 import { waktuPerLayanan } from '../../lib/orders';
 import { catatPerubahan, simpanRiwayat } from '../../lib/riwayat';
 import { decodeEntitas } from '../../lib/teks';
@@ -59,7 +60,23 @@ export default async function handler(req, res) {
     try {
       const { updates, kurs } = req.body || {};
       const settings = await getSettings();
-      let services = await getServices();
+      const kursBerubah = Number(kurs) > 0 && Number(kurs) !== settings.kurs;
+
+      /* Kurs baru mempengaruhi layanan dari KEDUA provider (siapa pun yang punya "rate"), jadi
+         perlu tarik seluruh katalog. Tapi kalau cuma markup/status aktif yang berubah — kasus yang
+         jauh lebih sering, termasuk saat admin terapkan markup ke ribuan layanan likeo sekaligus —
+         cukup tarik layanan dari provider yang disentuh saja, bukan ~8.000 baris kedua provider
+         sekaligus cuma buat ubah markup beberapa (atau bahkan satu) provider. */
+      let services;
+      if (kursBerubah) {
+        services = await getServices();
+      } else if (Array.isArray(updates) && updates.length) {
+        const providers = new Set(updates.map((u) => (Number(u.id) >= LIKEO_ID_OFFSET ? 'likeo' : 'smmsoc')));
+        const hasilProvider = await Promise.all(Array.from(providers).map((p) => getServices(p)));
+        services = hasilProvider.flat();
+      } else {
+        services = [];
+      }
       const berubah = [];
       const catatan = [];
 
@@ -83,7 +100,7 @@ export default async function handler(req, res) {
       }
 
       /* Kurs baru mengubah harga dasar semua layanan yang punya rate dari provider. */
-      if (Number(kurs) > 0 && Number(kurs) !== settings.kurs) {
+      if (kursBerubah) {
         services = services.map((s) => {
           if (!s.rate) return s;
           const hasil = { ...s, dasar: Math.round(s.rate * Number(kurs)) };
@@ -98,7 +115,7 @@ export default async function handler(req, res) {
       if (Array.isArray(updates) && updates.length) {
         await catatAktivitas('ubah_layanan', updates.length + ' layanan diubah (markup/status aktif)');
       }
-      if (Number(kurs) > 0 && Number(kurs) !== settings.kurs) {
+      if (kursBerubah) {
         await catatAktivitas('ubah_kurs', 'Kurs diubah ke Rp ' + Number(kurs).toLocaleString('id-ID'));
       }
       return res.status(200).json({ ok: true, jumlah: services.length });

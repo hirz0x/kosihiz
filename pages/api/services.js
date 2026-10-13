@@ -11,24 +11,58 @@ import { catatAktivitas } from '../../lib/adminLog';
 
 export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
 
-/* Respons untuk PELANGGAN di-cache singkat di memori. Katalognya sudah lebih dari 5.000 layanan
-   aktif (~1.5MB JSON) — tanpa cache, data sebanyak itu ditarik ulang dari database DAN diproses
-   ulang (decode nama, gabung rata-rata waktu selesai, dst) dari NOL di setiap request, oleh SETIAP
-   pengunjung, di setiap buka halaman. Itu penyebab utama katalog kadang lambat ~6-7 detik sampai
-   lewat jeda "siap" 4 detik di dashboard, bikin halaman sempat kelihatan "Belum ada layanan".
-   Respons ADMIN tidak di-cache (selalu segar), dan cache langsung dikosongkan begitu admin
+/* Respons untuk PELANGGAN di-cache. Katalognya sudah lebih dari 5.000 layanan aktif (~1.5MB JSON)
+   — tanpa cache, data sebanyak itu ditarik ulang dari database DAN diproses ulang (decode nama,
+   gabung rata-rata waktu selesai, dst) dari NOL di setiap request, oleh SETIAP pengunjung, di
+   setiap buka halaman. Itu penyebab utama katalog kadang lambat 6-7 detik sampai lewat jeda "siap"
+   4 detik di dashboard, bikin halaman sempat kelihatan "Belum ada layanan".
+
+   Cache-nya DUA lapis, bukan cuma di memori satu proses — Vercel menjalankan beberapa instance
+   server yang terpisah memorinya, dan instance yang baru "bangun" (cold start, atau kalau jeda
+   antar kunjungan agak lama) tidak ikut kebagian cache memori instance lain, jadi kalau cuma
+   diingat di memori, pengunjung tetap sering kena jalur lambat lagi. Lapis pertama (memori) cepat
+   tapi cuma berlaku di instance yang sama; lapis kedua (tabel settings di database) dibagi SEMUA
+   instance, jadi instance manapun yang kena tetap dapat jalan pintas.
+
+   Respons ADMIN tidak pernah di-cache (selalu segar), dan cache langsung dikosongkan begitu admin
    menyimpan perubahan markup/status atau sinkron katalog, supaya perubahan tidak nyangkut lama. */
 const CACHE_MS = 3 * 60 * 1000;
-let cachePelanggan = null; // { data, sampai }
+const CACHE_KEY = 'services_cache_pelanggan';
+let cacheMemori = null; // { data, sampai }
+
+async function ambilKatalogPelanggan() {
+  const sekarang = Date.now();
+  if (cacheMemori && sekarang < cacheMemori.sampai) return cacheMemori.data;
+  const simpan = await getSetting(CACHE_KEY, null);
+  if (simpan && simpan.data && simpan.sampai && sekarang < simpan.sampai) {
+    cacheMemori = { data: simpan.data, sampai: simpan.sampai };
+    return simpan.data;
+  }
+  return null;
+}
+
+async function simpanKatalogPelanggan(data) {
+  const sampai = Date.now() + CACHE_MS;
+  cacheMemori = { data, sampai };
+  await setSetting(CACHE_KEY, { data, sampai });
+}
+
+async function kosongkanKatalogPelanggan() {
+  cacheMemori = null;
+  await setSetting(CACHE_KEY, { data: null, sampai: 0 });
+}
 
 export default async function handler(req, res) {
   /* Daftar layanan. Baca bebas, karena dipakai halaman pelanggan. */
   if (req.method === 'GET') {
     try {
       const admin = isAdmin(req);
-      if (!admin && cachePelanggan && Date.now() < cachePelanggan.sampai) {
-        res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=150');
-        return res.status(200).json(cachePelanggan.data);
+      if (!admin) {
+        const cached = await ambilKatalogPelanggan();
+        if (cached) {
+          res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=150');
+          return res.status(200).json(cached);
+        }
       }
       /* Pelanggan: filter "aktif" didorong ke query Supabase-nya langsung (bukan ambil semua
          puluhan ribu baris dulu baru disaring di JS) — ribuan layanan provider lain yang sengaja
@@ -50,7 +84,7 @@ export default async function handler(req, res) {
         return { ...sisanya, ...(admin ? { provider, rate, batal, aktif } : {}), nama: decodeEntitas(s.nama), refill: Boolean(s.refill), ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {}) };
       });
       const payload = { services: hasil, settings, disinkron };
-      if (!admin) cachePelanggan = { data: payload, sampai: Date.now() + CACHE_MS };
+      if (!admin) await simpanKatalogPelanggan(payload);
       return res.status(200).json(payload);
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
@@ -64,7 +98,7 @@ export default async function handler(req, res) {
       const provider = (req.body && req.body.provider) || 'smmsoc';
       const hasil = await sinkronKatalog({ provider, kursOverride: req.body && req.body.kurs });
       await catatAktivitas('sinkron_katalog', provider + ': ' + hasil.jumlah + ' layanan (' + hasil.baru + ' baru), kurs ' + hasil.kurs);
-      cachePelanggan = null;
+      await kosongkanKatalogPelanggan();
       return res.status(200).json(hasil);
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
@@ -135,7 +169,7 @@ export default async function handler(req, res) {
       if (kursBerubah) {
         await catatAktivitas('ubah_kurs', 'Kurs diubah ke Rp ' + Number(kurs).toLocaleString('id-ID'));
       }
-      cachePelanggan = null;
+      await kosongkanKatalogPelanggan();
       return res.status(200).json({ ok: true, jumlah: services.length });
     } catch (e) {
       return res.status(500).json({ error: String(e.message || e) });

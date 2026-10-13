@@ -18,21 +18,17 @@ export default async function handler(req, res) {
     const admin = isAdmin(req) && req.query.as !== 'user';
     const user = admin ? null : await userDariRequest(req);
     if (!admin && !user) return res.status(401).json({ error: 'Perlu login.' });
-    const milik = (list) => {
-      const punya = admin ? list : list.filter((o) => o.userId === user.id);
-      return admin ? punya : punya.map(sembunyikanProvider);
-    };
     try {
-      /* Pelanggan cuma butuh pesanannya sendiri disegarkan, bukan ikut menarik & memproses
-         pesanan semua pelanggan lain (yang sudah ditangani cron terjadwal secara berkala). */
-      const { orders } = await refreshOrders({ force: false, userId: admin ? undefined : user.id });
-      return res.status(200).json({ orders: milik(orders) });
+      /* Cuma baca dari database — TIDAK lagi memanggil API provider di sini. Sebelumnya endpoint
+         ini memanggil provider (smmsoc/likeo) secara langsung dan MENUNGGU balasannya kalau ada
+         pesanan yang belum final & belum dicek >60 detik — artinya kecepatan buka dashboard
+         pelanggan tersandera kecepatan/keandalan provider pihak ketiga (terbukti lewat profil LCP
+         5+ detik). Penyegaran status sekarang sepenuhnya jadi tugas cron terjadwal
+         (pages/api/cron/orders.js, sudah berjalan otomatis), bukan jalur baca pelanggan. */
+      const list = admin ? await getOrders() : (await getOrders(user.id)).map(sembunyikanProvider);
+      return res.status(200).json({ orders: list });
     } catch (e) {
-      const simpan = await getOrders(admin ? undefined : user.id).catch(() => []);
-      /* Pesan error asli (bisa memuat istilah/teks dari provider upstream) cuma ditampilkan ke
-         admin buat diagnosis — pelanggan cukup tahu statusnya mungkin belum ter-update terbaru. */
-      const peringatan = admin ? String(e.message || e) : 'Status pesanan belum sempat diperbarui, coba muat ulang.';
-      return res.status(200).json({ orders: milik(simpan), peringatan });
+      return res.status(502).json({ error: admin ? String(e.message || e) : 'Pesanan belum bisa dimuat. Coba lagi.' });
     }
   }
 

@@ -69,6 +69,12 @@ function AdminLayanan({ v }) {
               {svcCats.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <span className="muted" style={{ fontSize: '12px' }}>{svcFiltered.length} layanan</span>
+            {svcCat !== 'all' ? (
+              <>
+                <button type="button" className="ghost" disabled={svcFiltered.length === 0} onClick={() => setAktifMassal(svcFiltered.map((s) => s.id), true)}>Aktifkan kategori ini ({svcFiltered.length})</button>
+                <button type="button" className="ghost" disabled={svcFiltered.length === 0} onClick={() => setAktifMassal(svcFiltered.map((s) => s.id), false)}>Nonaktifkan kategori ini ({svcFiltered.length})</button>
+              </>
+            ) : null}
           </div>
 
           <div className="card" style={{ overflowX: 'auto' }}>

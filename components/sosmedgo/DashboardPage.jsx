@@ -195,6 +195,7 @@ class DashboardPage extends React.Component {
   componentWillUnmount() {
     clearTimeout(this._siapTimer);
     clearTimeout(this._toastTimer);
+    clearInterval(this._saldoInterval);
   }
   gantiPassword() {
     var self = this;
@@ -376,6 +377,11 @@ class DashboardPage extends React.Component {
     this.muatMe();
     this.muatPayHist();
     this.muatOrdersAwal();
+    /* Saldo tadinya cuma diambil sekali waktu halaman dibuka (lewat muatMe di atas) — kalau admin
+       approve deposit manual SAAT pelanggan lagi anteng di tab yang sama, angkanya tidak pernah
+       ikut berubah sampai pelanggan refresh manual, karena tidak ada yang mengecek ulang. Dicek
+       ulang berkala di latar belakang selama dashboard terbuka supaya saldo ikut ter-update sendiri. */
+    this._saldoInterval = setInterval(function () { self.muatMe(); }, 25000);
   }
   muatMe() {
     var self = this;

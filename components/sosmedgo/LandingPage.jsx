@@ -138,6 +138,20 @@ class LandingPage extends React.Component {
           <title>SosmedGo — Panel SMM Termurah</title>
           <meta name="description" content="SosmedGo adalah panel SMM termurah di Indonesia untuk followers, likes, views, dan layanan social media marketing lainnya. Proses otomatis 24 jam, harga bersaing, dan API siap pakai untuk reseller." />
           <link rel="canonical" href="https://smmsosmedgo.store/" />
+          {/* Open Graph/Twitter Card: supaya link yang dibagikan (mis. ke grup Facebook) muncul
+              sebagai kartu dengan gambar, judul, dan deskripsi — bukan link polos tanpa pratinjau. */}
+          <meta property="og:type" content="website" />
+          <meta property="og:url" content="https://smmsosmedgo.store/" />
+          <meta property="og:site_name" content="SosmedGo" />
+          <meta property="og:title" content="SosmedGo — Panel SMM Termurah di Indonesia" />
+          <meta property="og:description" content="Panel SMM termurah untuk followers, likes, views, dan layanan social media marketing lainnya. Proses otomatis 24 jam, harga bersaing, API siap pakai untuk reseller." />
+          <meta property="og:image" content="https://smmsosmedgo.store/icon.png" />
+          <meta property="og:image:width" content="512" />
+          <meta property="og:image:height" content="512" />
+          <meta name="twitter:card" content="summary" />
+          <meta name="twitter:title" content="SosmedGo — Panel SMM Termurah di Indonesia" />
+          <meta name="twitter:description" content="Panel SMM termurah untuk followers, likes, views, dan layanan social media marketing lainnya. Proses otomatis 24 jam, harga bersaing, API siap pakai untuk reseller." />
+          <meta name="twitter:image" content="https://smmsosmedgo.store/icon.png" />
           <link rel="preconnect" href="https://api.fontshare.com" />
           <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" />
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />

@@ -2,7 +2,13 @@
    kalau admin lupa klik "Ambil daftar layanan" manual. Hanya bisa dipanggil dengan CRON_SECRET di
    header Authorization — sama persis polanya dengan /api/cron/orders, tapi job terpisah karena ini
    jauh lebih berat (tarik ulang seluruh katalog) sehingga jadwalnya harus jauh lebih jarang
-   (disarankan beberapa jam sekali atau sekali sehari, bukan tiap menit). */
+   (disarankan beberapa jam sekali atau sekali sehari, bukan tiap menit).
+
+   Tanpa ?provider=, sinkron SEMUA provider sekaligus dalam satu request — dengan katalog masing-
+   masing provider sudah 5000+ layanan, menyinkronkan keduanya berurutan dalam satu panggilan bisa
+   kelamaan dan kena limit waktu eksekusi server atau timeout di sisi penjadwal cron. ?provider=smmsoc
+   atau ?provider=likeo membatasi ke satu provider saja per panggilan, supaya tiap cronjob bisa
+   dijadwalkan terpisah dan masing-masing lebih ringan/cepat. */
 
 import { sinkronKatalog } from '../../../lib/katalog';
 import { PROVIDERS } from '../../../lib/provider';
@@ -13,8 +19,13 @@ export default async function handler(req, res) {
   if (!rahasia) return res.status(500).json({ error: 'CRON_SECRET belum diisi di .env.local.' });
   if (!cekBearerRahasia(req, rahasia)) return res.status(401).json({ error: 'Tidak diizinkan.' });
 
-  /* Sinkron semua provider yang API key-nya sudah diisi, satu-satu. */
-  const providers = Object.keys(PROVIDERS).filter((p) => PROVIDERS[p].key());
+  const hanya = String(req.query.provider || '').trim();
+  if (hanya && !Object.prototype.hasOwnProperty.call(PROVIDERS, hanya)) {
+    return res.status(400).json({ error: 'Provider tidak dikenal: ' + hanya });
+  }
+
+  /* Sinkron provider yang diminta (?provider=...), atau semua yang API key-nya sudah diisi kalau tidak diminta spesifik. */
+  const providers = (hanya ? [hanya] : Object.keys(PROVIDERS)).filter((p) => PROVIDERS[p].key());
   const hasil = {};
   const errors = {};
   for (const provider of providers) {

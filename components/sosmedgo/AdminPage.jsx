@@ -637,14 +637,27 @@ export default function AdminPage() {
     setSvcSaving(false);
   };
 
-  const applyMarkup = (ids) => {
+  /* ids === null berarti "semua layanan provider ini" (bisa ribuan sekaligus) — beda dari aksi
+     borongan lain di panel ini (setujui refund/deposit, hapus artikel/riwayat), sebelumnya aksi
+     ke-SEMUA ini langsung jalan begitu diklik tanpa tanya dulu. Ditambah konfirmasi supaya salah
+     klik (mis. kepencet "Nonaktifkan semua" yang nempel sama "Aktifkan semua") tidak langsung
+     disusul refleks klik "Simpan" dan mematikan/mengubah seluruh katalog provider itu. Aksi ke
+     item yang DIPILIH satu-satu (ids berupa array) tetap tanpa konfirmasi tambahan, karena memilihnya
+     sendiri sudah merupakan langkah yang disengaja. */
+  const applyMarkup = async (ids) => {
     const m = Number(massMarkup);
     if (massMarkup === '' || !Number.isFinite(m) || m < 0) return;
+    if (ids === null) {
+      const label = PROVIDER_LABEL[svcProvider] || svcProvider;
+      if (!(await tanyaKonfirmasi('Terapkan markup ' + m + '% ke SEMUA ' + svcInProvider.length + ' layanan ' + label + '? Harga jual semua layanan itu akan berubah setelah disimpan.'))) return;
+    }
     const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: m } : x)));
     tandai(Array.from(kena), { massal: true });
   };
-  const resetMarkup = () => {
+  const resetMarkup = async () => {
+    const label = PROVIDER_LABEL[svcProvider] || svcProvider;
+    if (!(await tanyaKonfirmasi('Reset markup SEMUA ' + svcInProvider.length + ' layanan ' + label + ' ke harga dasar (markup 0%)? Harga jual semua layanan itu akan berubah setelah disimpan.'))) return;
     const ids = svcInProvider.map((x) => x.id);
     const kena = new Set(ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, markup: 0 } : x)));
@@ -653,7 +666,12 @@ export default function AdminPage() {
   /* Nonaktifkan/aktifkan banyak layanan sekaligus (mis. "matikan semua layanan provider ini"
      supaya tidak muncul di halaman pelanggan) — ids=null berarti semua layanan di provider
      yang sedang dibuka di tab Layanan. */
-  const setAktifMassal = (ids, aktif) => {
+  const setAktifMassal = async (ids, aktif) => {
+    if (ids === null) {
+      const label = PROVIDER_LABEL[svcProvider] || svcProvider;
+      const aksi = aktif ? 'Aktifkan' : 'Nonaktifkan';
+      if (!(await tanyaKonfirmasi(aksi + ' SEMUA ' + svcInProvider.length + ' layanan ' + label + '? ' + (aktif ? 'Semua layanan itu akan langsung bisa dipesan pelanggan' : 'Semua layanan itu akan hilang dari halaman pelanggan') + ' setelah disimpan.'))) return;
+    }
     const kena = new Set(ids === null ? svcInProvider.map((x) => x.id) : ids);
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, aktif } : x)));
     tandai(Array.from(kena), { massal: true });

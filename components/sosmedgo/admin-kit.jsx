@@ -483,12 +483,13 @@ export function OrdersTable({ rows, onRefund, refundedIds }) {
   return (
     <table className="tbl">
       <thead>
-        <tr><th>ID</th><th>Provider</th><th>Layanan</th><th>Link</th><th>Jumlah</th><th>Biaya</th><th>Status</th><th>Dibuat</th><th>Durasi</th><th>Aksi</th></tr>
+        <tr><th>ID</th><th>User</th><th>Provider</th><th>Layanan</th><th>Link</th><th>Jumlah</th><th>Biaya</th><th>Status</th><th>Dibuat</th><th>Durasi</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         {rows.map((o) => (
           <tr key={o.id}>
             <td className="muted">{o.id}</td>
+            <td style={{ fontWeight: '600' }}>{o.username || '—'}</td>
             <td className="muted">{o.provider || 'smmsoc'}</td>
             <td style={{ whiteSpace: 'normal', minWidth: '240px', maxWidth: '360px' }}>{o.layananNama}</td>
             <td className="muted" style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.link}</td>
@@ -500,7 +501,7 @@ export function OrdersTable({ rows, onRefund, refundedIds }) {
             <td>{o.selesaiAt ? 'Selesai dalam ' + Math.max(0, Math.round((new Date(o.selesaiAt) - new Date(o.dibuat)) / 60000)) + ' menit' : (['Completed', 'Canceled', 'Refunded', 'Partial'].includes(o.status) ? '—' : 'Berjalan ' + Math.max(0, Math.round((Date.now() - new Date(o.dibuat)) / 60000)) + ' menit')}</td>
           </tr>
         ))}
-        {rows.length === 0 && <tr><td colSpan={10} className="muted">Belum ada pesanan.</td></tr>}
+        {rows.length === 0 && <tr><td colSpan={11} className="muted">Belum ada pesanan.</td></tr>}
       </tbody>
     </table>
   );

@@ -1,6 +1,6 @@
 /* Pesanan: kirim ke provider, simpan di Supabase, dan segarkan status. */
 
-import { getOrders } from '../../lib/store';
+import { getOrders, semuaProfil } from '../../lib/store';
 import { refreshOrders } from '../../lib/orders';
 import { buatPesanan, PesananError } from '../../lib/pesanan';
 import { wajibAdmin, isAdmin } from '../../lib/auth';
@@ -25,7 +25,14 @@ export default async function handler(req, res) {
          pelanggan tersandera kecepatan/keandalan provider pihak ketiga (terbukti lewat profil LCP
          5+ detik). Penyegaran status sekarang sepenuhnya jadi tugas cron terjadwal
          (pages/api/cron/orders.js, sudah berjalan otomatis), bukan jalur baca pelanggan. */
-      const list = admin ? await getOrders() : (await getOrders(user.id)).map(sembunyikanProvider);
+      if (admin) {
+        /* Admin perlu tau SIAPA yang pesan (bukan cuma userId mentah yang gak kebaca), supaya bisa
+           dicocokkan ke pelanggan yang hubungin lewat tiket/WA soal status pesanannya. */
+        const [list, profil] = await Promise.all([getOrders(), semuaProfil()]);
+        const nama = new Map(profil.map((p) => [p.user_id, p.username]));
+        return res.status(200).json({ orders: list.map((o) => ({ ...o, username: nama.get(o.userId) || '' })) });
+      }
+      const list = (await getOrders(user.id)).map(sembunyikanProvider);
       return res.status(200).json({ orders: list });
     } catch (e) {
       return res.status(502).json({ error: admin ? String(e.message || e) : 'Pesanan belum bisa dimuat. Coba lagi.' });
@@ -52,8 +59,9 @@ export default async function handler(req, res) {
   if (req.method === 'PATCH') {
     if (!wajibAdmin(req, res)) return;
     try {
-      const { diperbarui, orders } = await refreshOrders({ force: true });
-      return res.status(200).json({ diperbarui, orders });
+      const [{ diperbarui, orders }, profil] = await Promise.all([refreshOrders({ force: true }), semuaProfil()]);
+      const nama = new Map(profil.map((p) => [p.user_id, p.username]));
+      return res.status(200).json({ diperbarui, orders: orders.map((o) => ({ ...o, username: nama.get(o.userId) || '' })) });
     } catch (e) {
       return res.status(502).json({ error: String(e.message || e) });
     }

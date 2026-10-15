@@ -354,6 +354,14 @@ class DashboardPage extends React.Component {
         self0.setState({ warnOrder: true });
       }
     } catch (e) { /* mode privat/sessionStorage diblokir — abaikan, tidak kritis */ }
+    /* Tab terakhir yang dibuka (lihat go() di render) — supaya refresh browser tidak selalu balik
+       ke "Pesanan Baru". "ticket" (detail satu tiket) sengaja tidak dipulihkan di sini karena butuh
+       viewT yang tidak ikut disimpan — tanpa itu, layarnya kelihatan kosong. */
+    try {
+      var halamanTersimpan = sessionStorage.getItem('sg_dash_page');
+      var halamanValid = ['neworder', 'services', 'orders', 'addfunds', 'tickets', 'refunds', 'affiliates', 'account', 'massorder', 'updates'];
+      if (halamanTersimpan && halamanValid.indexOf(halamanTersimpan) > -1) self0.setState({ page: halamanTersimpan });
+    } catch (e) { /* mode privat/sessionStorage diblokir — abaikan, tetap pakai default */ }
     /* Katalog layanan diambil dari server, bukan lagi contoh di dalam file ini. */
     var self = this;
     self.muatTiket();
@@ -536,7 +544,10 @@ class DashboardPage extends React.Component {
     var catOf = function (id) { return cats.filter(function (c) { return c.p !== 'all' && c.ids.indexOf(id) > -1; })[0]; };
 
     /* ---------- navigation ---------- */
-    var go = function (page, extra) { return function () { var p = { page: page, hdd: '', open: '', sOpen: '', ofOpen: false, mOpen: false, navOpen: false }; if (extra) for (var k in extra) p[k] = extra[k]; self.setState(p); }; };
+    /* Tab yang lagi dibuka diingat di sessionStorage (dibaca lagi di componentDidMount) — tanpa ini,
+       refresh browser selalu balik ke "Pesanan Baru" (state awal), walau pelanggan lagi di tab lain
+       kayak Pesanan atau Afiliasi. */
+    var go = function (page, extra) { return function () { var p = { page: page, hdd: '', open: '', sOpen: '', ofOpen: false, mOpen: false, navOpen: false }; if (extra) for (var k in extra) p[k] = extra[k]; try { sessionStorage.setItem('sg_dash_page', page); } catch (e) {} self.setState(p); }; };
     var pages = {
       neworder: { crumb: T('Pesanan Baru', 'New Order'), hint: T('Buat pesanan kamu dari sini', 'Place your orders from here') },
       services: { crumb: T('Layanan', 'Services'), hint: T('Lihat daftar layanan di sini', 'View our service list here'), title: T('Layanan', 'Services'), sub: T('Lihat daftar layanan di sini', 'View our service list here'), align: 'left' },
@@ -857,6 +868,9 @@ class DashboardPage extends React.Component {
               self.tampilkanToast(false, pesanGagal);
             } else {
               fetch('/api/me').then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { if (m) self.setState({ saldo: m.saldo }); }).catch(function () {});
+              /* Daftar pesanan sebelumnya tidak ikut dimuat ulang di sini — pesanan yang baru
+                 dibuat jadi tidak kelihatan di tab Pesanan sampai halaman di-reload penuh. */
+              self.muatOrdersAwal();
               var pesanSukses = 'Pesanan ' + res.d.order.providerOrder + ' dibayar dengan saldo. Sedang diproses.';
               /* Link dan jumlah dikosongkan lagi, supaya tidak tersubmit ulang tanpa sengaja. Layanan yang dipilih dibiarkan, untuk pesan ulang layanan sama. */
               self.setState({ sending: false, sent: true, sentOk: true, sentText: pesanSukses, link: '', qty: '', extra: '' });

@@ -325,7 +325,13 @@ export default function AdminPage() {
   const A = ACCENTS[accent] || ACCENTS.red;
 
   const users = pengguna.filter((u) => u.username.toLowerCase().includes(q.toLowerCase()));
-  const orders = liveOrders.filter((o) => orderFilter === 'Semua' || o.status === orderFilter);
+  /* Provider kadang balas status "Processing", kadang "In progress" — dua-duanya berarti sama
+     (lagi dikerjakan), cuma beda istilah. Begitu juga "Refunded" (status final lain dari provider,
+     lihat FINAL di lib/orders.js) sama artinya dengan "Canceled" buat admin. Dashboard pelanggan
+     sudah menyamakan status-status ini; filter admin belum, jadi chip-nya ketinggalan pesanan yang
+     pakai istilah kedua (cuma kelihatan di "Semua"). Disamakan di sini juga. */
+  const SAMA_STATUS = { 'In progress': 'Processing', Canceled: 'Refunded' };
+  const orders = liveOrders.filter((o) => orderFilter === 'Semua' || o.status === orderFilter || o.status === SAMA_STATUS[orderFilter]);
   /* Tabel Pesanan dulu nampilin SEMUA hasil sekaligus — begitu pesanannya sudah ratusan, halaman jadi
      scroll panjang tanpa henti. Dipotong per halaman kayak tab Layanan. */
   const ORDERS_PER_PAGE = 50;

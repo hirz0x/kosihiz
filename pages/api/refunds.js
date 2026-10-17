@@ -36,10 +36,18 @@ export default async function handler(req, res) {
       }
       if (!(pesanan.biaya > 0) || !(pesanan.jumlah > 0)) return res.status(400).json({ error: 'Biaya pesanan tidak tercatat.' });
 
-      /* Pesanan dibatalkan dianggap sisanya penuh kalau provider tidak mengirim angka sisa. */
-      const sisa = pesanan.sisa === null || pesanan.sisa === undefined
+      /* Pesanan dibatalkan dianggap sisanya penuh kalau provider tidak mengirim angka sisa.
+         Provider kadang sempat balas sisa=0 dari pengecekan SEBELUM pesanan mulai dikerjakan
+         (bukan bukti sudah terkirim semua) — begitu pesanan jadi Canceled, statusnya tidak
+         pernah dicek ulang lagi, jadi angka 0 basi itu nyangkut selamanya. selesaiAt cuma
+         pernah keisi kalau pesanan betulan sempat Completed, jadi kalau Canceled + selesaiAt
+         kosong + sisa=0, itu dianggap sama seperti sisa tidak ada datanya sama sekali (refund
+         penuh), bukan "tidak ada yang bisa direfund". */
+      const sisaMentah = pesanan.sisa === null || pesanan.sisa === undefined ? null : Number(pesanan.sisa);
+      const sisaTakDipercaya = pesanan.status === 'Canceled' && !pesanan.selesaiAt && sisaMentah === 0;
+      const sisa = (sisaMentah === null || sisaTakDipercaya)
         ? (pesanan.status === 'Canceled' ? pesanan.jumlah : 0)
-        : Number(pesanan.sisa);
+        : sisaMentah;
       const jumlah = Math.round((pesanan.biaya * Math.min(sisa, pesanan.jumlah)) / pesanan.jumlah);
       if (!(jumlah > 0)) return res.status(400).json({ error: 'Tidak ada sisa jumlah yang bisa direfund.' });
 

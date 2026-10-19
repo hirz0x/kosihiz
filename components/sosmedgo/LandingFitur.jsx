@@ -2,6 +2,7 @@ import React from 'react';
 import { FictionalAvatar } from './FictionalAvatar';
 
 function LandingFitur({ v, state }) {
+  var T = v.T;
   return (
     <>
   <section id="fitur" style={{ padding: "40px 0 90px" }}>
@@ -13,18 +14,18 @@ function LandingFitur({ v, state }) {
               <path d="M4 20L20 4M14 4h6v6M5 9l2-2M9 5l1 1" />
             </svg>
           </span>
-          Fitur Utama
+          {T('Fitur Utama', 'Key Features')}
         </span>
         <h2 className="h2">
           <span className="red">
             SosmedGo
           </span>
-          {" "}selangkah lebih
+          {" "}{T('selangkah lebih', 'is one step')}
           <br />
-          maju dari kompetitor!
+          {T('maju dari kompetitor!', 'ahead of the competition!')}
         </h2>
         <p className="sub" style={{ maxWidth: "360px" }}>
-          Layanan SMM berkualitas dan fitur tambahan yang membuatmu unggul di dunia social media marketing!
+          {T('Layanan SMM berkualitas dan fitur tambahan yang membuatmu unggul di dunia social media marketing!', 'Quality SMM services and extra features that give you the edge in social media marketing!')}
         </p>
       </div>
       <div aria-hidden="true" className="ls-preview" style={{ position: "relative" }}>

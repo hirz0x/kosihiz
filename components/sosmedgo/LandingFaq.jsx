@@ -1,6 +1,7 @@
 import React from 'react';
 
 function LandingFaq({ v }) {
+  var T = v.T;
   return (
     <>
   <section id="faq" style={{ padding: "30px 0 90px" }}>
@@ -12,13 +13,13 @@ function LandingFaq({ v }) {
               <path d="M4 20L20 4M14 4h6v6" />
             </svg>
           </span>
-          Menjawab pertanyaan yang sering diajukan
+          {T('Menjawab pertanyaan yang sering diajukan', 'Answering frequently asked questions')}
         </span>
         <h2 className="h2">
-          Pertanyaan yang Sering Diajukan
+          {T('Pertanyaan yang Sering Diajukan', 'Frequently Asked Questions')}
         </h2>
         <p className="sub" style={{ fontSize: "12px" }}>
-          Masih ada yang mengganjal? Yuk kita jawab!
+          {T('Masih ada yang mengganjal? Yuk kita jawab!', 'Still have questions? Let’s answer them!')}
         </p>
       </div>
       <div style={{ background: "#0E0E11", border: "1px solid #1A1A1F", borderRadius: "18px", padding: "8px" }}>
@@ -55,16 +56,16 @@ function LandingFaq({ v }) {
             <ellipse cx="38" cy="142" rx="24" ry="11" fill="#E11D3A" transform="rotate(-30 38 142)" />
           </svg>
           <h3 style={{ margin: "0 0 12px", fontSize: "24px", fontWeight: "700", letterSpacing: "-.02em" }}>
-            Mau jadi{" "}
+            {T('Mau jadi', 'Want to become a')}{" "}
             <span className="red">
-              reseller?
+              {T('reseller?', 'reseller?')}
             </span>
           </h3>
           <p className="sub" style={{ fontSize: "12px", marginBottom: "22px" }}>
-            Mulai jual layanan SMM dengan brand kamu sendiri bersama SosmedGo.
+            {T('Mulai jual layanan SMM dengan brand kamu sendiri bersama SosmedGo.', 'Start selling SMM services under your own brand with SosmedGo.')}
           </p>
           <a className="btn-o" href="#">
-            Lihat Program Reseller{" "}
+            {T('Lihat Program Reseller', 'View Reseller Program')}{" "}
             <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#2A0E14", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF5A75" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />

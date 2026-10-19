@@ -44,12 +44,12 @@ function LandingHero({ v }) {
     <div className="ls-hero-teks" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "22px" }}>
       <span className="badge" style={{ padding: "4px 14px 4px 4px", color: "#E4E4E7" }}>
         <span style={{ background: "#2A0E14", color: "#FF5A75", borderRadius: "999px", padding: "5px 12px" }}>
-          Provider Utama
+          {v.T('Provider Utama', 'Top Provider')}
         </span>
-        {" "}SosmedGo — Panel SMM #1 di Indonesia{" "}
+        {" "}{v.T('SosmedGo — Panel SMM #1 di Indonesia', 'SosmedGo — The #1 SMM Panel in Indonesia')}{" "}
       </span>
       <h1 className="ls-h1" style={{ margin: "0", fontSize: "clamp(38px,5vw,62px)", fontWeight: "800", letterSpacing: "-.04em", lineHeight: "1.1", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "14px" }}>
-        {" "}Panel SMM{" "}
+        {" "}{v.T('Panel SMM', 'SMM Panel')}{" "}
         <span aria-hidden="true" className="ls-bolt" style={{ width: "clamp(46px,5vw,62px)", height: "clamp(46px,5vw,62px)", borderRadius: "50%", background: "#E11D3A", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 6px rgba(225,29,58,.2),0 10px 30px rgba(225,29,58,.5)" }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 17l6-6 4 4 8-8" />
@@ -57,18 +57,18 @@ function LandingHero({ v }) {
           </svg>
         </span>
         <span className="red">
-          Terpercaya
+          {v.T('Terpercaya', 'Trusted')}
         </span>
       </h1>
       <p className="sub" style={{ maxWidth: "520px", color: "#A1A3AB" }}>
-        Tingkatkan kehadiran sosial media kamu dengan{" "}
+        {v.T('Tingkatkan kehadiran sosial media kamu dengan', 'Boost your social media presence with')}{" "}
         <span className="red">
-          layanan cepat
+          {v.T('layanan cepat', 'fast services')}
         </span>
-        {" "}untuk followers, likes, dan views. Diproses otomatis 24 jam.
+        {" "}{v.T('untuk followers, likes, dan views. Diproses otomatis 24 jam.', 'for followers, likes, and views. Processed automatically 24 hours a day.')}
       </p>
       <Link className="btn" href="/login" style={{ padding: "13px 26px" }}>
-        Masuk{" "}
+        {v.T('Masuk', 'Log In')}{" "}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <circle cx="10" cy="8" r="4" />
           <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />

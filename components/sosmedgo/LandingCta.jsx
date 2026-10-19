@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FictionalAvatar } from './FictionalAvatar';
 
 function LandingCta({ v }) {
+  var T = v.T;
   return (
     <>
   <section style={{ padding: "30px 0 70px" }}>
@@ -41,22 +42,22 @@ function LandingCta({ v }) {
                 <path d="M10.5 21V13l5.5 4.6 5.5-4.6v8" stroke="#FF5A75" strokeWidth="3" strokeLinecap="round" />
               </svg>
             </span>
-            Panel SMM #1
+            {T('Panel SMM #1', '#1 SMM Panel')}
           </span>
           <h2 className="h2" style={{ fontSize: "26px", lineHeight: "1.45" }}>
-            Mulai dengan{" "}
+            {T('Mulai dengan', 'Get started with')}{" "}
             <span className="red">
               SosmedGo
             </span>
-            {" "}dan lejitkan
+            {" "}{T('dan lejitkan', 'and boost')}
             <br />
-            kehadiran online kamu!
+            {T('kehadiran online kamu!', 'your online presence!')}
           </h2>
           <p className="sub" style={{ fontSize: "11px" }}>
-            Kami panel SMM terdepan karena satu alasan. Ayo buktikan sendiri.
+            {T('Kami panel SMM terdepan karena satu alasan. Ayo buktikan sendiri.', 'We’re the leading SMM panel for a reason. Come see for yourself.')}
           </p>
           <Link className="btn-o" href="/login">
-            Gabung keluarga SosmedGo!{" "}
+            {T('Gabung keluarga SosmedGo!', 'Join the SosmedGo family!')}{" "}
             <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#2A0E14", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF5A75" strokeWidth="2" aria-hidden="true">
                 <rect x="5" y="3" width="14" height="18" rx="2" />
@@ -97,17 +98,17 @@ function LandingCta({ v }) {
                 <path d="M4 20L20 4M14 4h6v6" />
               </svg>
             </span>
-            <span>Kami menghargai{" "}
+            <span>{T('Kami menghargai', 'We value our')}{" "}
             <span style={{ color: "#E4E4E7" }}>
-              pelanggan
+              {T('pelanggan', 'customers')}
             </span>
-            , dan mereka menghargai{" "}
+            {T(', dan mereka menghargai', ', and they value')}{" "}
             <span style={{ color: "#E4E4E7" }}>
-              layanan kami
+              {T('layanan kami', 'our service')}
             </span></span>
           </span>
           <Link className="btn" href="/register" style={{ borderRadius: "10px" }}>
-            Daftar{" "}
+            {T('Daftar', 'Sign Up')}{" "}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <circle cx="10" cy="8" r="4" />
               <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />
@@ -126,11 +127,11 @@ function LandingCta({ v }) {
               <span className="red">
                 © SOSMEDGO
               </span>
-              {" "}Hak Cipta 2026. Semua hak dilindungi.
+              {" "}{T('Hak Cipta 2026. Semua hak dilindungi.', '2026 Copyright. All rights reserved.')}
             </span>
           </span>
           <Link href="/ketentuan-layanan" style={{ fontSize: "10px", color: "#FF5A75" }}>
-            Ketentuan Layanan
+            {T('Ketentuan Layanan', 'Terms of Service')}
           </Link>
         </footer>
       </div>

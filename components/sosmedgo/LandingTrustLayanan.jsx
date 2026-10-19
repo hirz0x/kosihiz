@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { FictionalAvatar } from './FictionalAvatar';
 
 function LandingTrustLayanan({ v }) {
+  var T = v.T;
   return (
     <>
   <section style={{ padding: "40px 0 90px" }}>
@@ -13,13 +14,13 @@ function LandingTrustLayanan({ v }) {
             <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" />
           </svg>
         </span>
-        Kualitas Terjamin
+        {T('Kualitas Terjamin', 'Guaranteed Quality')}
       </span>
       <h2 className="h2">
-        SosmedGo = satu cerita sukses demi cerita sukses!
+        {T('SosmedGo = satu cerita sukses demi cerita sukses!', 'SosmedGo = one success story after another!')}
       </h2>
       <p className="sub">
-        Gabung bersama ribuan pelanggan puas dan raih kesuksesan besar.
+        {T('Gabung bersama ribuan pelanggan puas dan raih kesuksesan besar.', 'Join thousands of satisfied customers and achieve great success.')}
       </p>
       <div style={{ width: "100%", maxWidth: "820px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "16px", marginTop: "22px" }}>
         {(v.succ || []).map((s, $index) => (
@@ -52,13 +53,13 @@ function LandingTrustLayanan({ v }) {
               <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" />
             </svg>
           </span>
-          Layanan Kami
+          {T('Layanan Kami', 'Our Services')}
         </span>
         <h2 className="h2">
-          SosmedGo bantu bisnis jasa SMM kamu berkembang
+          {T('SosmedGo bantu bisnis jasa SMM kamu berkembang', 'SosmedGo helps your SMM business grow')}
         </h2>
         <p className="sub" style={{ maxWidth: "720px" }}>
-          Panel SosmedGo menyediakan layanan terbaik untuk bisnis reseller social media marketing kamu. Cek apa saja yang bisa kamu dapatkan!
+          {T('Panel SosmedGo menyediakan layanan terbaik untuk bisnis reseller social media marketing kamu. Cek apa saja yang bisa kamu dapatkan!', 'The SosmedGo panel provides the best services for your social media marketing reseller business. Check out what you can get!')}
         </p>
       </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "16px" }}>
@@ -111,7 +112,7 @@ function LandingTrustLayanan({ v }) {
             </span>
           </div>
           <div style={{ padding: "16px 18px 20px", fontSize: "17px", fontWeight: "700", lineHeight: "1.3" }}>
-            Hidupkan
+            {T('Hidupkan', 'Boost')}
             <br />
             Twitter (X)
           </div>
@@ -124,20 +125,20 @@ function LandingTrustLayanan({ v }) {
                 <path d="M7 4l13 8-13 8z" />
               </svg>
             </span>
-            Dapatkan Views YouTube dengan Mudah!
+            {T('Dapatkan Views YouTube dengan Mudah!', 'Get YouTube Views Easily!')}
           </span>
           <h3 style={{ position: "relative", margin: "0", fontSize: "30px", fontWeight: "700", letterSpacing: "-.03em" }}>
-            Panel{" "}
+            {T('Panel', 'Original')}{" "}
             <span className="red">
               YouTube
             </span>
-            {" "}Original
+            {" "}{T('Original', 'Panel')}
           </h3>
           <p className="sub" style={{ position: "relative", maxWidth: "380px", fontSize: "12px" }}>
-            Tingkatkan popularitas channel pelangganmu. Tambah views, likes, subscribers, komentar, dan share — semua bisa lewat panel YouTube SMM kami.
+            {T('Tingkatkan popularitas channel pelangganmu. Tambah views, likes, subscribers, komentar, dan share — semua bisa lewat panel YouTube SMM kami.', 'Boost your customers’ channel popularity. Add views, likes, subscribers, comments, and shares — all through our YouTube SMM panel.')}
           </p>
           <Link className="btn" href="/login" style={{ position: "relative" }}>
-            Lihat layanan{" "}
+            {T('Lihat layanan', 'View services')}{" "}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <rect x="4" y="4" width="16" height="16" rx="3" />
               <path d="M9 12h6M12 9v6" />
@@ -148,10 +149,10 @@ function LandingTrustLayanan({ v }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: "16px", marginBottom: "16px" }}>
         <div className="card" style={{ padding: "22px 22px 0", display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
           <h3 style={{ margin: "0", fontSize: "16px", fontWeight: "700" }}>
-            Likes Facebook Kilat
+            {T('Likes Facebook Kilat', 'Instant Facebook Likes')}
           </h3>
           <p className="sub" style={{ fontSize: "11px" }}>
-            Dongkrak profil Facebook dengan likes, followers, teman, komentar, dan share yang mereka butuhkan.
+            {T('Dongkrak profil Facebook dengan likes, followers, teman, komentar, dan share yang mereka butuhkan.', 'Boost Facebook profiles with the likes, followers, friends, comments, and shares they need.')}
           </p>
           <div aria-hidden="true" className="mini" style={{ marginTop: "14px", borderRadius: "12px 12px 0 0", borderBottom: "none", height: "170px", position: "relative", padding: "10px" }}>
             <div style={{ display: "flex", gap: "3px", alignItems: "center" }}>
@@ -207,10 +208,10 @@ function LandingTrustLayanan({ v }) {
         </div>
         <div className="card" style={{ padding: "22px 22px 0", display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
           <h3 style={{ margin: "0", fontSize: "16px", fontWeight: "700" }}>
-            Layanan Instagram Terbaik
+            {T('Layanan Instagram Terbaik', 'Best Instagram Services')}
           </h3>
           <p className="sub" style={{ fontSize: "11px" }}>
-            Kalahkan algoritma dan masuk halaman trending! Tambah followers, likes, dan jangkauan.
+            {T('Kalahkan algoritma dan masuk halaman trending! Tambah followers, likes, dan jangkauan.', 'Beat the algorithm and get on the trending page! Add followers, likes, and reach.')}
           </p>
           <div aria-hidden="true" className="mini" style={{ marginTop: "14px", borderRadius: "12px 12px 0 0", borderBottom: "none", height: "170px", padding: "10px", display: "flex", flexDirection: "column", gap: "7px" }}>
             <div style={{ display: "flex", gap: "3px", alignItems: "center" }}>
@@ -244,10 +245,10 @@ function LandingTrustLayanan({ v }) {
         </div>
         <div className="card" style={{ padding: "22px 22px 0", display: "flex", flexDirection: "column", gap: "10px", overflow: "hidden" }}>
           <h3 style={{ margin: "0", fontSize: "16px", fontWeight: "700" }}>
-            Viral di TikTok
+            {T('Viral di TikTok', 'Go Viral on TikTok')}
           </h3>
           <p className="sub" style={{ fontSize: "11px" }}>
-            Bantu pelangganmu atau dirimu sendiri menjangkau audiens baru yang lebih luas lewat panel TikTok kami.
+            {T('Bantu pelangganmu atau dirimu sendiri menjangkau audiens baru yang lebih luas lewat panel TikTok kami.', 'Help your customers, or yourself, reach a wider new audience through our TikTok panel.')}
           </p>
           <div aria-hidden="true" className="mini" style={{ marginTop: "14px", borderRadius: "12px 12px 0 0", borderBottom: "none", height: "170px", position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#2B1A20,#4A1E2A)" }}>
             <svg viewBox="0 0 240 170" width="100%" height="170" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: "0" }}>
@@ -318,16 +319,16 @@ function LandingTrustLayanan({ v }) {
               <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" />
             </svg>
           </span>
-          Mulai Viral Hari Ini!
+          {T('Mulai Viral Hari Ini!', 'Start Going Viral Today!')}
         </span>
         <h3 className="h2" style={{ position: "relative", fontSize: "28px" }}>
-          Layanan SMM Melimpah
+          {T('Layanan SMM Melimpah', 'Abundant SMM Services')}
         </h3>
         <p className="sub" style={{ position: "relative", maxWidth: "470px", fontSize: "12px" }}>
-          Layanan yang bisa kamu jual tidak terbatas pada tiga platform besar. Tambah eksposur pelangganmu di Telegram, Shopee, Spotify, Twitch, layanan SEO, dan masih banyak lagi.
+          {T('Layanan yang bisa kamu jual tidak terbatas pada tiga platform besar. Tambah eksposur pelangganmu di Telegram, Shopee, Spotify, Twitch, layanan SEO, dan masih banyak lagi.', 'The services you can sell aren’t limited to the three big platforms. Boost your customers’ exposure on Telegram, Shopee, Spotify, Twitch, SEO services, and much more.')}
         </p>
         <Link className="btn" href="/register" style={{ position: "relative" }}>
-          Daftar Sekarang{" "}
+          {T('Daftar Sekarang', 'Sign Up Now')}{" "}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M9 12h6M12 9v6" />

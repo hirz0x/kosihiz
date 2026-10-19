@@ -2,6 +2,7 @@ import React from 'react';
 import { FictionalAvatar } from './FictionalAvatar';
 
 function LandingSosial({ v, state }) {
+  const T = v.T;
   const testiNyata = (v.testi || []).filter((t) => t.text);
   return (
     <>
@@ -15,13 +16,13 @@ function LandingSosial({ v, state }) {
                 <path d="M4 20L20 4M14 4h6v6" />
               </svg>
             </span>
-            Testimoni
+            {T('Testimoni', 'Testimonials')}
           </span>
           <h2 className="h2">
-            Apa kata pelanggan kami?
+            {T('Apa kata pelanggan kami?', 'What do our customers say?')}
           </h2>
           <p className="sub" style={{ maxWidth: "400px" }}>
-            Kami menghargai pelanggan, dan mereka menghargai layanan kami. Lihat apa kata mereka.
+            {T('Kami menghargai pelanggan, dan mereka menghargai layanan kami. Lihat apa kata mereka.', 'We value our customers, and they value our service. See what they have to say.')}
           </p>
         </div>
       </div>
@@ -54,15 +55,25 @@ function LandingSosial({ v, state }) {
         ))}
       </div>
     </div>
-    <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "40px" }}>
       <span className="badge" style={{ color: "#E4E4E7" }}>
         <span className="badge-ic">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5A75" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
             <path d="M4 20L20 4M14 4h6v6" />
           </svg>
         </span>
-        {state.stat ? state.stat.pengguna.toLocaleString('id-ID') + ' pengguna terdaftar' : 'Diproses otomatis 24 jam'}
+        {state.stat ? state.stat.pengguna.toLocaleString('id-ID') + T(' pengguna terdaftar', ' registered users') : T('Diproses otomatis 24 jam', 'Processed automatically 24/7')}
       </span>
+      {state.stat && state.stat.pesanan ? (
+        <span className="badge" style={{ color: "#E4E4E7" }}>
+          <span className="badge-ic">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5A75" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 20L20 4M14 4h6v6" />
+            </svg>
+          </span>
+          {state.stat.pesanan.toLocaleString('id-ID') + T(' pesanan diproses', ' orders processed')}
+        </span>
+      ) : null}
     </div>
   </section>
   <section style={{ padding: "10px 0 90px" }}>
@@ -74,15 +85,15 @@ function LandingSosial({ v, state }) {
               <path d="M4 20L20 4M14 4h6v6" />
             </svg>
           </span>
-          Perbandingan
+          {T('Perbandingan', 'Comparison')}
         </span>
         <h2 className="h2">
           <span className="red">
             SosmedGo
           </span>
-          {" "}kasih kamu panel SMM terbaik
+          {" "}{T('kasih kamu panel SMM terbaik', 'gives you the best SMM panel')}
           <br />
-          untuk mengalahkan kompetitor!
+          {T('untuk mengalahkan kompetitor!', 'to beat the competition!')}
         </h2>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))", gap: "16px" }}>
@@ -94,7 +105,7 @@ function LandingSosial({ v, state }) {
               </svg>
             </span>
             <span style={{ fontSize: "15px", fontWeight: "700" }}>
-              Panel Lain
+              {T('Panel Lain', 'Other Panels')}
             </span>
           </div>
           {(v.bad || []).map((x, $index) => (
@@ -111,13 +122,13 @@ function LandingSosial({ v, state }) {
           ))}
           <div style={{ marginTop: "18px" }}>
             <div style={{ fontSize: "13px", color: "#8B8D96" }}>
-              Hasil
+              {T('Hasil', 'Result')}
             </div>
             <div style={{ fontSize: "24px", fontWeight: "700", color: "#FF5A75", marginTop: "4px" }}>
-              Lambat & Mahal ✕
+              {T('Lambat & Mahal ✕', 'Slow & Expensive ✕')}
             </div>
             <div style={{ fontSize: "11px", color: "#6B6E78", marginTop: "4px" }}>
-              Bisnis jalan di tempat
+              {T('Bisnis jalan di tempat', 'Business stays stagnant')}
             </div>
           </div>
         </div>
@@ -142,13 +153,13 @@ function LandingSosial({ v, state }) {
           ))}
           <div style={{ marginTop: "18px" }}>
             <div style={{ fontSize: "13px", color: "#8B8D96" }}>
-              Hasil
+              {T('Hasil', 'Result')}
             </div>
             <div style={{ fontSize: "24px", fontWeight: "700", color: "#FF2E4D", marginTop: "4px" }}>
-              Cepat & Hemat ✓
+              {T('Cepat & Hemat ✓', 'Fast & Affordable ✓')}
             </div>
             <div style={{ fontSize: "11px", color: "#8B8D96", marginTop: "4px" }}>
-              Bonus deposit 10% untuk peringkat Starter dan Junior
+              {T('Bonus deposit 10% untuk peringkat Starter dan Junior', '10% deposit bonus for Starter and Junior tiers')}
             </div>
           </div>
         </div>

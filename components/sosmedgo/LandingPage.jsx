@@ -12,7 +12,12 @@ import LandingFaq from './LandingFaq';
 import LandingCta from './LandingCta';
 
 class LandingPage extends React.Component {
-  constructor(p) { super(p); this.state = { open: -1, stat: null, layanan: null, menu: false }; }
+  constructor(p) { super(p); this.state = { open: -1, stat: null, layanan: null, menu: false, lang: 'id', langOpen: false }; }
+  toggleLangMenu() { this.setState({ langOpen: !this.state.langOpen }); }
+  pilihLang(lang) {
+    this.setState({ lang: lang, langOpen: false });
+    try { localStorage.setItem('sg_lang', lang); } catch (e) {}
+  }
   componentWillUnmount() {
     if (this._io) this._io.disconnect();
     if (this._klik) document.removeEventListener('click', this._klik);
@@ -20,6 +25,13 @@ class LandingPage extends React.Component {
   }
   componentDidMount() {
     var self = this;
+    /* Bahasa landing page: dibaca dari localStorage (bukan dari preferensi akun, karena
+       pengunjung di sini belum tentu login). Dibaca sekali di sini (bukan di constructor), supaya
+       HTML pertama yang dikirim server tetap default (Indonesia) — tidak ada mismatch hydration. */
+    try {
+      var l = localStorage.getItem('sg_lang');
+      if (l === 'en' || l === 'id') self.setState({ lang: l });
+    } catch (e) {}
     /* Halaman selalu dibuka dari atas: posisi scroll lama dan hash menu (#layanan) dihapus. */
     if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
     if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -58,6 +70,8 @@ class LandingPage extends React.Component {
   }
   renderVals() {
     var self = this;
+    var EN = this.state.lang === 'en';
+    var T = function (id, en) { return EN ? en : id; };
     var I = {
       tt: 'M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5h.5V7.8a7 7 0 1 0 6.5 6.9V9.4A7 7 0 0 0 21 10.6V7a4 4 0 0 1-4-4z',
       yt: 'M2 7a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3zM10 8.5v7l6-3.5z',
@@ -70,9 +84,9 @@ class LandingPage extends React.Component {
       { name: 'Facebook', icon: I.fb }, { name: 'Instagram', icon: I.ig }
     ];
     var pillBase = [
-      { t: 'YouTube Subscribers', tag: 'Instan', icon: I.yt }, { t: 'Facebook Likes', tag: 'Instan', icon: I.fb },
-      { t: 'Instagram Followers', tag: 'Refill', icon: I.ig }, { t: 'Twitter Followers', tag: 'Instan', icon: I.x },
-      { t: 'TikTok Views', tag: 'Cepat', icon: I.tt }
+      { t: 'YouTube Subscribers', tag: T('Instan', 'Instant'), icon: I.yt }, { t: 'Facebook Likes', tag: T('Instan', 'Instant'), icon: I.fb },
+      { t: 'Instagram Followers', tag: 'Refill', icon: I.ig }, { t: 'Twitter Followers', tag: T('Instan', 'Instant'), icon: I.x },
+      { t: 'TikTok Views', tag: T('Cepat', 'Fast'), icon: I.tt }
     ];
     var bgs = ['#F4C7A1', '#E8C3A4', '#C9B79C', '#F4D9DE', '#B07752'];
     var testi = [];
@@ -82,29 +96,36 @@ class LandingPage extends React.Component {
     /* Testimoni asli dari pelanggan (nama disamarkan, kata-kata dirangkum ulang dari chat asli).
        Slot lain dikosongkan dulu (ditempel di sini satu per satu kalau ada testimoni baru) —
        bukan ditampilkan sebagai placeholder, lihat LandingSosial.jsx yang menyaring yang kosong. */
-    var testiText = ['Pesanannya kelar cepet banget, nggak nyangka bisa secepat itu prosesnya! Admin-nya juga fast response pas aku tanya-tanya progressnya. Pasti order lagi di sini.', '', '', '', '', '', '', '', '', ''];
+    var testiText = ['Pesanannya kelar cepet banget, nggak nyangka bisa secepat itu prosesnya! Admin-nya juga fast response pas aku tanya-tanya progressnya. Pasti order lagi di sini.', 'Prosesnya cepet banget, abis order langsung kelar gak pake lama. Enak juga komunikasinya responsif. Udah pasti bakal order lagi ke sini.', '', '', '', '', '', '', '', ''];
     for (var i = 0; i < 10; i++) testi.push({ name: testiNames[i], kind: testiKinds[i % 5], bg: testiBgs[i % 5], text: testiText[i] });
     var faqData = [
-      { q: 'Apa itu panel SMM?', a: 'Panel SMM adalah toko online tempat kamu membeli layanan sosial media seperti followers, likes, views, dan komentar dengan harga murah dan proses otomatis.' },
-      { q: 'Layanan SMM apa saja yang bisa saya beli?', a: 'Instagram, TikTok, YouTube, Facebook, Telegram, Twitter/X, Spotify, dan banyak lagi. Daftar lengkap ada di halaman Layanan.' },
-      { q: 'Apakah aman membeli layanan di SosmedGo?', a: 'Aman. Kami tidak pernah meminta password akun sosial media kamu — cukup username atau link postingan.' },
-      { q: 'Apakah ada layanan support?', a: 'Ada. Tim support kami aktif 24/7 lewat tiket dan WhatsApp.' },
-      { q: 'Bagaimana cara mulai memesan?', a: 'Daftar akun gratis, isi saldo, pilih layanan, masukkan link target dan jumlah, lalu kirim pesanan.' },
-      { q: 'Kenapa harus pilih SosmedGo?', a: 'Harga termurah, proses otomatis 24 jam, garansi refill di layanan pilihan, dan API siap pakai untuk reseller.' }
+      { q: T('Apa itu panel SMM?', 'What is an SMM panel?'), a: T('Panel SMM adalah toko online tempat kamu membeli layanan sosial media seperti followers, likes, views, dan komentar dengan harga murah dan proses otomatis.', 'An SMM panel is an online store where you buy social media services like followers, likes, views, and comments at low prices with automatic processing.') },
+      { q: T('Layanan SMM apa saja yang bisa saya beli?', 'What SMM services can I buy?'), a: T('Instagram, TikTok, YouTube, Facebook, Telegram, Twitter/X, Spotify, dan banyak lagi. Daftar lengkap ada di halaman Layanan.', 'Instagram, TikTok, YouTube, Facebook, Telegram, Twitter/X, Spotify, and many more. See the full list on the Services page.') },
+      { q: T('Apakah aman membeli layanan di SosmedGo?', 'Is it safe to buy services on SosmedGo?'), a: T('Aman. Kami tidak pernah meminta password akun sosial media kamu — cukup username atau link postingan.', 'Yes, it’s safe. We never ask for your social media account password — just your username or post link.') },
+      { q: T('Apakah ada layanan support?', 'Is there customer support?'), a: T('Ada. Tim support kami aktif 24/7 lewat tiket dan WhatsApp.', 'Yes. Our support team is active 24/7 via tickets and WhatsApp.') },
+      { q: T('Bagaimana cara mulai memesan?', 'How do I start ordering?'), a: T('Daftar akun gratis, isi saldo, pilih layanan, masukkan link target dan jumlah, lalu kirim pesanan.', 'Create a free account, add balance, pick a service, enter the target link and quantity, then submit your order.') },
+      { q: T('Kenapa harus pilih SosmedGo?', 'Why choose SosmedGo?'), a: T('Harga termurah, proses otomatis 24 jam, garansi refill di layanan pilihan, dan API siap pakai untuk reseller.', 'The lowest prices, 24-hour automatic processing, refill guarantee on selected services, and a ready-to-use API for resellers.') }
     ];
     return {
+      lang: this.state.lang, T: T,
+      langOpen: this.state.langOpen,
+      toggleLangMenu: function () { self.toggleLangMenu(); },
+      langOpts: [['id', 'Bahasa Indonesia'], ['en', 'English']].map(function (l) {
+        var on = self.state.lang === l[0];
+        return { k: l[0], t: l[1], on: on, pick: function () { self.pilihLang(l[0]); } };
+      }),
       benefits: [
-        { t: 'Layanan Berkualitas', icon: 'M4 4h16v16H4zM9 12l2 2 4-4' },
-        { t: 'Harga Termurah', icon: 'M3 6h18v12H3zM3 10h18' },
-        { t: 'Proses Cepat', icon: 'M13 2L4 14h7l-1 8 9-12h-7z' },
-        { t: 'Support 24/7', icon: 'M3 12h4l3-8 4 16 3-8h4' }
+        { t: T('Layanan Berkualitas', 'Quality Services'), icon: 'M4 4h16v16H4zM9 12l2 2 4-4' },
+        { t: T('Harga Termurah', 'Lowest Prices'), icon: 'M3 6h18v12H3zM3 10h18' },
+        { t: T('Proses Cepat', 'Fast Processing'), icon: 'M13 2L4 14h7l-1 8 9-12h-7z' },
+        { t: T('Support 24/7', '24/7 Support'), icon: 'M3 12h4l3-8 4 16 3-8h4' }
       ],
       logos: logoBase.concat(logoBase),
       pills: pillBase.concat(pillBase),
       succ: [
-        { t: 'Murah & Berkualitas', d: 'Layanan & tools kami terus diperbarui', icon: 'M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01' },
-        { t: 'Tim Support 24/7', d: 'Kami siap bantu, kamu tidak sendirian', icon: 'M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H4zM17 14h3v6h-3zM20 20a4 4 0 0 1-4 3h-2' },
-        { t: this.state.stat && this.state.stat.pesanan > 0 ? this.state.stat.pesanan.toLocaleString('id-ID') + '+ Pesanan' : 'Diproses otomatis', d: this.state.stat && this.state.stat.pesanan > 0 ? 'Sudah memproses ' + this.state.stat.pesanan.toLocaleString('id-ID') + ' pesanan' : 'Pesanan diproses otomatis oleh sistem', icon: 'M6 7h12l1 13H5zM9 7a3 3 0 0 1 6 0M9 13l2 2 4-4' }
+        { t: T('Murah & Berkualitas', 'Affordable & Quality'), d: T('Layanan & tools kami terus diperbarui', 'Our services & tools are constantly updated'), icon: 'M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01' },
+        { t: T('Tim Support 24/7', '24/7 Support Team'), d: T('Kami siap bantu, kamu tidak sendirian', 'We’re here to help, you’re not alone'), icon: 'M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H4zM17 14h3v6h-3zM20 20a4 4 0 0 1-4 3h-2' },
+        { t: this.state.stat && this.state.stat.pesanan > 0 ? this.state.stat.pesanan.toLocaleString('id-ID') + T('+ Pesanan', '+ Orders') : T('Diproses otomatis', 'Processed automatically'), d: this.state.stat && this.state.stat.pesanan > 0 ? T('Sudah memproses ' + this.state.stat.pesanan.toLocaleString('id-ID') + ' pesanan', 'Already processed ' + this.state.stat.pesanan.toLocaleString('id-ID') + ' orders') : T('Pesanan diproses otomatis oleh sistem', 'Orders are processed automatically by the system'), icon: 'M6 7h12l1 13H5zM9 7a3 3 0 0 1 6 0M9 13l2 2 4-4' }
       ],
       igN: [ { u: '@rina.putri', kind: 'bun', bg: '#F4B6C2' }, { u: '@budi_s', kind: 'beard', bg: '#9CC4E8' }, { u: '@dewi.ayu', kind: 'bob', bg: '#A8E0C0' } ],
       stats: [
@@ -114,16 +135,16 @@ class LandingPage extends React.Component {
         { l: 'Pesanan Selesai', v: '—', a: 'Lihat Pesanan', bg: '#1E1E23', fg: '#C9CBD1' }
       ],
       features: [
-        { t: 'Pesanan Massal', d: 'Pilih layanan yang kamu mau, atur untuk dikirim sekaligus, dan mulai jualan. Cocok untuk volume pesanan besar.', icon: 'M4 6h16M4 12h16M4 18h10' },
-        { t: 'Sistem Dripfeed', d: 'Kirim pesanan yang sama berkali-kali secara bertahap supaya pertumbuhan terlihat natural, lengkap dengan refill otomatis.', icon: 'M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z' },
-        { t: 'Langganan Mudah', d: 'Atur jumlah likes yang otomatis masuk setiap kali kamu posting. Kamu tentukan kapan mulai dan kapan berhenti.', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0' },
-        { t: 'Pembayaran Otomatis', d: 'Tidak perlu konfirmasi manual setiap deposit. Saldo masuk otomatis begitu pembayaran terverifikasi.', icon: 'M6 3h12l3 6-9 12L3 9zM3 9h18' },
-        { t: 'Layanan Bulanan', d: 'Atur semua layanan yang ingin kamu terima selama sebulan, biarkan SosmedGo yang bekerja.', icon: 'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4' },
-        { t: 'API Siap Pakai', d: 'API terintegrasi penuh agar pelangganmu bisa memesan layanan kami lewat panel milikmu sendiri.', icon: 'M7 3h7l5 5v13H7zM10 13l-2 2 2 2M14 13l2 2-2 2' }
+        { t: T('Pesanan Massal', 'Mass Order'), d: T('Pilih layanan yang kamu mau, atur untuk dikirim sekaligus, dan mulai jualan. Cocok untuk volume pesanan besar.', 'Pick the services you want, set them to be sent all at once, and start selling. Great for high order volume.'), icon: 'M4 6h16M4 12h16M4 18h10' },
+        { t: T('Sistem Dripfeed', 'Drip-Feed System'), d: T('Kirim pesanan yang sama berkali-kali secara bertahap supaya pertumbuhan terlihat natural, lengkap dengan refill otomatis.', 'Send the same order repeatedly in stages so growth looks natural, complete with automatic refill.'), icon: 'M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z' },
+        { t: T('Langganan Mudah', 'Easy Subscription'), d: T('Atur jumlah likes yang otomatis masuk setiap kali kamu posting. Kamu tentukan kapan mulai dan kapan berhenti.', 'Set the number of likes that automatically come in every time you post. You decide when it starts and stops.'), icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0' },
+        { t: T('Pembayaran Otomatis', 'Automatic Payments'), d: T('Tidak perlu konfirmasi manual setiap deposit. Saldo masuk otomatis begitu pembayaran terverifikasi.', 'No manual confirmation needed for every deposit. Balance is added automatically once payment is verified.'), icon: 'M6 3h12l3 6-9 12L3 9zM3 9h18' },
+        { t: T('Layanan Bulanan', 'Monthly Services'), d: T('Atur semua layanan yang ingin kamu terima selama sebulan, biarkan SosmedGo yang bekerja.', 'Set up all the services you want to receive for a month, and let SosmedGo do the work.'), icon: 'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4' },
+        { t: T('API Siap Pakai', 'Ready-to-Use API'), d: T('API terintegrasi penuh agar pelangganmu bisa memesan layanan kami lewat panel milikmu sendiri.', 'A fully integrated API so your customers can order our services through your own panel.'), icon: 'M7 3h7l5 5v13H7zM10 13l-2 2 2 2M14 13l2 2-2 2' }
       ],
       testi: testi,
-      bad: ['Pengiriman tidak jelas dan lambat', 'Layanan sering drop tanpa refill', 'Support susah dihubungi', 'Harga mahal untuk reseller', 'Deposit harus konfirmasi manual', 'Tidak ada API', 'Layanan jarang diperbarui', 'Status pesanan tidak real-time'],
-      good: ['Proses otomatis dalam hitungan menit', 'Garansi refill di layanan pilihan', 'Support 24/7 via tiket & WhatsApp', 'Harga termurah, cocok dijual ulang', 'Deposit otomatis', 'API siap pakai untuk reseller', 'Layanan diperbarui rutin', 'Status pesanan real-time'],
+      bad: [T('Pengiriman tidak jelas dan lambat', 'Unclear and slow delivery'), T('Layanan sering drop tanpa refill', 'Services often drop with no refill'), T('Support susah dihubungi', 'Support is hard to reach'), T('Harga mahal untuk reseller', 'Expensive for resellers'), T('Deposit harus konfirmasi manual', 'Deposits need manual confirmation'), T('Tidak ada API', 'No API'), T('Layanan jarang diperbarui', 'Services rarely updated'), T('Status pesanan tidak real-time', 'Order status isn’t real-time')],
+      good: [T('Proses otomatis dalam hitungan menit', 'Automatic processing within minutes'), T('Garansi refill di layanan pilihan', 'Refill guarantee on selected services'), T('Support 24/7 via tiket & WhatsApp', '24/7 support via ticket & WhatsApp'), T('Harga termurah, cocok dijual ulang', 'Lowest prices, perfect for reselling'), T('Deposit otomatis', 'Automatic deposits'), T('API siap pakai untuk reseller', 'Ready-to-use API for resellers'), T('Layanan diperbarui rutin', 'Services updated regularly'), T('Status pesanan real-time', 'Real-time order status')],
       faqs: faqData.map(function (f, i) {
         var open = self.state.open === i;
         return { q: f.q, a: f.a, open: open, rot: open ? 'rotate(180deg)' : 'none', bc: open ? '#5A1A26' : '#1F1F25',
@@ -157,6 +178,7 @@ class LandingPage extends React.Component {
           <link rel="preconnect" href="https://api.fontshare.com" />
           <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" />
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
@@ -265,9 +287,9 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
                   SosmedGo
                 </span>
               </a>
-              <nav aria-label="Navigasi utama" className="ls-nav ls-nav-desk" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px" }}>
+              <nav aria-label={v.T('Navigasi utama', 'Main navigation')} className="ls-nav ls-nav-desk" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2px" }}>
                 <Link className="navlink" href="/layanan">
-                  Layanan
+                  {v.T('Layanan', 'Services')}
                 </Link>
                 <a className="navlink" href="#fitur">
                   API
@@ -276,30 +298,49 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
                   Blog
                 </Link>
               </nav>
-              <button type="button" className="ls-burger" aria-label={this.state.menu ? "Tutup menu" : "Buka menu"} aria-expanded={this.state.menu} onClick={function () { this.setState({ menu: !this.state.menu }); }.bind(this)} style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#17171B", border: "1px solid #26262C", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4F4F5" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  {this.state.menu ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
-                </svg>
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ position: "relative" }}>
+                  <button type="button" onClick={v.toggleLangMenu} aria-label={v.T('Ganti bahasa', 'Change language')} aria-haspopup="menu" aria-expanded={v.langOpen} style={{ width: "40px", height: "40px", flex: "none", borderRadius: "50%", background: "#17171B", border: "1px solid " + (v.langOpen ? "#E11D3A" : "#26262C"), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                    <i className="fa-solid fa-globe" aria-hidden="true" style={{ fontSize: 15, width: 15, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center', color: '#F4F4F5' }} />
+                  </button>
+                  {v.langOpen ? (
+                    <div role="menu" style={{ position: "absolute", right: 0, top: "46px", zIndex: 40, width: "170px", background: "#17171B", border: "1px solid #2A2A30", borderRadius: "12px", padding: "6px", boxShadow: "0 24px 50px rgba(0,0,0,.6)" }}>
+                      {v.langOpts.map(function (l) {
+                        return (
+                          <button key={l.k} type="button" role="menuitemradio" aria-checked={l.on} onClick={l.pick} style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", border: "none", borderRadius: "8px", padding: "9px 10px", minHeight: "40px", background: l.on ? "#2A0E14" : "transparent", color: "#F4F4F5", fontSize: "13px", fontWeight: l.on ? "700" : "500", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}>
+                            {l.t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+                <button type="button" className="ls-burger" aria-label={this.state.menu ? v.T('Tutup menu', 'Close menu') : v.T('Buka menu', 'Open menu')} aria-expanded={this.state.menu} onClick={function () { this.setState({ menu: !this.state.menu }); }.bind(this)} style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#17171B", border: "1px solid #26262C", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4F4F5" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    {this.state.menu ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+                  </svg>
+                </button>
+              </div>
               {this.state.menu ? (
                 <div className="ls-mmenu" style={{ width: "100%", display: "flex", flexDirection: "column", gap: "2px", paddingTop: "10px", borderTop: "1px solid #23232A" }}>
-                  
-                  <Link className="navlink" href="/layanan" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ padding: "12px 14px", fontSize: "14px" }}>Layanan</Link>
+
+                  <Link className="navlink" href="/layanan" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ padding: "12px 14px", fontSize: "14px" }}>{v.T('Layanan', 'Services')}</Link>
                   <a className="navlink" href="#fitur" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ padding: "12px 14px", fontSize: "14px" }}>API</a>
-                  <Link className="navlink" href="/blog" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ padding: "12px 14px", fontSize: "14px" }}>Blog</Link><div style={{ display: "flex", gap: "8px", marginTop: "10px" }}><Link className="btn-o" href="/login" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ flex: 1, justifyContent: "center", borderRadius: "10px", padding: "12px 14px" }}>Masuk</Link><Link className="btn" href="/register" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ flex: 1, justifyContent: "center", borderRadius: "10px", padding: "12px 14px" }}>Daftar</Link></div>
-                  
+                  <Link className="navlink" href="/blog" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ padding: "12px 14px", fontSize: "14px" }}>Blog</Link>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}><Link className="btn-o" href="/login" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ flex: 1, justifyContent: "center", borderRadius: "10px", padding: "12px 14px" }}>{v.T('Masuk', 'Log In')}</Link><Link className="btn" href="/register" onClick={function () { this.setState({ menu: false }); }.bind(this)} style={{ flex: 1, justifyContent: "center", borderRadius: "10px", padding: "12px 14px" }}>{v.T('Daftar', 'Sign Up')}</Link></div>
+
                 </div>
               ) : null}
               <div className="ls-acts" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <Link className="btn-o" href="/login" style={{ borderRadius: "10px", padding: "9px 14px" }}>
-                  Masuk{" "}
+                <Link className="btn-o" href="/login" style={{ borderRadius: "10px", padding: "9px 14px" }}>
+                  {v.T('Masuk', 'Log In')}{" "}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <circle cx="10" cy="8" r="4" />
                     <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />
                   </svg>
                 </Link>
                 <Link className="btn" href="/register" style={{ borderRadius: "10px", padding: "10px 16px" }}>
-                  Daftar{" "}
+                  {v.T('Daftar', 'Sign Up')}{" "}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                     <circle cx="10" cy="8" r="4" />
                     <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />

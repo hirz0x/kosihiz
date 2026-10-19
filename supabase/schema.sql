@@ -303,3 +303,65 @@ end;
 $$;
 revoke execute on function tambah_pesan_tiket(bigint, jsonb, text, boolean) from public, anon, authenticated;
 grant execute on function tambah_pesan_tiket(bigint, jsonb, text, boolean) to service_role;
+
+-- Pembatas percobaan (rate limit) sebelumnya dihitung di kode JS lewat baca-lalu-tulis biasa
+-- (getSetting lalu setSetting) — kalau beberapa request datang BERSAMAAN, semuanya sempat baca
+-- angka yang sama sebelum ada yang menulis balik, jadi limiternya bisa ditembus total. Dibuktikan
+-- nyata: 15 percobaan pendaftaran konkuren dari 1 IP, yang seharusnya dibatasi 5/jam, 15-15nya
+-- lolos. Dipindah jadi fungsi database atomic (SELECT ... FOR UPDATE mengunci barisnya dulu),
+-- supaya percobaan yang datang bersamaan diproses berurutan, bukan semuanya baca nilai basi.
+create or replace function rl_tick(p_key text, p_maks int, p_jendela_ms bigint)
+returns boolean
+language plpgsql as $$
+declare
+  v_key text := 'coba:' || p_key;
+  v_now bigint := (extract(epoch from now()) * 1000)::bigint;
+  v_n int;
+  v_mulai bigint;
+begin
+  insert into settings (key, value) values (v_key, jsonb_build_object('n', 0, 'mulai', 0))
+  on conflict (key) do nothing;
+
+  select (value->>'n')::int, (value->>'mulai')::bigint into v_n, v_mulai
+  from settings where key = v_key for update;
+
+  if v_mulai = 0 or v_now - v_mulai > p_jendela_ms then
+    v_n := 0;
+    v_mulai := v_now;
+  end if;
+  v_n := v_n + 1;
+
+  update settings set value = jsonb_build_object('n', v_n, 'mulai', v_mulai) where key = v_key;
+  return v_n <= p_maks;
+end;
+$$;
+revoke execute on function rl_tick(text, int, bigint) from public, anon, authenticated;
+grant execute on function rl_tick(text, int, bigint) to service_role;
+
+-- Sama seperti rl_tick, versi untuk penguncian setelah N kali gagal berturut-turut (login, ganti
+-- password/email, verifikasi MFA) dengan durasi kunci yang berlipat ganda tiap kelipatan gagal.
+create or replace function rl_gagal(p_key text, p_kelipatan int)
+returns void
+language plpgsql as $$
+declare
+  v_key text := 'batas:' || p_key;
+  v_now bigint := (extract(epoch from now()) * 1000)::bigint;
+  v_gagal int;
+  v_sampai bigint;
+begin
+  insert into settings (key, value) values (v_key, jsonb_build_object('gagal', 0, 'sampai', 0))
+  on conflict (key) do nothing;
+
+  select (value->>'gagal')::int, (value->>'sampai')::bigint into v_gagal, v_sampai
+  from settings where key = v_key for update;
+
+  v_gagal := v_gagal + 1;
+  if v_gagal % p_kelipatan = 0 then
+    v_sampai := v_now + least(15 * 60000 * power(2, least(v_gagal / p_kelipatan - 1, 6)), 24 * 60 * 60000)::bigint;
+  end if;
+
+  update settings set value = jsonb_build_object('gagal', v_gagal, 'sampai', v_sampai) where key = v_key;
+end;
+$$;
+revoke execute on function rl_gagal(text, int) from public, anon, authenticated;
+grant execute on function rl_gagal(text, int) to service_role;

@@ -72,12 +72,14 @@ class LandingPage extends React.Component {
     var self = this;
     var EN = this.state.lang === 'en';
     var T = function (id, en) { return EN ? en : id; };
+    /* Logo brand ini sekarang pakai ikon Font Awesome asli (fa-brands), bukan SVG gambar tangan
+       — lebih presisi dan gampang dikenali dibanding bentuk yang digambar manual sebelumnya. */
     var I = {
-      tt: 'M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5h.5V7.8a7 7 0 1 0 6.5 6.9V9.4A7 7 0 0 0 21 10.6V7a4 4 0 0 1-4-4z',
-      yt: 'M2 7a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3zM10 8.5v7l6-3.5z',
-      fb: 'M14 22v-8h3l.5-4H14V8c0-1 .3-2 2-2h2V2.3C17.4 2.2 16.3 2 15 2c-3 0-5 1.8-5 5v3H7v4h3v8z',
-      ig: 'M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm5 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6z',
-      x: 'M3 3h5l4 5.5L16.5 3H21l-6.6 7.6L21.5 21h-5l-4.4-6L7 21H2.5l7.1-8.1z'
+      tt: 'fa-brands fa-tiktok',
+      yt: 'fa-brands fa-youtube',
+      fb: 'fa-brands fa-facebook',
+      ig: 'fa-brands fa-instagram',
+      x: 'fa-brands fa-x-twitter'
     };
     var logoBase = [
       { name: 'TikTok', icon: I.tt }, { name: 'Twitter / X', icon: I.x }, { name: 'YouTube', icon: I.yt },
@@ -209,7 +211,7 @@ html{color-scheme:dark}
 .js-fade section{opacity:0;transform:translateY(18px);transition:opacity .7s ease-out,transform .7s ease-out}
 .js-fade section.in{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce){.js-fade section{opacity:1;transform:none;transition:none}}
-body{margin:0;background:#0A0A0C;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{margin:0;background:#0A0A0C;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-family:'Satoshi',sans-serif;font-size:12px;font-weight:400;line-height:18px}
 html{scroll-behavior:smooth}
 a,button{transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s cubic-bezier(.4,0,.2,1),opacity .15s ease;-webkit-tap-highlight-color:transparent}
 button:active:not(:disabled){transform:scale(.97)}
@@ -254,8 +256,8 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
 .btn:active{transform:translateY(0) scale(.97);box-shadow:0 6px 16px rgba(225,29,58,.35)}
 .btn-o{display:inline-flex;align-items:center;gap:8px;background:#121215;color:#FFFFFF;font-weight:600;font-size:13px;border-radius:999px;padding:11px 20px;border:1px solid #26262C}
 .btn-o:hover{border-color:#E11D3A;color:#FFFFFF;transform:translateY(-1px)}
-.badge{display:inline-flex;align-items:center;gap:8px;background:#121215;border:1px solid #23232A;border-radius:999px;padding:4px 14px 4px 4px;font-size:12px;font-weight:600;color:#FF5A75}
-.badge-ic{width:28px;height:28px;border-radius:50%;background:#2A0E14;display:flex;align-items:center;justify-content:center}
+.badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1A1116,#121215);border:1px solid #23232A;border-radius:999px;padding:4px 14px 4px 4px;font-size:12px;font-weight:600;color:#FF5A75}
+.badge-ic{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3A121B,#2A0E14);display:flex;align-items:center;justify-content:center}
 .h2{margin:0;font-size:clamp(28px,3.2vw,38px);font-weight:700;letter-spacing:-.03em;line-height:1.2;color:#FFFFFF}
 .sub{margin:0;font-size:14px;line-height:1.75;color:#8B8D96}
 .red{color:#FF2E4D}
@@ -300,7 +302,7 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
               </nav>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div style={{ position: "relative" }}>
-                  <button type="button" onClick={v.toggleLangMenu} aria-label={v.T('Ganti bahasa', 'Change language')} aria-haspopup="menu" aria-expanded={v.langOpen} style={{ width: "40px", height: "40px", flex: "none", borderRadius: "50%", background: "#17171B", border: "1px solid " + (v.langOpen ? "#E11D3A" : "#26262C"), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                  <button type="button" onClick={v.toggleLangMenu} aria-label={v.T('Ganti bahasa', 'Change language')} aria-haspopup="menu" aria-expanded={v.langOpen} style={{ width: "40px", height: "40px", flex: "none", borderRadius: "10px", background: "#17171B", border: "1px solid " + (v.langOpen ? "#E11D3A" : "#26262C"), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
                     <i className="fa-solid fa-globe" aria-hidden="true" style={{ fontSize: 15, width: 15, display: 'inline-block', flex: 'none', lineHeight: 1, textAlign: 'center', color: '#F4F4F5' }} />
                   </button>
                   {v.langOpen ? (
@@ -334,17 +336,11 @@ a{color:#F4F4F5;text-decoration:none}a:hover{color:#FF5A75}
               <div className="ls-acts" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <Link className="btn-o" href="/login" style={{ borderRadius: "10px", padding: "9px 14px" }}>
                   {v.T('Masuk', 'Log In')}{" "}
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                    <circle cx="10" cy="8" r="4" />
-                    <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />
-                  </svg>
+                  <i className="fa-solid fa-right-to-bracket" aria-hidden="true" style={{ fontSize: "12px" }} />
                 </Link>
                 <Link className="btn" href="/register" style={{ borderRadius: "10px", padding: "10px 16px" }}>
                   {v.T('Daftar', 'Sign Up')}{" "}
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                    <circle cx="10" cy="8" r="4" />
-                    <path d="M3 21v-1a7 7 0 0 1 11-5.7M18 15v6M15 18h6" />
-                  </svg>
+                  <i className="fa-solid fa-user-plus" aria-hidden="true" style={{ fontSize: "12px" }} />
                 </Link>
               </div>
             </div>

@@ -25,8 +25,13 @@ export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
    instance, jadi instance manapun yang kena tetap dapat jalan pintas.
 
    Respons ADMIN tidak pernah di-cache (selalu segar), dan cache langsung dikosongkan begitu admin
-   menyimpan perubahan markup/status atau sinkron katalog, supaya perubahan tidak nyangkut lama. */
-const CACHE_MS = 3 * 60 * 1000;
+   menyimpan perubahan markup/status atau sinkron katalog, supaya perubahan tidak nyangkut lama —
+   jadi batas waktu di bawah ini aman diperpanjang jauh (bukan risiko data basi), cuma soal berapa
+   lama cache "boleh dipakai" sebelum dianggap kedaluwarsa kalau TIDAK ada perubahan sama sekali.
+   Sebelumnya 3 menit: kalau jeda antar kunjungan lebih lama dari itu (wajar di jam sepi), pengunjung
+   berikutnya kebagian rebuild ulang dari nol (~6-7 detik) walau datanya sama sekali tidak berubah.
+   Diperpanjang ke 1 jam supaya itu jauh lebih jarang kejadian. */
+const CACHE_MS = 60 * 60 * 1000;
 const CACHE_KEY = 'services_cache_pelanggan';
 let cacheMemori = null; // { data, sampai }
 

@@ -116,9 +116,7 @@ function LandingHero({ v }) {
         {(v.logos || []).map((l, $index) => (
           <React.Fragment key={$index}>
             <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "22px", fontWeight: "800", letterSpacing: "-.03em", color: "#3E3F47", whiteSpace: "nowrap" }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#3E3F47" aria-hidden="true">
-                <path d={l.icon} />
-              </svg>
+              <i className={l.icon} aria-hidden="true" style={{ fontSize: "22px", color: "#3E3F47", lineHeight: 1 }} />
               {l.name}{" "}
             </span>
           </React.Fragment>

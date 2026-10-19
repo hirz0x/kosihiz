@@ -35,7 +35,8 @@ function LandingSosial({ v, state }) {
       <div className={testiNyata.length >= 4 ? 'mq2' : ''} style={testiNyata.length >= 4 ? undefined : { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '18px', maxWidth: '860px', margin: '0 auto' }}>
         {testiNyata.map((t, $index) => (
           <React.Fragment key={$index}>
-            <div className="card" style={{ width: "360px", flex: "none", borderRadius: "14px", overflow: "hidden" }}>
+            <div className="card" style={{ width: "360px", flex: "none", borderRadius: "14px", overflow: "hidden", position: "relative" }}>
+              <i className="fa-solid fa-quote-right" aria-hidden="true" style={{ position: "absolute", right: "16px", top: "10px", fontSize: "34px", color: "#FF5A75", opacity: 0.1 }} />
               <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "16px" }}>
                 <span style={{ width: "38px", height: "38px", borderRadius: "50%", overflow: "hidden", flex: "none" }}><FictionalAvatar kind={t.kind} bg={t.bg} size={38} /></span>
                 <div>
@@ -47,7 +48,7 @@ function LandingSosial({ v, state }) {
                   </div>
                 </div>
               </div>
-              <div style={{ borderTop: "1px solid #1F1F25", padding: "14px 16px 18px", fontSize: "12px", lineHeight: "1.7", color: "#A1A3AB" }}>
+              <div style={{ borderTop: "1px solid #1F1F25", padding: "14px 16px 18px", fontSize: "12px", lineHeight: "1.7", color: "#A1A3AB", position: "relative" }}>
                 {t.text}
               </div>
             </div>
@@ -156,7 +157,9 @@ function LandingSosial({ v, state }) {
               {T('Hasil', 'Result')}
             </div>
             <div style={{ fontSize: "24px", fontWeight: "700", color: "#FF2E4D", marginTop: "4px" }}>
-              {T('Cepat & Hemat ✓', 'Fast & Affordable ✓')}
+              {state.stat && state.stat.suksesPersen !== null && state.stat.suksesPersen !== undefined
+                ? state.stat.suksesPersen + T('% Pesanan Selesai ✓', '% Orders Completed ✓')
+                : T('Cepat & Hemat ✓', 'Fast & Affordable ✓')}
             </div>
             <div style={{ fontSize: "11px", color: "#8B8D96", marginTop: "4px" }}>
               {T('Bonus deposit 10% untuk peringkat Starter dan Junior', '10% deposit bonus for Starter and Junior tiers')}

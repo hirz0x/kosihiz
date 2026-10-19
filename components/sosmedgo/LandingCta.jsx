@@ -17,20 +17,20 @@ function LandingCta({ v }) {
             Kamu dapat followers baru! 🎉
           </span>
         </div>
-        <div aria-hidden="true" className="card ls-deco" style={{ position: "absolute", right: "-1px", top: "60px", width: "170px", padding: "14px", borderRadius: "12px 0 0 12px", background: "#17171B" }}>
-          <div style={{ fontSize: "9px", color: "#FF5A75", display: "flex", justifyContent: "space-between" }}>
+        <div aria-hidden="true" className="card ls-deco" style={{ position: "absolute", right: "-1px", top: "54px", width: "220px", padding: "18px", borderRadius: "14px 0 0 14px", background: "#17171B", boxShadow: "0 20px 50px rgba(0,0,0,.5)" }}>
+          <div style={{ fontSize: "10px", color: "#FF5A75", display: "flex", justifyContent: "space-between" }}>
             ▣ Toko Baju Saya{" "}
             <span>
               ↗
             </span>
           </div>
-          <div style={{ fontSize: "8px", color: "#8B8D96", margin: "10px 0 4px" }}>
-            Penjualan Bersih
+          <div style={{ fontSize: "9px", color: "#8B8D96", margin: "12px 0 5px" }}>
+            Penjualan Bersih Bulan Ini
           </div>
-          <div style={{ fontSize: "16px", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
-            Rp 10.000{" "}
-            <span style={{ fontSize: "7px", background: "#2A0E14", color: "#FF5A75", borderRadius: "999px", padding: "2px 6px" }}>
-              +10%
+          <div style={{ fontSize: "22px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+            Rp 48.500.000{" "}
+            <span style={{ fontSize: "8px", background: "#2A0E14", color: "#FF5A75", borderRadius: "999px", padding: "3px 7px" }}>
+              +32%
             </span>
           </div>
         </div>
@@ -72,9 +72,7 @@ function LandingCta({ v }) {
               <React.Fragment key={$index}>
                 <span style={{ display: "flex", alignItems: "center", gap: "8px", background: "#17171B", border: "1px solid #24242A", borderRadius: "999px", padding: "5px 6px 5px 6px", fontSize: "10px", fontWeight: "600", whiteSpace: "nowrap" }}>
                   <span style={{ width: "22px", height: "22px", borderRadius: "50%", background: "#2A0E14", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="#FF5A75" aria-hidden="true">
-                      <path d={p.icon} />
-                    </svg>
+                    <i className={p.icon} aria-hidden="true" style={{ fontSize: "11px", color: "#FF5A75", lineHeight: 1 }} />
                   </span>
                   {" "}{p.t}{" "}
                   <span style={{ background: "#2A0E14", color: "#FF5A75", borderRadius: "999px", padding: "4px 10px", fontSize: "9px" }}>

@@ -8,7 +8,13 @@ import { namaIndo } from '../../components/sosmedgo/terjemah';
 
 const PER_HALAMAN = 40;
 
-const hargaDari = (s) => Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+/* Sama seperti lib/pesanan.js — jangan sampai hasil pembulatan jadi Rp 0 buat layanan yang
+   harga dasarnya memang ada (bukan nol), biar harga yang tampil ke pengunjung publik konsisten
+   dengan yang beneran ditagih saat checkout. */
+const hargaDari = (s) => {
+  const h = Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+  return s.dasar > 0 && h <= 0 ? 100 : h;
+};
 
 const IKON_MERAH = (
   <span style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#E11D3A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

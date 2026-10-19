@@ -50,7 +50,9 @@ class LandingPage extends React.Component {
       var list = d && Array.isArray(d.services) ? d.services : [];
       var s = list.filter(function (x) { return x.aktif && x.dasar > 0; })[0];
       if (!s) return;
-      var harga = Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+      /* Sama seperti lib/pesanan.js — jangan sampai hasil pembulatan jadi Rp 0. */
+      var hargaMentah = Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+      var harga = s.dasar > 0 && hargaMentah <= 0 ? 100 : hargaMentah;
       self.setState({ layanan: { id: s.id, nama: s.nama, hargaTxt: harga.toLocaleString('id-ID'), waktu: s.waktuRata ? Math.round(s.waktuRata) : null } });
     }).catch(function () {});
   }

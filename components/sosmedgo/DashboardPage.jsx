@@ -497,7 +497,10 @@ class DashboardPage extends React.Component {
            baru tidak ikut memindahkan layanannya keluar dari tab "Lainnya" / jadi tidak ketemu. */
         var TAB_PLAT = { ig: 1, yt: 1, tt: 1, tw: 1, sp: 1, tg: 1, fb: 1, twitch: 1, rd: 1, web: 1, seo: 1 };
         var platDari = function (teks) { var k = platIkon(teks); return TAB_PLAT[k] ? k : 'other'; };
-        var jual = function (x) { return Math.round((x.dasar * (1 + (x.markup || 0) / 100)) / 100) * 100; };
+        /* Sama seperti lib/pesanan.js — jangan sampai hasil pembulatan jadi Rp 0 buat layanan
+           yang harga dasarnya memang ada (bukan nol), supaya preview harga di sini juga konsisten
+           dengan yang beneran ditagih saat checkout. */
+        var jual = function (x) { var h = Math.round((x.dasar * (1 + (x.markup || 0) / 100)) / 100) * 100; return x.dasar > 0 && h <= 0 ? 100 : h; };
         I.other = '@lainnya';
 
         var daftar = st.catalog.filter(function (x) { return x.aktif !== false; }).map(function (x) {
@@ -846,6 +849,10 @@ class DashboardPage extends React.Component {
         if (st.sending) return;
         if (!svc) { self.tampilkanToast(false, 'Pilih layanan dulu.'); return; }
         if (!st.link.trim()) { self.tampilkanToast(false, 'Link belum diisi.'); return; }
+        /* Pesanan Massal sudah lebih dulu mewajibkan format URL lengkap (lihat sendMass di
+           bawah) — form pesan satuan ini sebelumnya cuma cek "tidak kosong", jadi username
+           polos tanpa https:// ikut terkirim mentah ke provider dan baru gagal di sana. */
+        if (!/^https?:\/\//.test(st.link.trim())) { self.tampilkanToast(false, 'Link harus URL lengkap (diawali http:// atau https://), bukan cuma username.'); return; }
         if (extraCfg && extraCfg.numeric && extraTunggal && !extraAngkaOk) { self.tampilkanToast(false, 'Kolom "' + extraCfg.label + '" harus berupa angka.'); return; }
         if (extraCfg && !extraTerisi) { self.tampilkanToast(false, 'Isi dulu kolom "' + extraCfg.label + '".'); return; }
         if (!qtyOk) {

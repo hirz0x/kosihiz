@@ -175,7 +175,12 @@ export const tanggalWib = (iso) => new Date(new Date(iso).getTime() + 7 * 3600 *
    markup pakai fallback 0 (sama seperti salinan rumus ini di lib/pesanan.js, lib/riwayat.js,
    pages/api/orders.js, DashboardPage.jsx, LandingPage.jsx) supaya tidak jadi Rp NaN kalau ada
    baris layanan yang markup-nya kosong/null. */
-export const hargaJual = (s) => Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+/* Sama seperti lib/pesanan.js — jangan sampai hasil pembulatan jadi Rp 0 buat layanan yang
+   harga dasarnya memang ada (bukan nol). */
+export const hargaJual = (s) => {
+  const h = Math.round((s.dasar * (1 + (s.markup || 0) / 100)) / 100) * 100;
+  return s.dasar > 0 && h <= 0 ? 100 : h;
+};
 
 export const STATUS_COLOR = {
   Aktif: '#22C55E', Selesai: '#22C55E', Berhasil: '#22C55E', Diterima: '#22C55E', Terbit: '#22C55E',

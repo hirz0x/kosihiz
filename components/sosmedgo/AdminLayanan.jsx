@@ -3,7 +3,7 @@ import { rp, hargaJual, Badge } from './admin-kit';
 
 function AdminLayanan({ v }) {
   const {
-    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, setAktifMassal, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn, svcMuatGagal, muatServicesAwal
+    theme, setTheme, themeMode, setThemeMode, accent, setAccent, tab, setTab, navOpen, setNavOpen, bukaTab, q, setQ, pengguna, setPengguna, saldoProv, setSaldoProv, muatPengguna, orderFilter, setOrderFilter, deposits, setDeposits, muatDeposit, services, setServices, tickets, setTickets, muatTiket, selTicket, setSelTicket, reply, setReply, refunds, setRefunds, muatRefund, ringkasAfiliasi, setRingkasAfiliasi, muatAfiliasiAdmin, ranks, setRanks, muatPeringkat, simpanPeringkat, artikelList, setArtikelList, artikelSel, setArtikelSel, kosongArtikel, artikelForm, setArtikelForm, artikelBusy, setArtikelBusy, artikelPratinjau, setArtikelPratinjau, muatArtikel, pilihArtikel, artikelBaru, pilihGambar, kirimArtikel, simpanArtikel, hapusArtikel, kurs, setKurs, saldoInfo, PROVIDER_LIST, PROVIDER_LABEL, massMarkup, setMassMarkup, svcProvider, setSvcProvider, svcInProvider, setAktifMassal, selSvc, setSelSvc, svcQ, setSvcQ, svcCat, setSvcCat, svcCatOpen, setSvcCatOpen, svcCatQ, setSvcCatQ, svcCatFiltered, pilihSvcCat, svcPage, setSvcPage, kursDirty, setKursDirty, svcDirty, setSvcDirty, svcSaving, setSvcSaving, syncedAt, setSyncedAt, liveOrders, setLiveOrders, ordersBusy, setOrdersBusy, ordersMsg, setOrdersMsg, konfirm, setKonfirm, tanyaKonfirmasi, refundPesanan, updLog, setUpdLog, hapusRiwayatAdmin, muatRiwayat, updF, setUpdF, depF, setDepF, siap, setSiap, undian, setUndian, muatUndian, undiUndian, toast, setToast, tampilkanToast, supportProfil, setSupportProfil, simpanSupport, rec, setRec, settingsTab, setSettingsTab, pwOld, setPwOld, pwNew, setPwNew, pwNew2, setPwNew2, pwMsg, setPwMsg, twofa, setTwofa, notif, setNotif, range, setRange, cFrom, setCFrom, cTo, setCTo, showTable, setShowTable, statistik, setStatistik, isDark, colors, series, accentVars, A, users, orders, pendingDeposits, openTickets, pendingRefunds, badges, totalPending, ticket, trend, trendTotals, prevDays, prevTotals, prevFrom, prevTo, compareLine, setDepositStatus, toggleService, setRefundStatus, setRankMin, provBusy, setProvBusy, provMsg, setProvMsg, callProvider, cekProvider, importServices, usd, SVC_PER_PAGE, svcCats, svcIndex, svcFiltered, svcPages, svcPageSafe, svcRows, selectedIds, selCount, allSelected, toggleAll, toggleSel, tandai, dirtyCount, adaPerubahan, labelSimpan, simpanLayanan, applyMarkup, resetMarkup, setServiceMarkup, updMsg, updDays, addUpdate, segarkanPesanan, updatePwd, kirimTiket, sendReply, closeTicket, themeOpts, accentOpts, hariIni, bulanIni, pesananHariIni, pendapatanBulanIni, stats, navBtn, svcMuatGagal, muatServicesAwal
   } = v;
   return tab === 'Layanan' && (
         <>
@@ -64,10 +64,33 @@ function AdminLayanan({ v }) {
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
             <input className="inp" placeholder="Cari nama atau ID layanan" value={svcQ} onChange={(e) => { setSvcQ(e.target.value); setSvcPage(1); }} style={{ maxWidth: '320px', margin: 0 }} />
-            <select className="inp" value={svcCat} onChange={(e) => { setSvcCat(e.target.value); setSvcPage(1); }} style={{ maxWidth: '360px', margin: 0, height: '44px', cursor: 'pointer' }} aria-label="Kategori">
-              <option value="all">Semua kategori ({svcCats.length})</option>
-              {svcCats.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div style={{ position: 'relative', width: '100%', maxWidth: '360px' }}>
+              <button type="button" className="dd" aria-haspopup="listbox" aria-expanded={svcCatOpen} onClick={() => setSvcCatOpen((o) => !o)}>
+                <span style={{ flex: '1', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {svcCat === 'all' ? ('Semua kategori (' + svcCats.length + ')') : svcCat}
+                </span>
+                <i className="fa-solid fa-chevron-down" aria-hidden="true" style={{ fontSize: '11px', color: 'var(--t4)' }} />
+              </button>
+              {svcCatOpen ? (
+                <div className="ddpanel" role="listbox" aria-label="Cari kategori">
+                  <input type="text" className="inp" placeholder="Cari kategori..." value={svcCatQ} onChange={(e) => setSvcCatQ(e.target.value)} autoFocus style={{ margin: '0 0 6px', height: '38px' }} />
+                  <div style={{ maxHeight: '220px', overflow: 'auto' }}>
+                    {svcCatQ.trim() === '' ? (
+                      <button type="button" role="option" aria-selected={svcCat === 'all'} className="ddopt" onClick={() => pilihSvcCat('all')}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Semua kategori ({svcCats.length})</span>
+                      </button>
+                    ) : null}
+                    {svcCatFiltered.length === 0 ? (
+                      <div className="muted" style={{ padding: '10px', fontSize: '12px' }}>Tidak ada kategori yang cocok.</div>
+                    ) : svcCatFiltered.map((c) => (
+                      <button key={c} type="button" role="option" aria-selected={c === svcCat} className="ddopt" onClick={() => pilihSvcCat(c)}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <span className="muted" style={{ fontSize: '12px' }}>{svcFiltered.length} layanan</span>
             {svcCat !== 'all' ? (
               <>

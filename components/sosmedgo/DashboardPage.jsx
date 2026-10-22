@@ -1204,7 +1204,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
   .dash-theme-lbl{display:none !important}
   .aff-card{margin-top:0 !important}
   .dash-head{flex-wrap:wrap !important;gap:8px !important}
-  .seg{flex:1 1 0 !important;min-width:0 !important;padding:10px 6px !important;font-size:12px !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis}
+  .seg{flex:1 1 auto !important;min-width:fit-content !important;padding:10px 10px !important;font-size:12px !important;white-space:nowrap !important}
 }
 @media (max-width:640px){.plat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .ptab:hover{border-color:var(--r5);color:var(--hi)}

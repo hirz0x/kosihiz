@@ -20,7 +20,7 @@ function DashboardTickets({ v }) {
               <span className="lbl">
                 Kategori
               </span>
-              <div role="group" aria-label="Kategori tiket" style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px" }}>
+              <div role="group" aria-label="Kategori tiket" style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px", flexWrap: "wrap" }}>
                 {(v.tcats || []).map((c, $index) => (
                   <React.Fragment key={$index}>
                     <button type="button" className="seg" onClick={c.pick} aria-pressed={c.on} style={{ background: c.bg, color: c.fg }}>

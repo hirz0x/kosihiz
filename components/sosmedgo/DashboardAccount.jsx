@@ -186,7 +186,7 @@ function DashboardAccount({ v }) {
                     <span className="lbl">
                       Bahasa
                     </span>
-                    <div style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px" }}>
+                    <div style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px", flexWrap: "wrap" }}>
                       {(v.langs || []).map((c, $index) => (
                         <React.Fragment key={$index}>
                           <button type="button" className="seg" onClick={c.pick} aria-pressed={c.on} style={{ background: c.bg, color: c.fg }}>
@@ -198,7 +198,7 @@ function DashboardAccount({ v }) {
                     <span className="lbl">
                       Mata uang tampilan
                     </span>
-                    <div style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px" }}>
+                    <div style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px", flexWrap: "wrap" }}>
                       {(v.curSeg || []).map((c, $index) => (
                         <React.Fragment key={$index}>
                           <button type="button" className="seg" onClick={c.pick} aria-pressed={c.on} style={{ background: c.bg, color: c.fg }}>

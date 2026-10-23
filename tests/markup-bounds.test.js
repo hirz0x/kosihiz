@@ -4,9 +4,8 @@
    jadi aman dites tanpa menyentuh data layanan asli.
 
    Jalankan: node tests/markup-bounds.test.js   (dev server harus sudah jalan) */
-const fs = require('fs');
-const path = require('path');
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
@@ -14,15 +13,9 @@ function assert(kondisi, pesan) {
   if (!kondisi) { console.log('GAGAL: ' + pesan); gagal++; } else { console.log('OK: ' + pesan); }
 }
 
-function bacaEnvLocal() {
-  const txt = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
-  const env = {};
-  for (const line of txt.split('\n')) { const m = line.match(/^([A-Z_]+)=(.*)$/); if (m) env[m[1]] = m[2].trim(); }
-  return env;
-}
-
 (async () => {
   const env = bacaEnvLocal();
+  pastikanAmanUntukTes(env);
   const ctx = await request.newContext();
   const login = await ctx.post(BASE + '/api/admin-login', { data: { username: env.ADMIN_USERNAME, password: env.ADMIN_PASSWORD }, headers: { 'Content-Type': 'application/json' } });
   if (!login.ok()) { console.log('Login admin gagal.'); process.exit(1); }

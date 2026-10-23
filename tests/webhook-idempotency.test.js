@@ -11,21 +11,10 @@
    baris kode yang sama dipanggil cekDanKreditDeposit() di webhook asli.
 
    Jalankan: node tests/webhook-idempotency.test.js   (dev server harus sudah jalan) */
-const fs = require('fs');
-const path = require('path');
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
-
-function bacaEnvLocal() {
-  const txt = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
-  const env = {};
-  for (const line of txt.split('\n')) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].trim();
-  }
-  return env;
-}
 
 async function sb(env, p, opts = {}) {
   const r = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/' + p, {
@@ -47,6 +36,7 @@ function assert(kondisi, pesan) {
 
 (async () => {
   const env = bacaEnvLocal();
+  pastikanAmanUntukTes(env);
 
   const ctx = await request.newContext();
   const login = await ctx.post(BASE + '/api/auth/login', { data: { email: 'qa.idor.a.1792744037192@example.com', password: 'TestPass123!' }, headers: { 'Content-Type': 'application/json' } });

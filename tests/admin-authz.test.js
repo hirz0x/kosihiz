@@ -2,6 +2,9 @@
    request TANPA login dan dari user biasa (bukan cuma disembunyikan di client).
    Jalankan: node tests/admin-authz.test.js   (dev server harus sudah jalan di localhost:3000) */
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+pastikanAmanUntukTes(bacaEnvLocal());
+
 const BASE = 'http://localhost:3000';
 
 const ADMIN_ENDPOINTS = [

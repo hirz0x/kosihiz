@@ -10,21 +10,10 @@
    Next.js — lihat catatan di AUDIT_REPORT.md bagian "Keterbatasan pengujian otomatis".
 
    Jalankan: node tests/saldo-race.test.js   (dev server harus sudah jalan di localhost:3000) */
-const fs = require('fs');
-const path = require('path');
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
-
-function bacaEnvLocal() {
-  const txt = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
-  const env = {};
-  for (const line of txt.split('\n')) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].trim();
-  }
-  return env;
-}
 
 async function sb(env, p, opts = {}) {
   const r = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/' + p, {
@@ -46,6 +35,7 @@ function assert(kondisi, pesan) {
 
 (async () => {
   const env = bacaEnvLocal();
+  pastikanAmanUntukTes(env);
 
   // Akun tester: coba daftar baru, kalau kena rate-limit pendaftaran (sudah banyak dibuat sesi ini),
   // pakai akun tester yang sudah ada dari pengujian sebelumnya di sesi yang sama.

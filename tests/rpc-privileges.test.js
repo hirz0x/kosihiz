@@ -19,24 +19,13 @@
    dibersihkan di akhir.
 
    Jalankan: node tests/rpc-privileges.test.js   (dev server harus sudah jalan di localhost:3000) */
-const fs = require('fs');
-const path = require('path');
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
 function assert(kondisi, pesan) {
   if (!kondisi) { console.log('GAGAL: ' + pesan); gagal++; } else { console.log('OK: ' + pesan); }
-}
-
-function bacaEnvLocal() {
-  const txt = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
-  const env = {};
-  for (const line of txt.split('\n')) {
-    const m = line.match(/^([A-Z_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].trim();
-  }
-  return env;
 }
 
 async function sb(env, key, p, opts = {}) {
@@ -76,6 +65,7 @@ const FUNGSI_ANON = [
 
 (async () => {
   const env = bacaEnvLocal();
+  pastikanAmanUntukTes(env);
   if (!env.SUPABASE_ANON_KEY) { console.log('SUPABASE_ANON_KEY belum diisi di .env.local — tidak bisa jalankan tes ini.'); process.exit(1); }
 
   console.log('=== anon HARUS ditolak (permission denied) untuk semua fungsi RPC sensitif ===');

@@ -19,6 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { request } = require('playwright');
+const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
@@ -84,6 +85,8 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
 }
 
 (async () => {
+  const env = bacaEnvLocal();
+  pastikanAmanUntukTes(env);
   const lepasPenjaga = pasangPenjagaFetch();
 
   console.log('=== Tripwire anti-drift (source code asli masih sesuai yang diuji) ===');
@@ -141,9 +144,6 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
   assert(depositBolehDikredit(depositContoh, { amount: nominalDiharapkan, reference_id: 'DEP-999' }, nominalDiharapkan) === true, 'nominal & reference_id COCOK -> diterima (sanity check)');
 
   console.log('\n=== Saldo benar-benar tidak berubah saat ditolak (DB sungguhan, deposit sintetis) ===');
-  const envTxt = fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8');
-  const env = {};
-  for (const line of envTxt.split('\n')) { const m = line.match(/^([A-Z_]+)=(.*)$/); if (m) env[m[1]] = m[2].trim(); }
   async function sb(p, opts = {}) {
     const r = await fetch(env.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/' + p, {
       method: opts.method || 'GET',

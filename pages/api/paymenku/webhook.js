@@ -1,13 +1,24 @@
 /* Notifikasi pembayaran dari Paymenku. Berlapis, SEMUA wajib lolos sebelum saldo bisa bertambah:
 
-   0. Rate limit per IP (di bawah) — batas percobaan per IP per menit, supaya endpoint ini tidak
-      bisa dipakai untuk menebak reference_id/signature bertubi-tubi sebelum lapisan lain dicek.
-   1. Signature HMAC-SHA256 di bawah (header X-PaymenKu-Signature + X-PaymenKu-Timestamp, lihat
-      docs.paymenku.com/events/webhooks) — menolak permintaan yang sama sekali bukan dari Paymenku.
+   0. Rate limit per IP (di bawah, lihat ambilIp() di lib/loginGuard.js untuk header mana yang
+      dipercaya) — batas percobaan per IP per menit, supaya endpoint ini tidak bisa dipakai untuk
+      menebak reference_id/signature bertubi-tubi sebelum lapisan lain dicek.
+   1. Signature HMAC-SHA256 di bawah — menolak permintaan yang sama sekali bukan dari Paymenku.
       FAIL-CLOSED: kalau PAYMENKU_WEBHOOK_SECRET belum diisi di .env.local, webhook DITOLAK semua
       (401), bukan dilewatkan. Isi dulu secretnya dari dashboard Paymenku (Settings → Webhook)
       sebelum endpoint ini bisa dipakai — lebih baik notifikasi pembayaran nyata tertunda sampai
       secretnya di-setup daripada endpoint ini bisa dipicu siapa saja yang tahu/menebak reference_id.
+      Rumus & header DIKONFIRMASI LANGSUNG dari docs.paymenku.com/events/webhooks:
+        - Header signature: `X-PaymenKu-Signature` (HMAC-SHA256).
+        - Header timestamp: `X-PaymenKu-Timestamp` ("Unix timestamp saat dikirim").
+        - Rumus: signature = HMAC-SHA256(timestamp + "." + raw_body, webhook_secret).
+      Karena timestamp IKUT DITANDATANGANI (jadi bagian dari string yang di-HMAC), timestamp ini
+      WAJIB ada di setiap webhook asli dari Paymenku — tanpanya signature tidak mungkin valid.
+      Jadi kalau timestamp tidak ada/kosong, permintaan SUDAH ditolak di sini (signature tidak
+      cocok), SEBELUM sampai ke pengecekan #2 di bawah — timestampFresh() di #2 TIDAK PERNAH perlu
+      "melewatkan dengan aman" kasus timestamp hilang, karena kasus itu sudah mustahil lolos sampai
+      ke sana untuk webhook Paymenku yang sah. (Dokumentasi tidak menyebutkan apakah nilainya unix
+      seconds atau milliseconds — timestampFresh() mendukung dua-duanya, lihat komentarnya.)
    2. Timestamp (X-PaymenKu-Timestamp) tidak boleh terlalu tua/jauh di masa depan — mencegah replay
       permintaan lama yang signature-nya sendiri sah (mis. hasil sadap) dipakai ulang belakangan.
    3. lib/paymenku-kredit.js: status, nominal, DAN reference_id dicek ulang langsung ke API Paymenku
@@ -24,8 +35,10 @@ export const config = { api: { bodyParser: false } };
 /* Toleransi umur timestamp webhook: 5 menit ke belakang atau ke depan (jam server/Paymenku bisa
    sedikit beda). Di luar itu, permintaan ditolak walau signature-nya sendiri valid. */
 const TOLERANSI_TIMESTAMP_MS = 5 * 60 * 1000;
-/* Rate limit sederhana per IP: cukup untuk menutup celah coba-coba reference_id/signature
-   bertubi-tubi, tanpa mengganggu retry notifikasi wajar dari server Paymenku sendiri. */
+/* Rate limit sederhana PER IP (lihat lib/loginGuard.js: ambilIp() memilih X-Vercel-Forwarded-For
+   atau X-Real-IP kalau tersedia — baru fallback ke X-Forwarded-For/koneksi TCP langsung yang
+   lebih mudah dipalsukan). Cukup untuk menutup celah coba-coba reference_id/signature bertubi-
+   tubi, tanpa mengganggu retry notifikasi wajar dari server Paymenku sendiri. */
 const RATE_LIMIT_MAKS = 60;
 const RATE_LIMIT_JENDELA_MS = 60 * 1000;
 

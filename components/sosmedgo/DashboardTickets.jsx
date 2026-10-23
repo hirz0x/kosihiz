@@ -4,7 +4,7 @@ import { FaIcon } from './dashboard-kit';
 function DashboardTickets({ v }) {
   return v.is.tickets ? (
         <>
-          <div style={{ display: "flex", justifyContent: "center", marginTop: "-80px" }}>
+          <div className="dash-pull-lg" style={{ display: "flex", justifyContent: "center" }}>
             <form className="card" style={{ width: "100%", maxWidth: "540px", padding: "20px", boxSizing: "border-box", position: "relative", zIndex: "2" }} onSubmit={v.sendTicket}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
                 <span style={{ width: "34px", height: "34px", borderRadius: "9px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -20,7 +20,7 @@ function DashboardTickets({ v }) {
               <span className="lbl">
                 Kategori
               </span>
-              <div role="group" aria-label="Kategori tiket" style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px", flexWrap: "wrap" }}>
+              <div role="group" aria-label="Kategori tiket" className="dash-hscroll" style={{ gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px" }}>
                 {(v.tcats || []).map((c, $index) => (
                   <React.Fragment key={$index}>
                     <button type="button" className="seg" onClick={c.pick} aria-pressed={c.on} style={{ background: c.bg, color: c.fg }}>
@@ -32,7 +32,7 @@ function DashboardTickets({ v }) {
               <span className="lbl">
                 Subkategori
               </span>
-              <div role="group" aria-label="Subkategori tiket" style={{ display: "flex", gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px", flexWrap: "wrap" }}>
+              <div role="group" aria-label="Subkategori tiket" className="dash-hscroll" style={{ gap: "4px", background: "var(--segbg)", border: "1px solid var(--b2)", borderRadius: "10px", padding: "4px" }}>
                 {(v.tsubs || []).map((c, $index) => (
                   <React.Fragment key={$index}>
                     <button type="button" className="seg" onClick={c.pick} aria-pressed={c.on} style={{ background: c.bg, color: c.fg }}>

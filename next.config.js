@@ -3,6 +3,14 @@ const production = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
   poweredByHeader: false,
+  /* Komponen next/image dan route /_next/image TIDAK dipakai di mana pun pada aplikasi ini
+     (dicek: nol pemakaian next/image, nol referensi ke /_next/image di seluruh kode sumber).
+     unoptimized:true mematikan total pipeline optimasi gambar bawaan Next.js — menutup permukaan
+     serangan 2 CVE Image Optimization API (RCE lewat file AVIF/SVG) tanpa perlu upgrade major,
+     karena kode yang rentan itu sendiri tidak pernah lagi dijalankan. Kalau nanti next/image
+     dipakai, JANGAN hapus baris ini tanpa mengisi images.remotePatterns dengan host spesifik
+     (bukan wildcard) dan images.dangerouslyAllowSVG tetap false. */
+  images: { unoptimized: true },
   /* Cache webpack di disk (.next/cache) sering gagal ditulis di Windows (ENOENT saat rename pack file),
      dan itu yang bikin dev server berujung "missing required error components". Dimatikan saat dev saja;
      build produksi tetap pakai cache normal. */

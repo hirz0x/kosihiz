@@ -9,7 +9,7 @@ import { ACCENTS, accentVarsFor } from './theme';
 import { extraFieldFor } from '../../lib/layananTipe';
 
 import {
-  FA_MENU, FaIcon, bonusDariPeringkat, tiketDariApi, batasiGrup, totalGrup, PLAT_COLOR, hexKeRgb
+  FaIcon, LU_MENU, LuIcon, formatCurrency, bonusDariPeringkat, tiketDariApi, batasiGrup, totalGrup, PLAT_COLOR, hexKeRgb
 } from './dashboard-kit';
 
 import DashboardNewOrder from './DashboardNewOrder';
@@ -28,21 +28,55 @@ import DashboardSoon from './DashboardSoon';
 /* Ambil JSON dari API, dicoba ulang sampai 3x (jeda 1.5/3 detik) kalau gagal — supaya gangguan
    jaringan/server sesaat tidak bikin satu section (peringkat, tiket, refund, riwayat, dll) diam-diam
    kelihatan kosong selamanya sampai pelanggan reload manual. Melempar error kalau tetap gagal
-   setelah 3x percobaan. */
+   setelah 3x percobaan — errornya punya `.tipe` ('timeout'|'auth'|'server'|'http'|'network') dan
+   `.status` supaya pemanggil bisa tampilkan pesan yang spesifik, bukan cuma "gagal memuat" generik.
+   SETIAP percobaan (bukan cuma yang terakhir) dicatat ke console.error dengan status + potongan body,
+   supaya retry tidak diam-diam menutupi apa yang sebenarnya terjadi di percobaan 1 dan 2. */
 function ambilJson(url, opts, percobaan) {
   var ke = percobaan || 1;
-  return fetch(url, opts)
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-    .then(function (res) {
-      if (!res.ok) throw new Error((res.d && res.d.error) || 'Gagal memuat.');
-      return res.d;
+  var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 15000) : null;
+  var fetchOpts = ctrl ? Object.assign({}, opts, { signal: ctrl.signal }) : opts;
+  return fetch(url, fetchOpts)
+    .then(function (r) {
+      if (timer) clearTimeout(timer);
+      return r.text().then(function (txt) {
+        var d = null;
+        try { d = txt ? JSON.parse(txt) : null; } catch (e) { /* body bukan JSON valid, biarkan null */ }
+        if (!r.ok) {
+          var pesan = (d && d.error) || ('HTTP ' + r.status);
+          var err = new Error(pesan);
+          err.status = r.status;
+          err.tipe = r.status === 401 || r.status === 403 ? 'auth' : r.status >= 500 ? 'server' : 'http';
+          console.error('[ambilJson] percobaan ' + ke + '/3 gagal — ' + url + ' -> HTTP ' + r.status + ': ' + pesan + '\nbody: ' + txt.slice(0, 500));
+          throw err;
+        }
+        return d;
+      });
     })
     .catch(function (e) {
+      if (timer) clearTimeout(timer);
+      if (!e.tipe) {
+        e.tipe = e.name === 'AbortError' ? 'timeout' : 'network';
+        console.error('[ambilJson] percobaan ' + ke + '/3 gagal — ' + url + ' -> ' + e.tipe + ': ' + e.message);
+      }
       if (ke < 3) {
         return new Promise(function (resolve) { setTimeout(resolve, 1500 * ke); }).then(function () { return ambilJson(url, opts, ke + 1); });
       }
       throw e;
     });
+}
+
+/* Terjemahkan error ambilJson() (.tipe/.status) jadi pesan yang masuk akal buat pengguna —
+   dipakai di section yang menampilkan alasan gagalnya secara spesifik (bukan cuma "Gagal memuat"). */
+function pesanErrorUi(e) {
+  if (!e) return 'Gagal memuat.';
+  if (e.tipe === 'timeout') return 'Server tidak merespons (timeout). Coba lagi?';
+  if (e.tipe === 'auth') return 'Sesi login berakhir. Coba masuk ulang.';
+  if (e.tipe === 'server') return 'Server sedang bermasalah (' + (e.status || 500) + '). Coba lagi?';
+  if (e.tipe === 'network') return 'Tidak bisa terhubung ke server. Periksa koneksi internet.';
+  if (e.tipe === 'http') return 'Gagal memuat (' + (e.status || '?') + '). Coba lagi?';
+  return e.message || 'Gagal memuat.';
 }
 
 class DashboardPage extends React.Component {
@@ -62,7 +96,7 @@ class DashboardPage extends React.Component {
       atab: 'security', pwSaved: false, emSaved: false, twofa: false, lang: 'id', tz: 'WIB', keyN: 1, invSaved: false,
       notif: { order: true, deposit: true, ticket: true, promo: false },
       warnOrder: false, refundBusy: false, cancelBusyId: null, ticketBusy: false, katalogGagal: false,
-      peringkatGagal: false, tiketGagal: false, refundGagal: false, riwayatGagal: false, notifGagal: false, payHistGagal: false, myOrdersGagal: false
+      peringkatGagal: false, tiketGagal: false, refundGagal: false, riwayatGagal: false, riwayatErr: '', notifGagal: false, payHistGagal: false, myOrdersGagal: false
     };
   }
   /* Katalog layanan gagal dimuat kadang-kadang (jaringan lambat, server lagi sibuk) — sebelumnya
@@ -152,8 +186,8 @@ class DashboardPage extends React.Component {
   muatRiwayat() {
     var self = this;
     return ambilJson('/api/riwayat')
-      .then(function (d) { if (d && Array.isArray(d.riwayat)) self.setState({ riwayat: d.riwayat, riwayatGagal: false }); })
-      .catch(function () { self.setState({ riwayatGagal: true }); });
+      .then(function (d) { if (d && Array.isArray(d.riwayat)) self.setState({ riwayat: d.riwayat, riwayatGagal: false, riwayatErr: '' }); })
+      .catch(function (e) { self.setState({ riwayatGagal: true, riwayatErr: pesanErrorUi(e) }); });
   }
   cekBayar(idArg, diam) {
     var self = this;
@@ -196,6 +230,23 @@ class DashboardPage extends React.Component {
     clearTimeout(this._siapTimer);
     clearTimeout(this._toastTimer);
     clearInterval(this._saldoInterval);
+    document.removeEventListener('mousedown', this._ddOutside);
+    document.removeEventListener('keydown', this._ddEscape);
+  }
+  /* Semua dropdown (kategori/layanan di form pesanan, filter status pesanan, metode pembayaran,
+     kategori layanan, bahasa/saldo/akun/menu di header) sebelumnya hanya bisa ditutup dengan
+     mengklik tombol pemicunya lagi — klik di luar area dropdown tidak melakukan apa-apa, beda
+     dari pola yang sama di halaman /layanan publik. Setiap dropdown di sini SELALU memberi
+     "aria-haspopup" pada tombol pemicu dan membungkus pilihannya dalam elemen ber-role
+     menu/listbox (class "menu"/"ddpanel") — jadi satu listener di sini cukup buat semuanya,
+     tanpa perlu menyentuh markup tiap dropdown satu per satu. "navOpen" (menu mobile) sengaja
+     TIDAK ikut direset di sini: tombol pemicunya tidak memakai aria-haspopup, jadi mousedown di
+     tombol itu sendiri akan selalu dianggap "di luar" dan bentrok dengan onClick toggle-nya. */
+  _tutupSemuaDropdown() {
+    this.setState(function (st) {
+      if (!st.hdd && !st.open && !st.sOpen && !st.ofOpen && !st.mOpen) return null;
+      return { hdd: '', open: '', sOpen: '', ofOpen: false, mOpen: false };
+    });
   }
   gantiPassword() {
     var self = this;
@@ -345,6 +396,15 @@ class DashboardPage extends React.Component {
     var self0 = this;
     this._siapTimer = setTimeout(function () { self0.setState({ siap: true }); }, 4000);
     this.muatPreferensi();
+    this._ddOutside = function (e) {
+      if (e.target.closest && e.target.closest('[aria-haspopup], .menu, .ddpanel')) return;
+      self0._tutupSemuaDropdown();
+    };
+    this._ddEscape = function (e) {
+      if (e.key === 'Escape') self0._tutupSemuaDropdown();
+    };
+    document.addEventListener('mousedown', this._ddOutside);
+    document.addEventListener('keydown', this._ddEscape);
     /* Peringatan tiap habis login (ditandai oleh LoginPage, dibaca & dihapus di sini sekali) —
        pelanggan sering ngasal isi link/username/ID layanan, pesanan yang salah tetap diproses
        provider dan susah/lama dibatalkan. Refresh biasa di /dashboard tidak memicu ini lagi. */
@@ -453,13 +513,18 @@ class DashboardPage extends React.Component {
 
     /* Hiasan tampilan untuk satu layanan. */
     var hiasi = function (x, peta) {
-      x.priceFmt = fmt(x.price); x.priceTxt = 'Rp ' + x.priceFmt + ' / 1K';
+      x.priceFmt = formatCurrency(x.price, st.cur, st.kurs); x.priceTxt = x.priceFmt + ' / 1K';
       x.minTxt = fmt(x.min); x.maxTxt = fmt(x.max); x.icon = I[x.ikon || x.p];
       x.hasRefill = x.refill !== 'Tidak tersedia';
       x.desc = ['Link: username atau link postingan/profil', 'Mulai: ' + x.start, 'Kecepatan: ' + x.speed, 'Garansi refill: ' + x.refill, 'Akun harus publik selama proses berjalan'];
       var warnaAsli = PLAT_COLOR[x.ikon || x.p];
       x.platColor = warnaAsli || 'var(--accent-l)';
       x.platRgb = warnaAsli ? hexKeRgb(warnaAsli) : 'var(--accent-rgb)';
+      /* TikTok & Twitter/X cuma punya varian monokrom putih — kalau cuma ditinting rgba(255,255,255,.x)
+         seperti platform lain, ikonnya nyaris hilang di tema terang. Dikasih chip gelap solid supaya
+         tetap "warna asli" (putih) tapi selalu kontras di kedua tema. */
+      x.platChipBg = warnaAsli === '#FFFFFF' ? '#17171C' : ('rgba(' + x.platRgb + ',.14)');
+      x.platChipBorder = warnaAsli === '#FFFFFF' ? 'rgba(255,255,255,.22)' : ('rgba(' + x.platRgb + ',.35)');
       peta[x.id] = x;
     };
 
@@ -566,20 +631,22 @@ class DashboardPage extends React.Component {
       soon: { crumb: T('Segera Hadir', 'Coming Soon'), hint: T('Halaman belum tersedia di prototipe', 'Not available in this prototype yet'), title: T('Segera Hadir', 'Coming Soon'), sub: T('Halaman ini akan dibuat berikutnya.', 'This page will be built next.'), align: 'left' }
     };
     var menuDef = [
-      ['neworder', T('Pesanan Baru', 'New Order'), 'M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M9 21h.01M18 21h.01', '', 'var(--accent)'],
-      ['services', T('Layanan', 'Services'), 'M7 3h7l5 5v13H7zM14 3v5h5M10 14l2 2 3-3', '', '#DB2777'],
-      ['orders', T('Pesanan', 'Orders'), 'M5 4h14v16H5zM9 9l2 2 4-4M9 15h6', '', '#7C3AED'],
-      ['addfunds', T('Isi Saldo', 'Add Funds'), 'M21 12V7H3v12h9M3 11h18M18 21v-6M15 18l3-3 3 3', '', '#2563EB'],
-      ['tickets', T('Tiket', 'Tickets'), 'M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H4zM17 14h3v6h-3z', String(st.tickets.filter(function (t) { return t.unread; }).length || ''), '#111318'],
-      ['updates', T('Update', 'Updates'), 'M3 12h4l3-8 4 16 3-8h4', '', '#111318'],
-      ['refunds', T('Refund', 'Refunds'), 'M21 12V7H3v12h8M3 11h18M15 18h6M18 15l-3 3 3 3', '', '#DC2626'],
-      ['massorder', T('Pesanan Massal', 'Mass Order'), 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', '', '#111318'],
-      ['affiliates', T('Afiliasi', 'Affiliates'), 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3.1a4 4 0 0 1 0 7.8M22 21a7 7 0 0 0-4-6.3', '', '#111318'],
-      ['soon', 'API', 'M3 4h18v16H3zM3 8h18M10 12l-2 2 2 2M14 12l2 2-2 2', '', '#111318']
+      ['neworder', T('Pesanan Baru', 'New Order'), ''],
+      ['services', T('Layanan', 'Services'), ''],
+      ['orders', T('Pesanan', 'Orders'), ''],
+      ['addfunds', T('Isi Saldo', 'Add Funds'), ''],
+      ['tickets', T('Tiket', 'Tickets'), String(st.tickets.filter(function (t) { return t.unread; }).length || '')],
+      ['updates', T('Update', 'Updates'), ''],
+      ['refunds', T('Refund', 'Refunds'), ''],
+      ['massorder', T('Pesanan Massal', 'Mass Order'), ''],
+      ['affiliates', T('Afiliasi', 'Affiliates'), ''],
+      ['soon', 'API', '']
     ];
+    /* Satu set ikon outline (LU_MENU) dipakai sidebar desktop & drawer mobile sekaligus —
+       keduanya render dari array menu1 yang sama, jadi tidak ada pola kedua yang perlu disinkronkan. */
     var menu1 = menuDef.map(function (m) {
       var on = (m[0] === st.page || (m[0] === 'tickets' && st.page === 'ticket')) && m[0] !== 'soon';
-      return { t: m[1], icon: m[2], fa: FA_MENU[m[0]] || 'fa-solid fa-circle', badge: m[3] || false, ic: on ? '#FFFFFF' : 'currentColor', on: on, cur: on ? 'page' : 'false',
+      return { t: m[1], Icon: LU_MENU[m[0]], badge: m[2] || false, ic: on ? '#FFFFFF' : 'currentColor', on: on, cur: on ? 'page' : 'false',
         bg: on ? 'var(--accent)' : 'transparent', fg: on ? '#FFFFFF' : 'var(--t3)', sh: on ? '0 8px 22px rgba(var(--accent-rgb),.3)' : 'none', fw: on ? '600' : '500',
         badgeBg: on ? 'rgba(255,255,255,.25)' : 'var(--accent)',
         go: go(m[0]) };
@@ -681,9 +748,9 @@ class DashboardPage extends React.Component {
       if (oql && String(o.id).indexOf(oql) < 0 && o.link.toLowerCase().indexOf(oql) < 0) return false;
       return true;
     }).map(function (o) {
-      var s = byId[o.svcId] || { name: o.nama || ('Layanan ' + o.svcId), icon: I.all, price: 0, hasRefill: false, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)' };
+      var s = byId[o.svcId] || { name: o.nama || ('Layanan ' + o.svcId), icon: I.all, price: 0, hasRefill: false, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)', platChipBg: 'rgba(var(--accent-rgb),.14)', platChipBorder: 'rgba(var(--accent-rgb),.35)' };
       var m = SM[o.status] || SM.pending;
-      return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, platColor: s.platColor, platRgb: s.platRgb, date: o.date, link: o.link, charge: 'Rp ' + fmt(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
+      return { id: o.id, svcId: o.svcId, name: o.nama ? namaIndo(o.nama) : s.name, icon: s.icon, platColor: s.platColor, platRgb: s.platRgb, platChipBg: s.platChipBg, platChipBorder: s.platChipBorder, date: o.date, link: o.link, charge: formatCurrency(o.biaya === undefined ? s.price * o.qty / 1000 : o.biaya, st.cur, st.kurs), qtyTxt: fmt(o.qty), startC: o.startC, remains: fmt(o.remains),
         sTxt: m[0], sBg: m[1], sFg: m[2], sBc: m[3],
         canCancel: o.status === 'pending', canRefill: o.status === 'completed' && s.hasRefill, refillTxt: st.ostatus['r' + o.id] ? 'Refill diajukan' : 'Refill',
         cancelBusy: st.cancelBusyId === o.orderId,
@@ -711,7 +778,7 @@ class DashboardPage extends React.Component {
       var rf = (st.refundList || []).filter(function (x) { return x.pesanan === String(o.orderId); })[0];
       var pk = REF_S[rf ? rf.status : 'belum'];
       var est = o.biaya > 0 && o.qty > 0 ? Math.round(o.biaya * Math.min(o.remains, o.qty) / o.qty) : 0;
-      return { id: o.id, date: o.date, amt: 'Rp ' + fmt(rf ? rf.jumlah : est), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanBusy: !!st.refundBusy, ajukanFn: function () { self.ajukanRefund(o.orderId); } };
+      return { id: o.id, date: o.date, amt: formatCurrency(rf ? rf.jumlah : est, st.cur, st.kurs), statusTxt: pk[0], statusBg: pk[1], statusFg: pk[2], ajukan: !rf && (o.raw === 'Canceled' || o.raw === 'Partial') && o.biaya > 0, ajukanBusy: !!st.refundBusy, ajukanFn: function () { self.ajukanRefund(o.orderId); } };
     });
 
     /* ---------- add funds ---------- */
@@ -738,11 +805,12 @@ class DashboardPage extends React.Component {
       place: T('Buat pesanan', 'Place your order'), category: T('Kategori', 'Category'), service: T('Layanan', 'Service'), qty: T('Jumlah', 'Quantity'),
       subtotal: T('Subtotal', 'Sub Total'), submit: T('Kirim Pesanan', 'Place Order'), memproses: T('Memproses...', 'Processing...'), notif: T('Notifikasi', 'Notifications'), lang: T('Bahasa', 'Language'),
       updates: T('Update', 'Updates'), close: T('Tutup', 'Close'), viewAll: T('Lihat Semua', 'View All'), noUpd: T('Tidak ada update.', 'No updates.'),
+      retry: T('Coba Lagi', 'Retry'), link: T('Link', 'Link'), searchService: T('Cari layanan', 'Search service'), openMassOrder: T('Buka Pesanan Massal', 'Open Mass Order'), massOrderHint: T('Buat banyak pesanan sekaligus di halaman khusus Pesanan Massal.', 'Create many orders at once on the dedicated Mass Order page.'),
       themeLbl: st.theme === 'dark' ? T('Gelap', 'Dark') : T('Terang', 'Light'), themeAria: T('Ganti tema', 'Toggle theme'), speed: T('Kecepatan', 'Service Speed'), minmax: T('Min — Maks', 'Min - Max'), guar: T('Garansi', 'Guaranteed'), desc: T('Deskripsi', 'Description'), svcId: T('ID Layanan', 'Product ID'), start: T('Mulai', 'Start'), trusted: T('Provider Terpercaya', 'Trusted Provider Service'), notes: T('Catatan', 'Notes'), n1: T('Pastikan akun/postingan tidak di-private.', 'Make sure your profile is public before ordering.'), n2: T('Jangan pesan ulang link yang sama sebelum pesanan pertama selesai.', 'Do not place a second order on the same link before the first one is completed.'), n3: T('Pesanan yang sudah berjalan tidak bisa dibatalkan.', 'Cancellation is not available once the order has started.'), myAcc: T('Akun Saya', 'My Account'), rankTitle: T('Sistem Peringkat', 'Rank System'), aff: T('Afiliasi', 'Affiliates'), view: T('Lihat Profil', 'View'), acc: T('Akun', 'Account'), tickets: T('Tiket', 'Tickets'), lastUpd: T('Update terakhir', 'Last update'), ticket: T('Tiket', 'Ticket'), orderId: T('ID Pesanan', 'Order ID'), supportTeam: T('Tim Support', 'Support Team'), message: T('Tulis pesan', 'Message'), attach: T('Lampirkan file', 'Attach file'), send: T('Kirim', 'Send'), waitReply: T('Pesan terkirim. Tim support akan membalas secepatnya.', 'Message sent. Our support team will reply soon.'), yourRank: T('Peringkat kamu', 'Your rank')
     };
     var updData = (st.riwayat || []).map(function (x) { return [x.tanggal, x.layananId, x.tipe, x.lama, x.baru]; });
     var UPS = { up: [T('Harga naik', 'Rate increased'), 'rgba(var(--accent-rgb),.1)', 'var(--rt)'], down: [T('Harga turun', 'Rate decreased'), 'rgba(34,197,94,.1)', 'var(--gr)'], off: [T('Layanan dinonaktifkan', 'Service disabled'), 'var(--s4)', 'var(--t3)'], 'new': [T('Layanan baru ditambahkan', 'New service added'), 'rgba(59,130,246,.1)', 'var(--bl)'] };
-    var mkUpd = function (u) { var sv = byId[u[1]] || { name: 'Layanan ' + u[1], icon: I.all, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)' }, m = UPS[u[2]]; return { id: u[1], name: sv.name, icon: sv.icon, platColor: sv.platColor, platRgb: sv.platRgb, bg: m[1], fg: m[2], msg: u[3] ? m[0] + ' ' + T('dari', 'from') + ' ' + u[3] + ' ' + T('ke', 'to') + ' ' + u[4] : m[0] }; };
+    var mkUpd = function (u) { var sv = byId[u[1]] || { name: 'Layanan ' + u[1], icon: I.all, platColor: 'var(--accent-l)', platRgb: 'var(--accent-rgb)', platChipBg: 'rgba(var(--accent-rgb),.14)', platChipBorder: 'rgba(var(--accent-rgb),.35)' }, m = UPS[u[2]]; return { id: u[1], name: sv.name, icon: sv.icon, platColor: sv.platColor, platRgb: sv.platRgb, platChipBg: sv.platChipBg, platChipBorder: sv.platChipBorder, bg: m[1], fg: m[2], msg: u[3] ? m[0] + ' ' + T('dari', 'from') + ' ' + u[3] + ' ' + T('ke', 'to') + ' ' + u[4] : m[0] }; };
     var groupDays = function (list) { var out = [], idx = {}; list.forEach(function (u) { if (!(u[0] in idx)) { idx[u[0]] = out.length; out.push({ date: u[0], items: [] }); } out[idx[u[0]]].items.push(mkUpd(u)); }); return out; };
     var updPage = updData.filter(function (u) { return st.updF === 'all' || u[2] === st.updF; });
     var atabDef = [
@@ -755,7 +823,7 @@ class DashboardPage extends React.Component {
     ];
     var atabCur = atabDef.filter(function (t) { return t[0] === st.atab; })[0] || atabDef[0];
     var balSym = st.cur === 'IDR' ? 'Rp' : '$';
-    var uang = function (n) { return st.cur === 'IDR' ? 'Rp ' + fmt(n) : '$ ' + (n / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+    var uang = function (n) { return formatCurrency(n, st.cur, st.kurs); };
     var pg = pages[st.page] || pages.neworder;
     var is = {}; ['neworder', 'services', 'orders', 'addfunds', 'tickets', 'refunds', 'affiliates', 'account', 'massorder', 'updates', 'ticket', 'soon'].forEach(function (k) { is[k] = st.page === k; });
 
@@ -765,7 +833,7 @@ class DashboardPage extends React.Component {
       ranks: (st.peringkat ? st.peringkat.tiers : []).map(function (r, i, arr) {
         var next = arr[i + 1];
         var cur = st.peringkat && i === st.peringkat.index;
-        return { name: r.nama, range: next ? 'Rp ' + fmt(r.min) + ' – Rp ' + fmt(next.min - 1) : 'Rp ' + fmt(r.min) + '+', cur: !!cur, bc: cur ? 'var(--accent)' : 'var(--b3)', bg: cur ? 'var(--r1)' : 'var(--s4)',
+        return { name: r.nama, range: next ? formatCurrency(r.min, st.cur, st.kurs) + ' – ' + formatCurrency(next.min - 1, st.cur, st.kurs) : formatCurrency(r.min, st.cur, st.kurs) + '+', cur: !!cur, bc: cur ? 'var(--accent)' : 'var(--b3)', bg: cur ? 'var(--r1)' : 'var(--s4)',
           perks: r.benefit.map(function (t) { return { t: t, mark: '✓', ib: 'rgba(34,197,94,.14)', ic: 'var(--gr)' }; }) };
       }),
       tr: tr, themeCls: st.theme === 'dark' ? 'theme-dark' : 'theme-light', isDark: st.theme === 'dark', isLight: st.theme !== 'dark',
@@ -785,9 +853,11 @@ class DashboardPage extends React.Component {
       updDays: groupDays(updData), goUpdates: go('updates', { updOpen: false }),
       updFilters: [['all', T('Semua', 'All')], ['up', T('Harga naik', 'Rate increased')], ['down', T('Harga turun', 'Rate decreased')], ['off', T('Dinonaktifkan', 'Disabled')], ['new', T('Layanan baru', 'New')]].map(function (f) { var on = st.updF === f[0]; return { t: f[1], on: on, bg: on ? 'var(--accent)' : 'var(--s1)', fg: on ? '#FFFFFF' : 'var(--hi)', bc: on ? 'var(--accent)' : 'var(--b3)', pick: set({ updF: f[0] }) }; }),
       updPageDays: groupDays(updPage), updEmpty: updPage.length === 0,
-      riwayatGagal: st.riwayatGagal, cobaLagiRiwayat: function () { self.muatRiwayat(); },
+      riwayatGagal: st.riwayatGagal, riwayatErr: st.riwayatErr, cobaLagiRiwayat: function () { self.muatRiwayat(); },
       is: is, pg: pg, showBanner: st.page !== 'neworder' && st.page !== 'account' && st.page !== 'ticket',
-      mainBg: st.page === 'neworder' ? (L ? 'radial-gradient(900px 340px at 85% 0%,rgba(var(--accent-rgb),.07),rgba(var(--accent-rgb),0) 70%),#FFFFFF' : 'linear-gradient(180deg,var(--g1) 0,var(--bg) 340px)') : 'var(--bg)',
+      /* Gradient tipis di atas halaman — dipakai di SEMUA halaman dashboard (dulu cuma New Order),
+         supaya latar tidak terasa datar/kosong di manapun user berada, bukan cuma di satu halaman. */
+      mainBg: L ? 'radial-gradient(900px 340px at 85% 0%,rgba(var(--accent-rgb),.07),rgba(var(--accent-rgb),0) 70%),#FFFFFF' : 'linear-gradient(180deg,var(--g1) 0,var(--bg) 340px)',
       menu1: menu1,
       menu2: [
         { t: T('Info WhatsApp', 'WhatsApp Announcements'), fa: 'fa-brands fa-whatsapp', icon: 'M3 21l1.6-4.8A9 9 0 1 1 7.8 19.4zM9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2z', ic: 'currentColor', href: 'https://whatsapp.com/channel/0029VbDlg3EIt5s051wllX3B' },
@@ -800,15 +870,17 @@ class DashboardPage extends React.Component {
       balOpen: st.hdd === 'bal', profOpen: st.hdd === 'prof', sideOpen: st.hdd === 'side', sideRot: st.hdd === 'side' ? 'rotate(180deg)' : 'none', sideBc: st.hdd === 'side' ? 'var(--accent)' : 'var(--b3)', toggleSide: set({ hdd: st.hdd === 'side' ? '' : 'side' }),
       balBc: st.hdd === 'bal' ? 'var(--accent)' : 'var(--b3)', profBc: st.hdd === 'prof' ? 'var(--accent)' : 'var(--b3)',
       toggleBal: set({ hdd: st.hdd === 'bal' ? '' : 'bal' }), toggleProf: set({ hdd: st.hdd === 'prof' ? '' : 'prof' }),
-      curSym: balSym, balTxt: st.cur === 'IDR' ? 'Rp ' + fmt(st.saldo || 0) : '$ ' + ((st.saldo || 0) / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      curSym: balSym, balTxt: formatCurrency(st.saldo || 0, st.cur, st.kurs),
       curs: [['IDR', 'Rp'], ['USD', '$']].map(function (c) { var on = st.cur === c[0]; return { code: c[0], sym: c[1], on: on, bg: on ? 'var(--r3)' : 'transparent', pick: set({ cur: c[0], hdd: '' }) }; }),
 
-      /* new order */
+      /* new order — satu warna semantik berbeda per kartu (independen dari warna aksen tema yang
+         bisa diganti user di Pengalaman Pengguna), supaya 4 kartu langsung bisa dibedakan sekilas
+         tanpa baca labelnya dulu: biru=saldo, oranye=jumlah pesanan, hijau=peringkat, merah=belanja. */
       stats: [
-        { fa: 'fa-solid fa-wallet', c: L ? 'var(--accent)' : 'var(--accent-l)', tint: 'rgba(var(--accent-rgb),' + (L ? '.07' : '.12') + ')', line: 'rgba(var(--accent-rgb),' + (L ? '.22' : '.3') + ')', l: T('Saldo Akun', 'Account Balance'), v: uang(st.saldo || 0), a: T('Isi Saldo', 'Add funds'), icon: 'M21 12V7H3v12h9M3 11h18M18 21v-6M15 18l3-3 3 3', go: go('addfunds') },
-        { fa: 'fa-solid fa-cart-shopping', c: L ? 'var(--accent)' : 'var(--accent-l)', tint: 'rgba(var(--accent-rgb),' + (L ? '.07' : '.12') + ')', line: 'rgba(var(--accent-rgb),' + (L ? '.22' : '.3') + ')', l: T('Total Pesanan', 'Total Orders'), v: String((st.myOrders || []).length), a: T('Pesanan Saya', 'My Orders'), icon: 'M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M9 21h.01M18 21h.01', go: go('orders') },
-        { fa: 'fa-solid fa-gem', c: L ? 'var(--accent)' : 'var(--accent-l)', tint: 'rgba(var(--accent-rgb),' + (L ? '.07' : '.12') + ')', line: 'rgba(var(--accent-rgb),' + (L ? '.22' : '.3') + ')', l: T('Peringkat', 'User Rank'), v: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', a: T('Lihat Peringkat', 'See Ranks'), icon: 'M6 3h12l4 6-10 12L2 9zM2 9h20M10 3 8 9l4 12 4-12-2-6', go: set({ rankOpen: true, hdd: '' }) },
-        { fa: 'fa-solid fa-wallet', c: L ? 'var(--accent)' : 'var(--accent-l)', tint: 'rgba(var(--accent-rgb),' + (L ? '.07' : '.12') + ')', line: 'rgba(var(--accent-rgb),' + (L ? '.22' : '.3') + ')', l: T('Total Belanja', 'Spent Balance'), v: uang((st.myOrders || []).reduce(function (t, o) { return t + (o.biaya || 0); }, 0)), a: T('Isi Saldo', 'Add funds'), icon: 'M21 12V7H3v12h9M3 11h18M18 15v6M15 18l3 3 3-3', go: go('addfunds') }
+        { fa: 'fa-solid fa-wallet', c: L ? '#2563EB' : '#60A5FA', tint: L ? 'rgba(37,99,235,.08)' : 'rgba(96,165,250,.12)', line: L ? 'rgba(37,99,235,.25)' : 'rgba(96,165,250,.3)', l: T('Saldo Akun', 'Account Balance'), v: uang(st.saldo || 0), a: T('Isi Saldo', 'Add funds'), icon: 'M21 12V7H3v12h9M3 11h18M18 21v-6M15 18l3-3 3 3', go: go('addfunds') },
+        { fa: 'fa-solid fa-cart-shopping', c: L ? '#C2410C' : '#FB923C', tint: L ? 'rgba(194,65,12,.08)' : 'rgba(251,146,60,.12)', line: L ? 'rgba(194,65,12,.25)' : 'rgba(251,146,60,.3)', l: T('Total Pesanan', 'Total Orders'), v: String((st.myOrders || []).length), a: T('Pesanan Saya', 'My Orders'), icon: 'M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6.2M9 21h.01M18 21h.01', go: go('orders') },
+        { fa: 'fa-solid fa-gem', c: L ? '#15803D' : '#4ADE80', tint: L ? 'rgba(21,128,61,.08)' : 'rgba(74,222,128,.12)', line: L ? 'rgba(21,128,61,.25)' : 'rgba(74,222,128,.3)', l: T('Peringkat', 'User Rank'), v: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', a: T('Lihat Peringkat', 'See Ranks'), icon: 'M6 3h12l4 6-10 12L2 9zM2 9h20M10 3 8 9l4 12 4-12-2-6', go: set({ rankOpen: true, hdd: '' }) },
+        { fa: 'fa-solid fa-wallet', c: L ? '#DC2626' : '#F87171', tint: L ? 'rgba(220,38,38,.08)' : 'rgba(248,113,113,.12)', line: L ? 'rgba(220,38,38,.25)' : 'rgba(248,113,113,.3)', l: T('Total Belanja', 'Spent Balance'), v: uang((st.myOrders || []).reduce(function (t, o) { return t + (o.biaya || 0); }, 0)), a: T('Isi Saldo', 'Add funds'), icon: 'M21 12V7H3v12h9M3 11h18M18 15v6M15 18l3 3 3-3', go: go('addfunds') }
       ],
       platCols: (function (n) {
         if (n % 6 === 0) return 6;
@@ -843,7 +915,7 @@ class DashboardPage extends React.Component {
         ? (hasQty && !qtyOk ? 'Jumlah baris harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt : 'Jumlah mengikuti banyak baris di atas (Min: ' + svc.minTxt + ' — Maks: ' + svc.maxTxt + ')')
         : (hasQty && !qtyOk ? 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt : 'Min: ' + svc.minTxt + ' — Maks: ' + svc.maxTxt)) : '',
       qtyColor: hasQty && !qtyOk ? 'var(--rt)' : 'var(--t5)',
-      subtotal: svc && hasQty ? 'Rp ' + fmt(svc.price * qtyN / 1000 * (1 - (st.peringkat && st.peringkat.index !== undefined ? (st.peringkat.tiers[st.peringkat.index].diskon || 0) : 0) / 100)) : 'Rp 0',
+      subtotal: formatCurrency(svc && hasQty ? svc.price * qtyN / 1000 * (1 - (st.peringkat && st.peringkat.index !== undefined ? (st.peringkat.tiers[st.peringkat.index].diskon || 0) : 0) / 100) : 0, st.cur, st.kurs),
       submitOrder: function (e) {
         if (e && e.preventDefault) e.preventDefault();
         if (st.sending) return;
@@ -939,8 +1011,8 @@ class DashboardPage extends React.Component {
       refundGagal: st.refundGagal, cobaLagiRefund: function () { self.muatRefund(); },
 
       /* add funds */
-      amts: amtList.map(function (a) { var on = st.amtKey === a; var s2 = segStyle(on); return { t: a === 'custom' ? 'Custom' : 'Rp ' + fmt(a), on: on, bg: s2.bg, fg: s2.fg, pick: set({ amtKey: a, paid: false }) }; }),
-      amtVal: amtVal, amtKurang: amtVal !== '' && !(amtN >= 10000), amtFmt: !isNaN(amtN) && amtN > 0 ? 'Rp ' + fmt(amtN) : '',
+      amts: amtList.map(function (a) { var on = st.amtKey === a; var s2 = segStyle(on); return { t: a === 'custom' ? 'Custom' : formatCurrency(a, st.cur, st.kurs), on: on, bg: s2.bg, fg: s2.fg, pick: set({ amtKey: a, paid: false }) }; }),
+      amtVal: amtVal, amtKurang: amtVal !== '' && !(amtN >= 10000), amtFmt: !isNaN(amtN) && amtN > 0 ? formatCurrency(amtN, st.cur, st.kurs) : '',
       amtBc: st.amtKey === 'custom' ? 'var(--accent)' : 'var(--b3)',
       setAmt: function (e) { self.setState({ amtKey: 'custom', amtCustom: e.target.value, paid: false }); },
       mOpen: st.mOpen, toggleM: set({ mOpen: !st.mOpen }),
@@ -970,7 +1042,7 @@ class DashboardPage extends React.Component {
         var lbl = { Berhasil: T('Berhasil', 'Success'), Menunggu: T('Menunggu', 'Pending'), Gagal: T('Gagal', 'Failed') }[p.status] || p.status;
         var c = { Berhasil: '#22C55E', Menunggu: '#F59E0B', Gagal: '#FF5A75' }[p.status] || 'var(--t3)';
         var pill = { Berhasil: '#14532D', Menunggu: '#78350F', Gagal: '#7F1D1D' }[p.status] || '#27272A';
-        return { id: p.id, tgl: p.tgl, metode: p.metode, jumlah: st.cur === 'IDR' ? 'Rp ' + fmt(p.jumlah) : '$ ' + (p.jumlah / (st.kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), status: lbl, c: c, pill: pill, bisaDibayar: p.status === 'Menunggu' && !!p.bayarUrl, bayarUrl: p.bayarUrl };
+        return { id: p.id, tgl: p.tgl, metode: p.metode, jumlah: formatCurrency(p.jumlah, st.cur, st.kurs), status: lbl, c: c, pill: pill, bisaDibayar: p.status === 'Menunggu' && !!p.bayarUrl, bayarUrl: p.bayarUrl };
       }),
       paid: st.paid, bayarBusy: st.bayarBusy, bayarUrl: st.bayarUrl, uname: st.username || '—', notifList: st.notifList, notifUnread: st.notifUnread, notifWaktu: function (iso) { var t = new Date(iso).getTime(); return Number.isNaN(t) ? '' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' WIB'; }, toast: st.toast, closeToast: function () { self.tutupToast(); }, uemail: st.email || '—', uinit: (st.username || '?').charAt(0).toUpperCase(), rankName: st.peringkat && st.peringkat.index !== undefined ? st.peringkat.tiers[st.peringkat.index].nama : '—', bonusTxt: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus ' + bonusDariPeringkat(st.peringkat) + '% untuk setiap deposit sesuai peringkat kamu. Biaya QRIS ditanggung kamu.' : 'Biaya QRIS ditanggung kamu.', bonusJudul: bonusDariPeringkat(st.peringkat) > 0 ? 'Bonus Deposit ' + bonusDariPeringkat(st.peringkat) + '%' : 'Bonus Deposit', bonusDesk: bonusDariPeringkat(st.peringkat) > 0 ? 'Setiap deposit yang disetujui otomatis mendapat bonus ' + bonusDariPeringkat(st.peringkat) + '% sesuai peringkat kamu, dan masuk ke saldo bersama nominal deposit.' : 'Peringkat kamu saat ini belum mendapat bonus deposit. Naik peringkat untuk mendapat bonus.', lastDep: st.lastDep, cekMsg: st.cekMsg, cekBayar: function () { self.cekBayar(); }, depErr: st.depErr, saldo: st.saldo,
 
@@ -993,7 +1065,8 @@ class DashboardPage extends React.Component {
       },
       sendTicket: function (e) {
         if (e && e.preventDefault) e.preventDefault();
-        if (!st.tmsg.trim() || st.ticketBusy) return;
+        if (st.ticketBusy) return;
+        if (!st.tmsg.trim()) { self.tampilkanToast(false, 'Pesan tidak boleh kosong.'); return; }
         self.setState({ ticketBusy: true });
         fetch('/api/tickets?as=user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kategori: st.tcat, sub: st.tsub, orderId: st.tcat === 'order' ? st.tid.trim() : '', pesan: st.tmsg.trim(), lampiran: st.tfile || undefined }) })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
@@ -1085,8 +1158,8 @@ class DashboardPage extends React.Component {
 
       /* affiliates */
       affGagal: st.affGagal, refLink: st.aff ? (typeof window !== 'undefined' ? window.location.origin : '') + '/register?ref=' + encodeURIComponent(st.aff.username) : '',
-      affStats: [['Rate komisi', st.aff ? st.aff.persen + '%' : '—'], ['Minimal penarikan', 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000)], ['Pendaftaran', String(st.aff ? st.aff.pendaftaran : 0)], ['Total pendapatan', 'Rp ' + fmt(st.aff ? st.aff.komisiTotal : 0)], ['Pendapatan tersedia', 'Rp ' + fmt(st.aff ? st.aff.komisi : 0)]].map(function (a) { return { l: a[0], v: a[1] }; }),
-      minTarikTxt: 'Rp ' + fmt(st.aff ? st.aff.minTarik : 10000),
+      affStats: [['Rate komisi', st.aff ? st.aff.persen + '%' : '—'], ['Minimal penarikan', formatCurrency(st.aff ? st.aff.minTarik : 10000, st.cur, st.kurs)], ['Pendaftaran', String(st.aff ? st.aff.pendaftaran : 0)], ['Total pendapatan', formatCurrency(st.aff ? st.aff.komisiTotal : 0, st.cur, st.kurs)], ['Pendapatan tersedia', formatCurrency(st.aff ? st.aff.komisi : 0, st.cur, st.kurs)]].map(function (a) { return { l: a[0], v: a[1] }; }),
+      minTarikTxt: formatCurrency(st.aff ? st.aff.minTarik : 10000, st.cur, st.kurs),
       afiliasiTxt: 'Bagikan link ini. Setiap kali orang yang kamu ajak isi saldo, kamu dapat komisi ' + (st.aff ? st.aff.persen : 5) + '% dari depositnya. Komisi bisa dipindah ke saldo untuk belanja layanan.',
       wdJumlah: st.wdJumlah, setWdJumlah: function (e) { self.setState({ wdJumlah: e.target.value }); },
       wdBusy: st.wdBusy, tarikKomisi: function () { self.tarikKomisi(); },
@@ -1149,6 +1222,11 @@ class DashboardPage extends React.Component {
 .theme-light .card{border-color:#E2E8F0}
 .theme-light .inp,.theme-light .dd{border-color:#E6E8EC}
 .theme-light .card,.theme-light .menu,.theme-light .ddpanel{box-shadow:0 4px 16px rgba(16,24,40,.07)}
+/* Dark mode sebelumnya cuma punya border 1px buat misahin kartu dari background — dua-duanya
+   nyaris sama gelapnya (s1 #111115 vs bg #0B0B0E), jadi kartu kelihatan nyaris nyatu/flat dengan
+   latar. Shadow lembut di sini bikin kartu kelihatan "naik" dari background, konsisten dengan efek
+   yang sudah ada di light mode. */
+.theme-dark .card{box-shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.55)}
 .theme-light .dash-head{background:linear-gradient(180deg,rgba(var(--accent-rgb),.06) 0%,rgba(var(--accent-rgb),0) 100%)}
 body{margin:0;background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 html{scroll-behavior:smooth}
@@ -1161,7 +1239,7 @@ button:active:not(:disabled){transform:scale(.97)}
 .submit:disabled{opacity:.55;box-shadow:none}
 .ghost:hover{transform:translateY(-1px)}
 .card,.inp,.dd,.ta{transition:border-color .15s ease,box-shadow .15s ease}
-.sb{width:100%;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--t3);padding:11px 12px;border-radius:12px;border:none;background:transparent;cursor:pointer;text-align:left;min-height:44px}
+.sb{width:100%;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--t3);padding:12px;border-radius:12px;border:none;background:transparent;cursor:pointer;text-align:left;min-height:48px;box-sizing:border-box}
 .sb:hover{background:var(--s3);color:var(--hi)}
 .card{background:var(--s1);border:1px solid var(--b2);border-radius:16px}
 .ibtn{width:38px;height:38px;border-radius:10px;background:var(--s2);border:1px solid var(--b3);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2)}
@@ -1182,8 +1260,35 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
 .plat-grid{display:grid;grid-template-columns:repeat(var(--plat-cols,6),minmax(0,1fr));gap:8px}
 .plat-grid .ptab{width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:12px 8px}
 .nav-toggle{display:none;align-items:center;justify-content:center;width:38px;height:38px;flex:none;border-radius:10px;background:var(--s2);border:1px solid var(--b3);color:var(--t2);cursor:pointer}
+/* "dvh" (dynamic viewport height) dideklarasikan SETELAH "vh" dengan sengaja — browser yang belum
+   kenal "dvh" mengabaikan baris itu (tetap pakai vh di atasnya), yang sudah dukung akan menimpanya.
+   Di Safari iOS, 100vh dihitung dari tinggi viewport TERBESAR (seolah address bar sudah collapse),
+   jadi drawer sidebar mobile (.dash-aside.buka) bisa lebih tinggi dari layar yang benar-benar
+   terlihat saat address bar belum collapse — Logout/Pengaturan di paling bawah bisa kelihatan
+   kepotong padahal sebenarnya cuma butuh discroll dikit, atau malah beneran di luar jangkauan kalau
+   drawer-nya sendiri tidak scrollable. 100dvh mengikuti tinggi viewport yang BENERAN terlihat saat itu. */
+.dash-aside{height:100vh;height:100dvh}
 @media (max-width:1100px){.plat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .acc-bleed{margin:-34px -40px -60px}
+/* Setiap halaman dashboard (kecuali Pesanan Baru/Akun, yang tidak pakai dash-hero) menarik kontennya
+   sedikit ke atas supaya kartu pertamanya terlihat "melayang" di atas gradasi dash-hero — efek visual
+   murni, dikalibrasi untuk tinggi dash-hero di desktop. Sebelumnya nilainya inline (-58px/-80px) di tiap
+   file halaman, tetap sama persis di mobile — begitu baris filter/judulnya melebar jadi 2 baris (flex-wrap,
+   jamak terjadi di layar sempit) atau dash-main kehilangan padding-top ekstra, baris PALING ATAS hasil
+   wrap itu ketarik sampai berada SEBELUM batas atas <main> (yang scrollable, overflow-y:auto) — bukan
+   cuma ketutup dash-hero, tapi benar-benar di luar area scroll-nya sehingga tidak mungkin terlihat sama
+   sekali (dikonfirmasi lewat getBoundingClientRect: tombol filter "Semua" di halaman Pesanan render pada
+   y lebih kecil dari batas atas <main>). Mobile tidak butuh efek "melayang" ini sama sekali — direset ke 0
+   di bawah supaya konten dashboard selalu ada DI DALAM <main>, bukan patch per-halaman. */
+.dash-pull-sm{margin-top:-58px}
+.dash-pull-lg{margin-top:-80px}
+.dash-hero{position:relative;overflow:hidden;padding:70px 40px 70px;border-bottom:1px solid var(--b1)}
+/* Baris chip filter yang bisa lebih dari 4-5 item (mis. filter Update) — di layar sempit, flex-wrap
+   bikin baris kedua yang gampang ketutup/ganjil. Satu baris, scroll ke samping, scrollbar disembunyikan
+   (tetap bisa discroll lewat sentuhan/mouse), dipakai di manapun ada baris chip filter. */
+.dash-hscroll{display:flex;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.dash-hscroll::-webkit-scrollbar{display:none}
+.dash-hscroll>*{flex:none}
 @media (max-width:900px){
   .nav-toggle{display:inline-flex}
   .dash-crumb{flex:1 1 auto;min-width:0}
@@ -1196,13 +1301,27 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
   .acc-head-pad{padding:24px 20px !important}
   .acc-pad{padding:22px 20px !important}
   html,body{max-width:100vw !important;overflow-x:hidden !important;background:#0A0A0C !important}
+  /* Tidak ada lagi tumpang tindih dengan dash-hero: filter/judul/tombol tiap halaman selalu mulai
+     bersih setelah hero, tidak pernah ketarik ke luar area scroll <main>. */
+  .dash-pull-sm,.dash-pull-lg,.aff-card{margin-top:0 !important}
+  .dash-hero{padding:28px 20px 26px !important}
+  /* Dropdown header (bahasa/saldo/akun) dulu posisinya "absolute" relatif ke tombol pemicunya
+     dengan right:0 dan lebar tetap (170-200px) — kalau tombolnya dekat ujung kiri header (mis.
+     tombol bahasa, yang berbaris dengan banyak ikon lain di layar sempit), sisi KIRI panelnya bisa
+     jatuh di luar layar (x negatif), persis "dropdown ... keluar layar" yang dilaporkan. Daripada
+     menghitung posisi aman per tombol (perlu JS, beda-beda tiap kali ikon di header berubah),
+     dropdown header dipindah jadi "sheet" mengambang di tengah layar — lebarnya dikurangi margin
+     aman kiri-kanan, tingginya dibatasi + bisa discroll — jadi PASTI tidak pernah keluar viewport
+     berapa pun posisi tombol pemicunya. Tidak berlaku untuk menu di dalam sidebar (sudah sempit
+     secara alami) atau panel dropdown lain (.ddpanel, lebar penuh form-nya sendiri, aman). */
+  .dash-head .menu{position:fixed !important;left:12px !important;right:12px !important;top:50% !important;bottom:auto !important;width:auto !important;max-width:none !important;max-height:70vh !important;overflow:auto !important;transform:translateY(-50%)}
+  .dash-aside .menu{position:absolute !important;transform:none !important}
 }
 @media (max-width:640px){
   /* iOS memperbesar halaman kalau font input di bawah 16px. */
   .inp,.ta,input,select,textarea{font-size:16px !important}
   .dash-main{gap:16px !important}
   .dash-theme-lbl{display:none !important}
-  .aff-card{margin-top:0 !important}
   .dash-head{flex-wrap:wrap !important;gap:8px !important}
   .seg{flex:1 1 auto !important;min-width:fit-content !important;padding:10px 10px !important;font-size:12px !important;white-space:nowrap !important}
 }
@@ -1237,7 +1356,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
 .sw span{position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#FFFFFF;transition:left .15s}
 `}</style>
       <div className={v.themeCls} style={{ ...v.accentVars, fontFamily: "'Inter',system-ui,sans-serif", color: "var(--tx)", background: "var(--bg)", minHeight: "100vh", display: "flex", flexWrap: "wrap" }}>
-        <aside className={"dash-aside" + (v.navOpen ? " buka" : "")} style={{ flex: "1 1 230px", maxWidth: "250px", minWidth: "0", borderRight: "1px solid var(--b1)", padding: "22px 16px", display: "flex", flexDirection: "column", gap: "2px", boxSizing: "border-box", position: "sticky", top: "0", alignSelf: "flex-start", height: "100vh", overflowX: "hidden", overflowY: "auto" }}>
+        <aside className={"dash-aside" + (v.navOpen ? " buka" : "")} style={{ flex: "1 1 230px", maxWidth: "250px", minWidth: "0", borderRight: "1px solid var(--b1)", padding: "22px 16px", display: "flex", flexDirection: "column", gap: "2px", boxSizing: "border-box", position: "sticky", top: "0", alignSelf: "flex-start", overflowX: "hidden", overflowY: "auto" }}>
           <Link href="/dashboard" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "22px", padding: "6px" }}>
             <img src="/icon.png" alt="" aria-hidden="true" className="logo-mark" width="24" height="24" style={{ borderRadius: "8px", display: "block" }} />
             <span style={{ fontSize: "17px", fontWeight: "800", color: "var(--hi)", letterSpacing: "-.03em" }}>
@@ -1245,15 +1364,15 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
             </span>
           </Link>
           <div style={{ position: "relative", marginBottom: "14px" }}>
-            <button type="button" onClick={v.toggleSide} aria-haspopup="menu" aria-expanded={v.sideOpen} style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", background: "var(--s2)", border: `1px solid ${v.sideBc}`, borderRadius: "12px", padding: "10px", cursor: "pointer", color: "var(--hi)", textAlign: "left", fontFamily: "inherit" }}>
-              <span style={{ width: "32px", height: "32px", borderRadius: "9px", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800" }}>
+            <button type="button" onClick={v.toggleSide} aria-haspopup="menu" aria-expanded={v.sideOpen} style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", background: "var(--s2)", border: `1px solid ${v.sideBc}`, borderRadius: "14px", padding: "12px", minHeight: "64px", boxSizing: "border-box", cursor: "pointer", color: "var(--hi)", textAlign: "left", fontFamily: "inherit" }}>
+              <span style={{ width: "40px", height: "40px", borderRadius: "11px", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", fontWeight: "800", flex: "none" }}>
                 A
               </span>
-              <span style={{ flex: "1", lineHeight: "1.35" }}>
-                <span style={{ display: "block", fontSize: "10px", color: "var(--t5)" }}>
+              <span style={{ flex: "1", lineHeight: "1.35", minWidth: "0" }}>
+                <span style={{ display: "block", fontSize: "12px", color: "var(--t5)" }}>
                   {v.tr.myAcc}
                 </span>
-                <span style={{ fontSize: "13px", fontWeight: "600" }}>
+                <span style={{ fontSize: "14px", fontWeight: "600" }}>
                   {v.uname}
                 </span>
               </span>
@@ -1266,7 +1385,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                     <div style={{ fontSize: "13px", fontWeight: "700" }}>
                       {v.uname}
                     </div>
-                    <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "2px" }}>
                       {v.uemail}
                     </div>
                     <button type="button" className="ghost" onClick={v.goAccount} style={{ width: "100%", justifyContent: "center", marginTop: "12px", height: "36px" }}>
@@ -1291,11 +1410,11 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
               </>
             ) : null}
           </div>
-          <nav aria-label="Menu panel" style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <nav aria-label="Menu panel" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {(v.menu1 || []).map((m, $index) => (
               <React.Fragment key={$index}>
                 <button type="button" className="sb" onClick={m.go} aria-current={m.cur} style={{ background: m.bg, color: m.fg, boxShadow: m.sh, fontWeight: m.fw }}>
-                  <i className={m.fa} aria-hidden="true" style={{ color: m.ic, flex: "none", width: "17px", textAlign: "center", fontSize: "16px" }} />
+                  <LuIcon icon={m.Icon} size={20} style={{ color: m.ic, width: "20px" }} />
                   <span style={{ flex: "1" }}>
                     {m.t}
                   </span>
@@ -1333,11 +1452,11 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
           ))}
           <div style={{ height: "1px", background: "var(--b2)", margin: "14px 10px" }} />
           <button type="button" className="sb" onClick={v.goAccount} style={{ background: v.setBg, color: v.setFg }}>
-            <FaIcon d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" size={17} style={{ color: v.setIc, flex: "none" }} />
+            <LuIcon icon={LU_MENU.settings} size={20} style={{ color: v.setIc }} />
             {v.tr.settings}
           </button>
           <a className="sb" href="/api/auth/logout">
-            <FaIcon d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" size={17} />
+            <LuIcon icon={LU_MENU.logout} size={20} />
             {v.tr.logout}
           </a>
         </aside>
@@ -1356,12 +1475,12 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                   {v.pg.crumb}
                 </span>
               </div>
-              <div style={{ fontSize: "11px", color: "var(--t5)", marginTop: "4px" }}>
+              <div style={{ fontSize: "12px", color: "var(--t5)", marginTop: "4px" }}>
                 {v.pg.hint}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <button type="button" className="ibtn" onClick={v.toggleTheme} aria-label={v.tr.themeAria} style={{ width: "auto", padding: "0 12px", gap: "6px", fontSize: "11px" }}>
+              <button type="button" className="ibtn" onClick={v.toggleTheme} aria-label={v.tr.themeAria} style={{ width: "auto", padding: "0 12px", gap: "6px", fontSize: "12px" }}>
                 {v.isDark ? (
                   <>
                     <FaIcon d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" size={15} style={{ color: "var(--t1)" }} />
@@ -1433,7 +1552,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                   <span style={{ width: "30px", height: "30px", borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "12px" }}>
                     A
                   </span>
-                  <FaIcon d="M4 7h16M4 12h16M4 17h16" size={15} />
+                  <FaIcon d="M6 9l6 6 6-6" size={13} />
                 </button>
                 {v.profOpen ? (
                   <>
@@ -1442,7 +1561,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         <div style={{ fontSize: "13px", fontWeight: "700" }}>
                           {v.uname}
                         </div>
-                        <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "2px" }}>
+                        <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "2px" }}>
                           {v.uemail}
                         </div>
                         <button type="button" className="ghost" onClick={v.goAccount} style={{ width: "100%", justifyContent: "center", marginTop: "12px", height: "36px" }}>
@@ -1492,7 +1611,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                         <div key={n.id || idx} style={{ border: "1px solid var(--b2)", background: n.dibaca ? "var(--s0)" : "var(--r1)", borderRadius: "10px", padding: "10px 12px", marginBottom: "8px" }}>
                           <div style={{ fontSize: "12px", fontWeight: "700" }}>{n.judul}</div>
                           <div style={{ fontSize: "12px", color: "var(--t3)", marginTop: "2px", lineHeight: "1.5" }}>{n.isi}</div>
-                          <div style={{ fontSize: "10px", color: "var(--t5)", marginTop: "4px" }}>{v.notifWaktu(n.waktu)}</div>
+                          <div style={{ fontSize: "12px", color: "var(--t5)", marginTop: "4px" }}>{v.notifWaktu(n.waktu)}</div>
                         </div>
                       ))}
                     </div>
@@ -1510,14 +1629,14 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                               <React.Fragment key={$index}>
                                 <div style={{ border: "1px solid var(--b3)", borderRadius: "12px", marginBottom: "8px", overflow: "hidden", background: "var(--s2)" }}>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 12px" }}>
-                                    <span className="ddic" style={{ width: "24px", height: "24px", color: u.platColor, background: `rgba(${u.platRgb},.12)`, border: `1px solid rgba(${u.platRgb},.3)` }}>
+                                    <span className="ddic" style={{ width: "24px", height: "24px", color: u.platColor, background: u.platChipBg, border: `1px solid ${u.platChipBorder}` }}>
                                       <FaIcon d={u.icon} size={12} style={{ color: u.platColor }} />
                                     </span>
                                     <span style={{ fontSize: "12px", fontWeight: "600", lineHeight: "1.45" }}>
                                       {u.id} — {u.name}
                                     </span>
                                   </div>
-                                  <div style={{ padding: "8px 12px", fontSize: "11px", fontWeight: "600", background: u.bg, color: u.fg, borderTop: "1px solid var(--b2)" }}>
+                                  <div style={{ padding: "8px 12px", fontSize: "12px", fontWeight: "600", background: u.bg, color: u.fg, borderTop: "1px solid var(--b2)" }}>
                                     {u.msg}
                                   </div>
                                 </div>
@@ -1555,7 +1674,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       {v.peringkatGagal ? (
                         <div className="card" style={{ padding: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)", marginBottom: "12px" }}>
                           <span style={{ fontSize: "12px", color: "var(--rt)" }}>Gagal memuat data peringkat kamu. Coba lagi?</span>
-                          <button type="button" className="ghost" onClick={v.cobaLagiPeringkat}>Coba Lagi</button>
+                          <button type="button" className="ghost" onClick={v.cobaLagiPeringkat}>{v.tr.retry}</button>
                         </div>
                       ) : null}
                       {(v.ranks || []).map((r, $index) => (
@@ -1615,7 +1734,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                   {v.dhRows.length === 0 && v.payHistGagal ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "60px 24px", margin: "auto 0" }}>
                       <div style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat pembayaran.</div>
-                      <button type="button" className="submit" onClick={v.cobaLagiPayHist} style={{ padding: "0 18px" }}>Coba Lagi</button>
+                      <button type="button" className="submit" onClick={v.cobaLagiPayHist} style={{ padding: "0 18px" }}>{v.tr.retry}</button>
                     </div>
                   ) : v.dhRows.length === 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", padding: "60px 24px", margin: "auto 0" }}>
@@ -1634,11 +1753,11 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                             <span style={{ fontSize: "13px", fontWeight: "700" }}>{p.metode}</span>
                             <span style={{ display: "flex", gap: "8px" }}>
                               {p.bisaDibayar ? (
-                                <button type="button" onClick={function () { window.open(p.bayarUrl, "_blank"); }} style={{ background: "var(--accent)", border: "1px solid var(--accent)", borderRadius: "999px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", color: "#FFFFFF", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                <button type="button" onClick={function () { window.open(p.bayarUrl, "_blank"); }} style={{ background: "var(--accent)", border: "1px solid var(--accent)", borderRadius: "999px", padding: "5px 12px", fontSize: "12px", fontWeight: "600", color: "#FFFFFF", cursor: "pointer", whiteSpace: "nowrap" }}>
                                   Bayar
                                 </button>
                               ) : null}
-                              <button type="button" onClick={function () { window.open("/api/invoice?id=" + encodeURIComponent(p.id), "_blank"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.35)", borderRadius: "999px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", color: "#F4F4F5", cursor: "pointer", whiteSpace: "nowrap" }}>
+                              <button type="button" onClick={function () { window.open("/api/invoice?id=" + encodeURIComponent(p.id), "_blank"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,.35)", borderRadius: "999px", padding: "5px 12px", fontSize: "12px", fontWeight: "600", color: "#F4F4F5", cursor: "pointer", whiteSpace: "nowrap" }}>
                                 Unduh invoice
                               </button>
                             </span>
@@ -1651,7 +1770,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                               {p.jumlah}
                             </span>
                           </div>
-                          <div style={{ marginTop: "8px", fontSize: "11px", color: p.c, fontWeight: "600" }}>{p.status}</div>
+                          <div style={{ marginTop: "8px", fontSize: "12px", color: p.c, fontWeight: "600" }}>{p.status}</div>
                         </div>
                       ))}
                     </div>
@@ -1678,7 +1797,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                       {v.tiketGagal ? (
                         <div className="card" style={{ padding: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
                           <span style={{ fontSize: "12px", color: "var(--rt)" }}>Gagal memuat daftar tiket. Coba lagi?</span>
-                          <button type="button" className="ghost" onClick={v.cobaLagiTiket}>Coba Lagi</button>
+                          <button type="button" className="ghost" onClick={v.cobaLagiTiket}>{v.tr.retry}</button>
                         </div>
                       ) : null}
                       {(v.tlist || []).map((t, $index) => (
@@ -1692,7 +1811,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
                               ) : null}
                               {t.title}
                             </span>
-                            <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 12px", fontSize: "11px", color: "var(--t4)" }}>
+                            <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 12px", fontSize: "12px", color: "var(--t4)" }}>
                               ID: {t.id}
                               <span>
                                 {v.tr.lastUpd}: {t.updated}
@@ -1717,7 +1836,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
           </header>
           {v.showBanner ? (
             <>
-              <div style={{ position: "relative", overflow: "hidden", padding: "70px 40px 70px", borderBottom: "1px solid var(--b1)", background: "linear-gradient(120deg,var(--bg) 30%,var(--r1) 100%)", textAlign: v.pg.align }}>
+              <div className="dash-hero" style={{ background: "linear-gradient(120deg,var(--bg) 30%,var(--r1) 100%)", textAlign: v.pg.align }}>
                 <div aria-hidden="true" style={{ position: "absolute", inset: "0", backgroundImage: "linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px)", backgroundSize: "46px 46px", WebkitMaskImage: "linear-gradient(90deg,transparent 40%,#000)", maskImage: "linear-gradient(90deg,transparent 40%,#000)" }} />
                 <h1 style={{ position: "relative", margin: "0", fontSize: "30px", fontWeight: "700", letterSpacing: "-.03em" }}>
                   {v.pg.title}
@@ -1728,7 +1847,7 @@ svg:not(.logo-mark)[stroke="#E11D3A"],svg:not(.logo-mark) [stroke="#E11D3A"]{str
               </div>
             </>
           ) : null}
-          <main className="dash-main" style={{ position: "relative", zIndex: v.mainZ, padding: "34px 40px 60px", display: "flex", flexDirection: "column", gap: "22px", background: v.mainBg }}>
+          <main className="dash-main" style={{ position: "relative", zIndex: v.mainZ, padding: "34px 40px 60px", display: "flex", flexDirection: "column", gap: "24px", background: v.mainBg }}>
           <Toast toast={v.toast} onClose={v.closeToast} />
           {this.state.konfirm ? <KotakKonfirmasi pesan={this.state.konfirm.pesan} onJawab={(ya) => { var k = this.state.konfirm; this.setState({ konfirm: null }); if (ya) k.lanjut(); }} /> : null}
           {this.state.warnOrder ? <PeringatanOrder onClose={() => this.setState({ warnOrder: false })} onHubungiAdmin={() => this.setState({ warnOrder: false, page: 'tickets', tcat: 'order', tsub: 'refill', hdd: '', open: '', sOpen: '', ofOpen: false, mOpen: false, navOpen: false })} /> : null}

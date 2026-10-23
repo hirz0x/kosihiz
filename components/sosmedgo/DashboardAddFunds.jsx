@@ -4,7 +4,7 @@ import { FaIcon } from './dashboard-kit';
 function DashboardAddFunds({ v }) {
   return v.is.addfunds ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginTop: "-80px" }}>
+          <div className="dash-pull-lg" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
             <form className="card" style={{ width: "100%", maxWidth: "540px", padding: "20px", boxSizing: "border-box", position: "relative", zIndex: "2" }} onSubmit={v.payFunds}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
                 <span style={{ width: "34px", height: "34px", borderRadius: "9px", color: "var(--accent-l)", background: "rgba(var(--accent-rgb),.12)", border: "1px solid rgba(var(--accent-rgb),.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "800" }}>

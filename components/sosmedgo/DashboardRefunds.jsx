@@ -4,7 +4,7 @@ import { FaIcon } from './dashboard-kit';
 function DashboardRefunds({ v }) {
   return v.is.refunds ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "-58px" }}>
+          <div className="dash-pull-sm" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px" }}>
               <span className="chip">
                 <span className="ocircle">
@@ -25,7 +25,7 @@ function DashboardRefunds({ v }) {
             {v.refundGagal ? (
               <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
                 <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat refund. Coba lagi?</span>
-                <button type="button" className="ghost" onClick={v.cobaLagiRefund}>Coba Lagi</button>
+                <button type="button" className="ghost" onClick={v.cobaLagiRefund}>{v.tr.retry}</button>
               </div>
             ) : null}
             {(v.refunds || []).map((r, $index) => (
@@ -35,7 +35,7 @@ function DashboardRefunds({ v }) {
                     {r.id}
                   </span>
                   <span style={{ fontSize: "13px", fontWeight: "600" }}>
-                    ▢ {r.date}
+                    <FaIcon d="M3 5h18v16H3zM3 10h18M8 3v4M16 3v4" size={12} style={{ display: "inline-block", marginRight: "4px", verticalAlign: "-2px" }} />{r.date}
                   </span>
                   <span style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
                     <span className="pill" style={{ background: "var(--r1)", color: "var(--rt)", border: "1px solid var(--r4)" }}>

@@ -5,7 +5,8 @@ export default function handler(req, res) {
   hapusSesi(res);
   if (req.method === 'GET') {
     res.setHeader('Location', '/login');
-    return res.status(302).end();
+    res.status(302).end();
+    return;
   }
-  return res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true });
 }

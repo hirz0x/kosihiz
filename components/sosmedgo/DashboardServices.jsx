@@ -4,7 +4,7 @@ import { FaIcon } from './dashboard-kit';
 function DashboardServices({ v }) {
   return v.is.services ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "-58px" }}>
+          <div className="dash-pull-sm" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px" }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 <div style={{ position: "relative" }}>
@@ -67,7 +67,7 @@ function DashboardServices({ v }) {
                     <span style={{ fontSize: "14px", fontWeight: "700" }}>
                       {g.t}
                     </span>
-                    <span style={{ fontSize: "11px", color: "var(--t5)", marginLeft: "auto" }}>
+                    <span style={{ fontSize: "12px", color: "var(--t5)", marginLeft: "auto" }}>
                       {g.count} layanan
                     </span>
                   </div>
@@ -83,7 +83,7 @@ function DashboardServices({ v }) {
                           </span>
                           <span style={{ display: "flex", border: "1px solid var(--b3)", borderRadius: "8px", overflow: "hidden", fontSize: "12px", fontWeight: "700" }}>
                             <span style={{ padding: "9px 12px" }}>
-                              ≈ Rp {s.priceFmt}
+                              ≈ {s.priceFmt}
                             </span>
                             <span style={{ padding: "9px 12px", borderLeft: "1px solid var(--b3)", color: "var(--t3)" }}>
                               1000
@@ -94,7 +94,7 @@ function DashboardServices({ v }) {
                           </button>
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", padding: "10px 12px 10px 14px" }}>
-                          <span style={{ display: "inline-flex", border: "1px solid var(--b3)", borderRadius: "999px", fontSize: "11px", fontWeight: "600" }}>
+                          <span style={{ display: "inline-flex", border: "1px solid var(--b3)", borderRadius: "999px", fontSize: "12px", fontWeight: "600" }}>
                             <span style={{ padding: "7px 12px" }}>
                               ⌄ Min: {s.minTxt}
                             </span>
@@ -198,7 +198,7 @@ function DashboardServices({ v }) {
                           <div role="group" aria-label={g.t} style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                             {(g.chips || []).map((c, $index) => (
                               <React.Fragment key={$index}>
-                                <button type="button" onClick={c.toggle} aria-pressed={c.on} style={{ border: `1px solid ${c.bc}`, background: c.bg, color: c.fg, borderRadius: "999px", padding: "9px 14px", fontSize: "11px", fontWeight: "700", cursor: "pointer", minHeight: "36px" }}>
+                                <button type="button" onClick={c.toggle} aria-pressed={c.on} style={{ border: `1px solid ${c.bc}`, background: c.bg, color: c.fg, borderRadius: "999px", padding: "9px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", minHeight: "44px", boxSizing: "border-box" }}>
                                   {c.t}
                                 </button>
                               </React.Fragment>

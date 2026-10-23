@@ -1,22 +1,40 @@
 import React from 'react';
+import {
+  ShoppingCart, FileText, ClipboardList, Wallet, Headphones, TrendingUp,
+  RotateCcw, ListChecks, Users, Code2, Settings, LogOut
+} from 'lucide-react';
 
 /* Ikon, pemetaan Font Awesome, dan fungsi pembantu murni yang dipakai DashboardPage.
    Dipisah supaya file utamanya lebih ringkas. */
 
+/* Satu-satunya tempat format angka uang di seluruh dashboard — dulu ada beberapa salinan nyaris
+   identik (chip saldo header, kartu statistik, riwayat deposit) ditambah beberapa tempat LAIN
+   (harga layanan, subtotal pesanan, biaya pesanan, jumlah refund, preset isi saldo, statistik
+   afiliasi) yang malah selalu nulis "Rp" apa pun mata uang tampilan yang dipilih user — itu
+   penyebab "Rp 602" di satu tempat tapi "$ 0.03" (hasil konversi yang sebenarnya benar, cuma
+   dipakai di tempat yang salah) di tempat lain untuk NILAI RUPIAH YANG SAMA. Sekarang semua baca
+   dari sini, jadi tidak mungkin lagi ada dua tempat yang beda format untuk angka yang sama. */
+export function formatCurrency(amount, currency, kurs) {
+  var angka = Number(amount) || 0;
+  if (currency === 'USD') {
+    return '$ ' + (angka / (kurs || 16000)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  return 'Rp ' + Math.round(angka).toLocaleString('id-ID');
+}
+
 /* Dibuat dari desain canvas SosmedGo. Data di halaman ini masih contoh. */
-/* Ikon menu sidebar dari Font Awesome. */
-export const FA_MENU = {
-  neworder: 'fa-solid fa-cart-shopping',
-  services: 'fa-solid fa-file-lines',
-  orders: 'fa-solid fa-clipboard-list',
-  addfunds: 'fa-solid fa-wallet',
-  tickets: 'fa-solid fa-headset',
-  updates: 'fa-solid fa-chart-line',
-  refunds: 'fa-solid fa-rotate-left',
-  massorder: 'fa-solid fa-list-ul',
-  affiliates: 'fa-solid fa-users',
-  soon: 'fa-solid fa-code'
+/* Ikon menu sidebar — satu set outline lucide (stroke 1.5) dipakai bareng untuk sidebar
+   desktop dan drawer mobile, supaya cuma satu pola yang perlu dirawat. */
+export const LU_MENU = {
+  neworder: ShoppingCart, services: FileText, orders: ClipboardList, addfunds: Wallet,
+  tickets: Headphones, updates: TrendingUp, refunds: RotateCcw, massorder: ListChecks,
+  affiliates: Users, soon: Code2, settings: Settings, logout: LogOut
 };
+
+export function LuIcon({ icon: Icon, size, style }) {
+  if (!Icon) return null;
+  return <Icon size={size || 20} strokeWidth={1.5} style={{ flex: 'none', ...style }} />;
+}
 
 /* Warna asli tiap platform (bukan warna aksen tema) untuk badge ikon layanan/kategori,
    supaya misalnya ikon Facebook selalu biru walau tema aksen yang dipilih user beda.
@@ -88,7 +106,8 @@ export const FA_BY_PATH = {
   "M21 2H3v16h5v4l4-4h5l4-4V2zM11 11V7M16 11V7": "fa-brands fa-twitch",
   "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-3 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z": "fa-brands fa-reddit-alien",
   "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2c2.8 3 2.8 17 0 20M12 2c-2.8 3-2.8 17 0 20": "fa-solid fa-globe",
-  "M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5": "fa-solid fa-rocket"
+  "M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1zM12 15l-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22 22 0 0 1-4 2zM9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5": "fa-solid fa-rocket",
+  "M3 5h18v16H3zM3 10h18M8 3v4M16 3v4": "fa-solid fa-calendar-days"
 };
 
 /* Ikon Font Awesome. Jalur SVG lama dipetakan ke kelas ikon yang sesuai. */

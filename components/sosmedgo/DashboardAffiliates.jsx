@@ -3,7 +3,7 @@ import React from 'react';
 function DashboardAffiliates({ v }) {
   return v.is.affiliates ? (
         <>
-          <div className="card aff-card" style={{ marginTop: "-58px", position: "relative", zIndex: "2", borderRadius: "18px", overflow: "hidden" }}>
+          <div className="card aff-card dash-pull-sm" style={{ position: "relative", zIndex: "2", borderRadius: "18px", overflow: "hidden" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
               {(v.affStats || []).map((a, $index) => (
                 <React.Fragment key={$index}>
@@ -27,7 +27,7 @@ function DashboardAffiliates({ v }) {
                   {v.refLink || (v.affGagal ? "Gagal memuat link." : "Memuat link...")}
                 </span>
                 {!v.refLink && v.affGagal ? (
-                  <button type="button" className="ghost" onClick={v.cobaLagiAfiliasi} style={{ height: "38px" }}>Coba Lagi</button>
+                  <button type="button" className="ghost" onClick={v.cobaLagiAfiliasi} style={{ height: "38px" }}>{v.tr.retry}</button>
                 ) : null}
               </div>
               <p style={{ margin: "16px 0 0", fontSize: "12px", color: "var(--t4)", lineHeight: "1.7" }}>

@@ -3,7 +3,7 @@ import React from 'react';
 function DashboardSoon({ v }) {
   return v.is.soon ? (
         <>
-          <div className="card" style={{ padding: "60px 24px", textAlign: "center", marginTop: "-58px" }}>
+          <div className="card dash-pull-sm" style={{ padding: "60px 24px", textAlign: "center" }}>
             <div style={{ fontSize: "16px", fontWeight: "700" }}>
               Halaman ini belum dibuat di prototipe
             </div>

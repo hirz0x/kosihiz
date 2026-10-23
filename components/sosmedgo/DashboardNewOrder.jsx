@@ -20,23 +20,23 @@ function DashboardNewOrder({ v }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "14px" }}>
               {(v.stats || []).map((s, $index) => (
                 <React.Fragment key={$index}>
-                  <div className="card" style={{ padding: "16px 14px 12px", display: "flex", flexDirection: "column", gap: "14px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <span style={{ width: "42px", height: "42px", borderRadius: "10px", background: s.tint, border: `1px solid ${s.line}`, color: s.c, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <i className={s.fa} aria-hidden="true" style={{ fontSize: "18px" }} />
+                  <div className="card" style={{ padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: "16px", boxShadow: "0 1px 2px rgba(0,0,0,.06), 0 8px 20px -12px rgba(0,0,0,.18)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                      <span style={{ width: "48px", height: "48px", borderRadius: "12px", background: s.tint, border: `1px solid ${s.line}`, color: s.c, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+                        <i className={s.fa} aria-hidden="true" style={{ fontSize: "20px" }} />
                       </span>
-                      <div>
-                        <div style={{ fontSize: "11px", color: "var(--t4)" }}>
+                      <div style={{ minWidth: "0" }}>
+                        <div style={{ fontSize: "13px", color: "var(--t3)", fontWeight: "500" }}>
                           {s.l}
                         </div>
-                        <div style={{ fontSize: "21px", fontWeight: "700", marginTop: "3px", letterSpacing: "-.02em" }}>
+                        <div style={{ fontSize: "28px", fontWeight: "600", marginTop: "4px", letterSpacing: "-.02em", lineHeight: "1.15" }}>
                           {s.v}
                         </div>
                       </div>
                     </div>
-                    <button type="button" onClick={s.go} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", fontWeight: "600", color: s.c, background: s.tint, border: `1px solid ${s.line}`, borderRadius: "8px", padding: "10px 12px", cursor: "pointer" }}>
+                    <button type="button" onClick={s.go} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", fontWeight: "600", color: s.c, background: s.tint, border: `1px solid ${s.line}`, borderRadius: "8px", padding: "10px 12px", cursor: "pointer" }}>
                       {s.a}
-                      <span>
+                      <span style={{ color: s.c }}>
                         →
                       </span>
                     </button>
@@ -47,7 +47,7 @@ function DashboardNewOrder({ v }) {
             {v.katalogGagal ? (
               <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
                 <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat daftar layanan. Coba lagi?</span>
-                <button type="button" className="ghost" onClick={v.cobaLagiKatalog}>Coba Lagi</button>
+                <button type="button" className="ghost" onClick={v.cobaLagiKatalog}>{v.tr.retry}</button>
               </div>
             ) : null}
             <div role="group" aria-label="Filter platform" className="plat-grid" style={{ "--plat-cols": v.platCols }}>
@@ -148,7 +148,7 @@ function DashboardNewOrder({ v }) {
                         ) : null}
                       </div>
                       <label className="lbl" htmlFor="link">
-                        Link
+                        {v.tr.link}
                       </label>
                       <input id="link" className="inp" type="url" placeholder={v.linkPh} value={v.link} onChange={v.setLink} />
                       {v.extraCfg ? (
@@ -162,7 +162,7 @@ function DashboardNewOrder({ v }) {
                             <input id="extra" className="inp" type={v.extraCfg.numeric ? "number" : "text"} inputMode={v.extraCfg.numeric ? "numeric" : undefined} placeholder={v.extraCfg.placeholder} value={v.extra} onChange={v.setExtra} />
                           )}
                           {v.extraCfg.deriveQty ? (
-                            <div style={{ fontSize: "10px", color: "var(--t5)", marginTop: "6px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--t5)", marginTop: "6px" }}>
                               {v.extraCount} baris — jumlah pesanan mengikuti ini
                             </div>
                           ) : null}
@@ -172,7 +172,7 @@ function DashboardNewOrder({ v }) {
                         {v.tr.qty}
                       </label>
                       <input id="jumlah" className="inp" type="number" inputMode="numeric" value={v.qty} onChange={v.setQty} readOnly={!!(v.extraCfg && v.extraCfg.deriveQty)} style={(v.extraCfg && v.extraCfg.deriveQty) ? { opacity: 0.7, cursor: "not-allowed" } : undefined} />
-                      <div style={{ fontSize: "10px", color: v.qtyColor, marginTop: "6px" }}>
+                      <div style={{ fontSize: "12px", color: v.qtyColor, marginTop: "6px" }}>
                         {v.qtyHint}
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "20px" }}>
@@ -206,7 +206,7 @@ function DashboardNewOrder({ v }) {
                   <>
                     <div>
                       <label className="lbl" htmlFor="cari">
-                        Cari layanan
+                        {v.tr.searchService}
                       </label>
                       <input id="cari" className="inp" type="search" placeholder="Contoh: followers indonesia" value={v.q} onChange={v.setQ} />
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "14px" }}>
@@ -231,10 +231,10 @@ function DashboardNewOrder({ v }) {
                   <>
                     <div style={{ textAlign: "center", padding: "24px 12px" }}>
                       <div style={{ fontSize: "13px", color: "var(--t3)", marginBottom: "14px" }}>
-                        Buat banyak pesanan sekaligus di halaman khusus Pesanan Massal.
+                        {v.tr.massOrderHint}
                       </div>
                       <button type="button" className="submit" onClick={v.goMassOrder} style={{ width: "100%" }}>
-                        Buka Pesanan Massal
+                        {v.tr.openMassOrder}
                       </button>
                     </div>
                   </>
@@ -245,16 +245,21 @@ function DashboardNewOrder({ v }) {
                   <>
                     <div>
                       <div className="dethead" style={{ padding: "24px", textAlign: "center", background: "linear-gradient(160deg,var(--g2),var(--r1) 70%)", borderBottom: "1px solid var(--r6)" }}>
-                        <span style={{ width: "42px", height: "42px", margin: "0 auto 12px", borderRadius: "12px", color: v.svc.platColor, background: `rgba(${v.svc.platRgb},.12)`, border: `1px solid rgba(${v.svc.platRgb},.3)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <FaIcon d={v.svc.icon} size={18} style={{ color: v.svc.platColor }} />
+                        <span style={{ width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "14px", color: v.svc.platColor, background: v.svc.platChipBg, border: `1px solid ${v.svc.platChipBorder}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <FaIcon d={v.svc.icon} size={26} style={{ color: v.svc.platColor }} />
                         </span>
-                        <div style={{ fontSize: "14px", fontWeight: "600", lineHeight: "1.5" }}>
-                          {v.svc.id} — {v.svc.name} — {v.svc.priceTxt}
+                        <div style={{ fontSize: "16px", fontWeight: "700", lineHeight: "1.4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "0 8px" }} title={v.svc.name}>
+                          {v.svc.name}
                         </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 16px", marginTop: "10px", fontSize: "11px", color: "var(--t3)" }}>
-                          <span>
-                            • {v.tr.svcId}: {v.svc.id}
+                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px", marginTop: "10px" }}>
+                          <span className="idpill" style={{ fontWeight: "700" }}>
+                            ID: {v.svc.id}
                           </span>
+                          <span className="idpill" style={{ background: "var(--g1)", color: "var(--rt)", borderColor: "var(--r5)" }}>
+                            {v.svc.priceTxt}
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "6px 16px", marginTop: "10px", fontSize: "12px", color: "var(--t3)" }}>
                           <span>
                             • {v.tr.start}: {v.svc.start}
                           </span>
@@ -264,30 +269,30 @@ function DashboardNewOrder({ v }) {
                         </div>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", borderBottom: "1px solid var(--b2)" }}>
-                        <div style={{ padding: "18px 10px", textAlign: "center" }}>
-                          <FaIcon d="M3 12h4l3-8 4 16 3-8h4" size={18} style={{ color: "var(--gr)" }} />
-                          <div style={{ fontSize: "12px", fontWeight: "600", marginTop: "8px" }}>
+                        <div style={{ padding: "20px 10px", textAlign: "center" }}>
+                          <FaIcon d="M3 12h4l3-8 4 16 3-8h4" size={24} style={{ color: "var(--gr)" }} />
+                          <div style={{ fontSize: "13px", fontWeight: "600", marginTop: "10px" }}>
                             {v.tr.speed}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "3px" }}>
+                          <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "3px" }}>
                             {v.svc.speed}
                           </div>
                         </div>
-                        <div style={{ padding: "18px 10px", textAlign: "center", borderLeft: "1px solid var(--b2)", borderRight: "1px solid var(--b2)" }}>
-                          <FaIcon d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" size={18} style={{ color: "var(--am)" }} />
-                          <div style={{ fontSize: "12px", fontWeight: "600", marginTop: "8px" }}>
+                        <div style={{ padding: "20px 10px", textAlign: "center", borderLeft: "1px solid var(--b2)", borderRight: "1px solid var(--b2)" }}>
+                          <FaIcon d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" size={24} style={{ color: "var(--am)" }} />
+                          <div style={{ fontSize: "13px", fontWeight: "600", marginTop: "10px" }}>
                             {v.tr.minmax}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "3px" }}>
+                          <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "3px" }}>
                             {v.svc.minTxt} — {v.svc.maxTxt}
                           </div>
                         </div>
-                        <div style={{ padding: "18px 10px", textAlign: "center" }}>
-                          <FaIcon d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4" size={18} style={{ color: "var(--bl)" }} />
-                          <div style={{ fontSize: "12px", fontWeight: "600", marginTop: "8px" }}>
+                        <div style={{ padding: "20px 10px", textAlign: "center" }}>
+                          <FaIcon d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4" size={24} style={{ color: "var(--bl)" }} />
+                          <div style={{ fontSize: "13px", fontWeight: "600", marginTop: "10px" }}>
                             {v.tr.guar}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "3px" }}>
+                          <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "3px" }}>
                             {v.svc.refill}
                           </div>
                         </div>
@@ -296,16 +301,17 @@ function DashboardNewOrder({ v }) {
                         <div style={{ fontSize: "14px", fontWeight: "700", marginBottom: "12px" }}>
                           {v.tr.desc}
                         </div>
-                        <ul style={{ margin: "0", padding: "0", listStyle: "none", display: "flex", flexDirection: "column", gap: "7px", fontSize: "12px", color: "var(--t3)", lineHeight: "1.5" }}>
+                        <ul style={{ margin: "0", padding: "0", listStyle: "none", display: "flex", flexDirection: "column", gap: "9px", fontSize: "13px", color: "var(--t2)", lineHeight: "1.5" }}>
                           {(v.svc.desc || []).map((d, $index) => (
                             <React.Fragment key={$index}>
-                              <li>
-                                • {d}
+                              <li style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                                <i className="fa-solid fa-circle-check" aria-hidden="true" style={{ color: "var(--gr)", fontSize: "13px", marginTop: "2px", flex: "none" }} />
+                                <span>{d}</span>
                               </li>
                             </React.Fragment>
                           ))}
                         </ul>
-                        <div style={{ marginTop: "16px", fontSize: "11px", color: "var(--t3)", lineHeight: "1.7" }}>
+                        <div style={{ marginTop: "16px", fontSize: "12px", color: "var(--t3)", lineHeight: "1.7" }}>
                           <b style={{ color: "var(--t1)" }}>
                             <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" style={{ color: "var(--am)", marginRight: "6px" }} />{v.tr.notes}:
                           </b>

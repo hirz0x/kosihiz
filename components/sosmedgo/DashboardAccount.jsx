@@ -131,7 +131,7 @@ function DashboardAccount({ v }) {
                       <div className="card" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
                         <div style={{ fontSize: "12px", color: "var(--t3)", lineHeight: "1.6" }}>Pindai QR ini dengan aplikasi authenticator, lalu masukkan 6 digit kodenya.</div>
                         <img src={"data:image/svg+xml;utf8," + encodeURIComponent(v.mfa.setup.qr)} alt="QR code 2FA" width="180" height="180" style={{ background: "#FFFFFF", borderRadius: "10px", padding: "8px", alignSelf: "flex-start" }} />
-                        <div style={{ fontSize: "11px", color: "var(--t4)", wordBreak: "break-all" }}>Atau masukkan kunci ini manual: {v.mfa.setup.kunci}</div>
+                        <div style={{ fontSize: "12px", color: "var(--t4)", wordBreak: "break-all" }}>Atau masukkan kunci ini manual: {v.mfa.setup.kunci}</div>
                         <label className="lbl" htmlFor="mfa-kode">Kode 6 digit</label>
                         <input id="mfa-kode" className="inp" inputMode="numeric" autoComplete="one-time-code" value={v.mfa.kode} onChange={v.mfa.setKode} style={{ height: "46px", fontSize: "16px", letterSpacing: ".3em" }} />
                         <div>
@@ -241,14 +241,14 @@ function DashboardAccount({ v }) {
                         API key
                       </label>
                       <input id="api-key" className="inp" readOnly value={v.apiKey} aria-label="API key" style={{ height: "46px", fontFamily: "ui-monospace,Menlo,monospace", fontSize: "12px" }} />
-                      <div style={{ fontSize: "11px", color: "var(--t4)" }}>{v.apiInfoTxt}</div>
+                      <div style={{ fontSize: "12px", color: "var(--t4)" }}>{v.apiInfoTxt}</div>
                       <div>
                         <button type="button" className="submit" onClick={v.regenKey} style={{ padding: "0 18px" }}>
                           <i className="fa-solid fa-rotate" aria-hidden="true" style={{ fontSize: "12px" }} />
                           Buat ulang
                         </button>
                       </div>
-                      <p style={{ margin: "4px 0 0", fontSize: "11px", color: "var(--t4)" }}>
+                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--t4)" }}>
                         Buat pesanan dengan POST /api/v1/order dan header Authorization: Bearer API-KEY-KAMU. Jangan bagikan API key kamu.
                       </p>
                     </div>
@@ -293,7 +293,7 @@ function DashboardAccount({ v }) {
                             <div style={{ fontSize: "13px", fontWeight: "600" }}>
                               {n.t}
                             </div>
-                            <div style={{ fontSize: "11px", color: "var(--t4)", marginTop: "4px" }}>
+                            <div style={{ fontSize: "12px", color: "var(--t4)", marginTop: "4px" }}>
                               {n.d}
                             </div>
                           </div>

@@ -6,7 +6,7 @@ function DashboardTicketDetail({ v }) {
         <>
           <div style={{ display: "flex", flexDirection: "column", margin: "-34px -40px -60px", minHeight: "calc(100vh - 80px)" }}>
             <div style={{ padding: "20px 40px", borderBottom: "1px solid var(--b1)" }}>
-              <button type="button" onClick={v.goTicketsBack} style={{ background: "none", border: "none", padding: "0", cursor: "pointer", fontFamily: "inherit", fontSize: "11px", color: "var(--t5)" }}>
+              <button type="button" onClick={v.goTicketsBack} style={{ background: "none", border: "none", padding: "0", cursor: "pointer", fontFamily: "inherit", fontSize: "12px", color: "var(--t5)" }}>
                 ← {v.tr.ticket}: #{v.vt.id}
               </button>
               <h1 style={{ margin: "6px 0 0", fontSize: "18px", fontWeight: "700" }}>
@@ -40,7 +40,7 @@ function DashboardTicketDetail({ v }) {
                             <div style={{ padding: "12px 16px", fontSize: "12px", lineHeight: "1.7", whiteSpace: "pre-line" }}>
                               {m.text}{m.lampiran ? (m.lampiran.tipe === 'application/pdf' ? <a href={m.lampiran.data} download={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', color: '#FF5A75', fontWeight: 600 }}>📄 {m.lampiran.nama}</a> : <img src={m.lampiran.data} alt={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', maxWidth: '100%', borderRadius: '10px' }} />) : null}
                             </div>
-                            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--b2)", fontSize: "11px", color: "var(--rt)" }}>
+                            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--b2)", fontSize: "12px", color: "var(--rt)" }}>
                               {v.uname} - {m.time}
                             </div>
                           </div>
@@ -54,7 +54,7 @@ function DashboardTicketDetail({ v }) {
                             </span>
                             <div style={{ fontSize: "12px", lineHeight: "1.9", whiteSpace: "pre-line" }}>
                               {m.text}{m.lampiran ? (m.lampiran.tipe === 'application/pdf' ? <a href={m.lampiran.data} download={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', color: '#FF5A75', fontWeight: 600 }}>📄 {m.lampiran.nama}</a> : <img src={m.lampiran.data} alt={m.lampiran.nama} style={{ display: 'block', marginTop: '8px', maxWidth: '100%', borderRadius: '10px' }} />) : null}
-                              <div style={{ marginTop: "8px", fontSize: "11px", color: "var(--rt)" }}>
+                              <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--rt)" }}>
                                 {m.sNama} - {m.time}
                               </div>
                             </div>
@@ -66,7 +66,7 @@ function DashboardTicketDetail({ v }) {
                 ))}
                 {v.vtClosed ? (
                   <>
-                    <div style={{ textAlign: "center", fontSize: "11px", color: "var(--t5)" }}>
+                    <div style={{ textAlign: "center", fontSize: "12px", color: "var(--t5)" }}>
                       {v.tr.waitReply}
                     </div>
                   </>

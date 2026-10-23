@@ -6,6 +6,7 @@ import { userDariRequest } from '../../lib/account';
 import { tambahNotif } from '../../lib/notif';
 import { totalBelanjaSemua, ambilPeringkat, indexPeringkat } from '../../lib/peringkat';
 import { catatAktivitas } from '../../lib/adminLog';
+import { bolehCoba } from '../../lib/loginGuard';
 
 const KATEGORI = ['order', 'service', 'payment', 'other'];
 const SUB_MAKS = 40;
@@ -38,6 +39,11 @@ export default async function handler(req, res) {
     /* User membuka tiket baru. */
     if (req.method === 'POST') {
       if (!user) return res.status(403).json({ error: 'Admin tidak membuat tiket.' });
+      /* Tanpa batas ini, satu akun bisa membanjiri antrean support dengan tiket beruntun tanpa
+         jeda sama sekali (tidak seperti login/apikey/pesanan yang sudah dibatasi). */
+      if (!(await bolehCoba('tiket_buat:' + user.id, 5, 15 * 60 * 1000))) {
+        return res.status(429).json({ error: 'Terlalu banyak tiket dibuat. Coba lagi dalam beberapa menit.' });
+      }
       const { kategori, sub, orderId, pesan } = req.body || {};
       const teks = String(pesan || '').trim();
       if (!KATEGORI.includes(kategori)) return res.status(400).json({ error: 'Kategori tidak dikenal.' });
@@ -89,6 +95,10 @@ export default async function handler(req, res) {
       }
 
       if (aksi === 'balas') {
+        /* Hanya balasan dari pelanggan yang dibatasi — admin (staf support) tidak perlu dibatasi. */
+        if (!admin && !(await bolehCoba('tiket_balas:' + user.id, 20, 15 * 60 * 1000))) {
+          return res.status(429).json({ error: 'Terlalu banyak balasan dikirim. Coba lagi dalam beberapa menit.' });
+        }
         const teks = String(text || '').trim();
         if (!teks) return res.status(400).json({ error: 'Balasan belum diisi.' });
         if (teks.length > PESAN_MAKS) return res.status(400).json({ error: 'Balasan terlalu panjang (maks 2000 karakter).' });

@@ -4,8 +4,8 @@ import { FaIcon } from './dashboard-kit';
 function DashboardUpdates({ v }) {
   return v.is.updates ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "-58px" }}>
-            <div role="group" aria-label="Filter update" style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
+          <div className="dash-pull-sm" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div role="group" aria-label="Filter update" className="dash-hscroll" style={{ gap: "8px", marginBottom: "14px" }}>
               {(v.updFilters || []).map((f, $index) => (
                 <React.Fragment key={$index}>
                   <button type="button" className="chip" onClick={f.pick} aria-pressed={f.on} style={{ padding: "0 16px", background: f.bg, color: f.fg, borderColor: f.bc }}>
@@ -16,8 +16,8 @@ function DashboardUpdates({ v }) {
             </div>
             {v.riwayatGagal ? (
               <div className="card" style={{ padding: "16px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "10px", border: "1px solid var(--r4)", background: "var(--r1)" }}>
-                <span style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat riwayat update. Coba lagi?</span>
-                <button type="button" className="ghost" onClick={v.cobaLagiRiwayat}>Coba Lagi</button>
+                <span style={{ fontSize: "13px", color: "var(--rt)" }}>{v.riwayatErr || 'Gagal memuat riwayat update. Coba lagi?'}</span>
+                <button type="button" className="ghost" onClick={v.cobaLagiRiwayat}>{v.tr.retry}</button>
               </div>
             ) : null}
             {(v.updPageDays || []).map((d, $index) => (
@@ -32,7 +32,7 @@ function DashboardUpdates({ v }) {
                   {(d.items || []).map((u, $index) => (
                     <React.Fragment key={$index}>
                       <div className="card" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "12px" }}>
-                        <span className="ddic" style={{ width: "30px", height: "30px", color: u.platColor, background: `rgba(${u.platRgb},.12)`, border: `1px solid rgba(${u.platRgb},.3)` }}>
+                        <span className="ddic" style={{ width: "30px", height: "30px", color: u.platColor, background: u.platChipBg, border: `1px solid ${u.platChipBorder}` }}>
                           <FaIcon d={u.icon} size={14} style={{ color: u.platColor }} />
                         </span>
                         <span className="idpill">
@@ -50,7 +50,7 @@ function DashboardUpdates({ v }) {
                 </div>
               </React.Fragment>
             ))}
-            {v.updEmpty ? (
+            {v.updEmpty && !v.riwayatGagal ? (
               <>
                 <div className="card" style={{ padding: "40px", textAlign: "center", color: "var(--t5)", fontSize: "13px" }}>
                   {v.tr.noUpd}

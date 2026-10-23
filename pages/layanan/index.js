@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import BlogLayout from '../../components/sosmedgo/BlogLayout';
 import { namaIndo } from '../../components/sosmedgo/terjemah';
@@ -28,17 +28,44 @@ export default function Layanan() {
   const [cari, setCari] = useState('');
   const [kat, setKat] = useState('Semua');
   const [tampil, setTampil] = useState(PER_HALAMAN);
+  /* Kategori dulu pakai <select> bawaan browser — sama kayak yang di admin, daftarnya waktu
+     dibuka gak bisa diwarnai ngikut tema gelap halaman ini, dan dengan ratusan kategori gak ada
+     cara buat nyari. Diganti dropdown custom sendiri (bukan reuse .ddpanel dashboard, karena
+     halaman ini gak pakai CSS var tema dashboard, warnanya hex langsung). */
+  const [katOpen, setKatOpen] = useState(false);
+  const [katQ, setKatQ] = useState('');
+  const katRef = useRef(null);
+  /* Nutup dropdown HARUS sekalian bersihin kotak cari — kalau nggak, buka lagi nanti nongol
+     kefilter sama sisa ketikan sebelumnya padahal belum ngetik apa-apa di sesi buka ini. */
+  const closeKat = () => { setKatOpen(false); setKatQ(''); };
 
   useEffect(() => {
+    if (!katOpen) return;
+    const onDown = (e) => { if (katRef.current && !katRef.current.contains(e.target)) closeKat(); };
+    const onKey = (e) => { if (e.key === 'Escape') closeKat(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [katOpen]);
+
+  useEffect(() => {
+    /* API pelanggan sudah memfilter status aktif di query Supabase-nya (lihat pages/api/services.js)
+       dan membuang field "aktif" dari respons karena jadi redundan — jangan cek s.aktif di sini,
+       field itu selalu undefined untuk pengunjung non-admin dan bikin daftar selalu kosong. */
     fetch('/api/services')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('gagal'))))
-      .then((d) => setList((d.services || []).filter((s) => s.aktif && s.dasar > 0)))
+      .then((d) => setList((d.services || []).filter((s) => s.dasar > 0)))
       .catch(() => setGagal(true));
   }, []);
 
   useEffect(() => { setTampil(PER_HALAMAN); }, [cari, kat]);
 
   const kategori = useMemo(() => ['Semua', ...Array.from(new Set((list || []).map((s) => s.kategori))).sort()], [list]);
+  const kategoriFiltered = useMemo(() => {
+    const q = katQ.trim().toLowerCase();
+    return q === '' ? kategori : kategori.filter((k) => k.toLowerCase().includes(q));
+  }, [kategori, katQ]);
+  const pilihKat = (k) => { setKat(k); closeKat(); };
 
   const hasil = useMemo(() => {
     const q = cari.trim().toLowerCase();
@@ -83,19 +110,19 @@ export default function Layanan() {
 
   return (
     <BlogLayout judul="Layanan" deskripsi="Daftar layanan SMM SosmedGo lengkap dengan harga per 1000 dan estimasi waktu." lebar={1100}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width:640px){
           .lay-banner{margin:-36px -12px 22px !important;padding:36px 16px 26px !important;border-radius:16px !important}
           .lay-banner h1{font-size:30px !important}
           .lay-kontrol{flex-direction:column;align-items:stretch !important}
           .lay-kontrol > *{flex:1 1 auto !important;width:100% !important;min-width:0 !important;box-sizing:border-box}
-          .lay-pil select,.lay-pil input{font-size:16px !important}
+          .lay-pil input{font-size:16px !important}
           .lay-baris{padding:14px 14px !important}
           .lay-tombol{margin-left:0 !important;width:100%}
           .lay-tombol a{display:block;text-align:center}
           .lay-bawah{gap:8px !important}
         }
-      `}</style>
+      ` }} />
       <div className="lay-banner" style={{ position: 'relative', margin: '-56px -20px 28px', padding: '56px 20px 36px', borderRadius: '20px', background: 'radial-gradient(700px 260px at 70% 0%, rgba(225,29,58,.22), rgba(225,29,58,0)), repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 44px)', border: '1px solid #1A1A1F' }}>
         <div style={{ fontSize: '12px', color: '#6B6E78', marginBottom: '14px' }}>
           <Link href="/" style={{ color: '#A1A3AB', textDecoration: 'none' }}>Beranda</Link> <span style={{ color: '#E11D3A' }}>›</span> <span style={{ color: '#FF5A75' }}>Layanan</span>
@@ -119,12 +146,25 @@ export default function Layanan() {
       ) : (
         <>
           <div className="lay-kontrol" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
-            <label className="lay-pil" style={{ ...pil, position: 'relative', minWidth: '240px', cursor: 'pointer' }}>
-              {IKON_MERAH}
-              <select value={kat} onChange={(e) => setKat(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#F4F4F5', fontFamily: 'inherit', fontSize: '14px', fontWeight: 600, outline: 'none', flex: 1, minWidth: 0, cursor: 'pointer' }}>
-                {kategori.map((k) => <option key={k} value={k} style={{ background: '#0E0E11' }}>{k === 'Semua' ? 'Semua kategori' : k}</option>)}
-              </select>
-            </label>
+            <div ref={katRef} className="lay-pil" style={{ position: 'relative', minWidth: '240px' }}>
+              <button type="button" onClick={() => (katOpen ? closeKat() : setKatOpen(true))} aria-haspopup="listbox" aria-expanded={katOpen} style={{ ...pil, width: '100%', cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                {IKON_MERAH}
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{kat === 'Semua' ? 'Semua kategori' : kat}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B6E78" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {katOpen ? (
+                <div role="listbox" aria-label="Cari kategori" style={{ ...kotak, position: 'absolute', left: 0, right: 0, top: '52px', zIndex: 30, padding: '8px', maxHeight: '320px', overflow: 'auto', boxShadow: '0 24px 50px rgba(0,0,0,.6)' }}>
+                  <input type="text" value={katQ} onChange={(e) => setKatQ(e.target.value)} placeholder="Cari kategori..." autoFocus style={{ width: '100%', boxSizing: 'border-box', height: '38px', background: '#17171B', border: '1px solid #26262E', borderRadius: '8px', padding: '0 12px', color: '#F4F4F5', fontFamily: 'inherit', fontSize: '13px', outline: 'none', marginBottom: '6px' }} />
+                  {kategoriFiltered.length === 0 ? (
+                    <div style={{ padding: '10px', fontSize: '12px', color: '#6B6E78' }}>Tidak ada kategori yang cocok.</div>
+                  ) : kategoriFiltered.map((k) => (
+                    <button key={k} type="button" role="option" aria-selected={k === kat} onClick={() => pilihKat(k)} style={{ width: '100%', display: 'block', textAlign: 'left', background: k === kat ? '#1A1A1F' : 'transparent', border: 'none', borderRadius: '8px', padding: '9px 10px', color: '#F4F4F5', fontFamily: 'inherit', fontSize: '13px', fontWeight: k === kat ? 700 : 400, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {k === 'Semua' ? 'Semua kategori' : k}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div className="lay-pil" style={{ ...pil, flex: '0 1 340px', padding: '0 6px 0 16px' }}>
               <input value={cari} onChange={(e) => setCari(e.target.value)} placeholder="Cari layanan" style={{ background: 'transparent', border: 'none', color: '#F4F4F5', fontFamily: 'inherit', fontSize: '14px', outline: 'none', flex: 1, minWidth: 0, fontWeight: 400 }} />
               <span style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#E11D3A', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

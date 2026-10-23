@@ -4,7 +4,7 @@ import { FaIcon } from './dashboard-kit';
 function DashboardOrders({ v }) {
   return v.is.orders ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "-58px" }}>
+          <div className="dash-pull-sm" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px" }}>
               <div style={{ position: "relative" }}>
                 <button type="button" className="chip" onClick={v.toggleOF} aria-haspopup="listbox" aria-expanded={v.ofOpen}>
@@ -42,7 +42,7 @@ function DashboardOrders({ v }) {
               <React.Fragment key={$index}>
                 <div className="card" style={{ borderRadius: "14px", overflow: "hidden" }}>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", padding: "12px 12px 12px 14px", borderBottom: "1px solid var(--b2)" }}>
-                    <span className="ddic" style={{ width: "32px", height: "32px", color: o.platColor, background: `rgba(${o.platRgb},.12)`, border: `1px solid rgba(${o.platRgb},.3)` }}>
+                    <span className="ddic" style={{ width: "32px", height: "32px", color: o.platColor, background: o.platChipBg, border: `1px solid ${o.platChipBorder}` }}>
                       <FaIcon d={o.icon} size={15} style={{ color: o.platColor }} />
                     </span>
                     <span className="idpill" style={{ background: "var(--accent)", color: "#FFFFFF", borderColor: "var(--accent)" }}>
@@ -117,7 +117,7 @@ function DashboardOrders({ v }) {
             {v.oEmpty && v.myOrdersGagal ? (
               <div className="card" style={{ padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                 <div style={{ fontSize: "13px", color: "var(--rt)" }}>Gagal memuat daftar pesanan.</div>
-                <button type="button" className="ghost" onClick={v.cobaLagiOrders}>Coba Lagi</button>
+                <button type="button" className="ghost" onClick={v.cobaLagiOrders}>{v.tr.retry}</button>
               </div>
             ) : v.oEmpty ? (
               <>

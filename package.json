@@ -7,7 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "cron:orders": "node scripts/cron-orders.js"
+    "cron:orders": "node scripts/cron-orders.js",
+    "test:admin-authz": "node tests/admin-authz.test.js",
+    "test:saldo-race": "node tests/saldo-race.test.js",
+    "test:webhook-idempotency": "node tests/webhook-idempotency.test.js",
+    "test:security": "npm run test:admin-authz && npm run test:saldo-race && npm run test:webhook-idempotency"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

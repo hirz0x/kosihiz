@@ -49,6 +49,18 @@ function assertSumberKodeCocok() {
   assert(kredit.includes('Number(trx.amount) === nominalDiharapkan'), '[tripwire] paymenku-kredit.js masih mencocokkan nominal');
   assert(kredit.includes("String(trx.reference_id || '') === String(deposit.id)"), '[tripwire] paymenku-kredit.js masih mencocokkan reference_id');
   assert(kredit.includes('if (!trx) {'), '[tripwire] paymenku-kredit.js masih menolak kalau transaksi tidak ditemukan');
+  assert(webhook.includes('export function timestampFresh'), '[tripwire] webhook.js masih punya pengecekan umur timestamp');
+  assert(webhook.includes("bolehCoba('paymenku_webhook_ip:' + ip"), '[tripwire] webhook.js masih punya rate limit per IP');
+}
+
+/* Mencerminkan persis timestampFresh() di pages/api/paymenku/webhook.js. */
+function timestampFresh(headerValue, toleransiMs, sekarang = Date.now()) {
+  const raw = String(headerValue || '');
+  if (!raw || !/^\d+$/.test(raw)) return false;
+  let ms = Number(raw);
+  if (!Number.isFinite(ms)) return false;
+  if (raw.length <= 10) ms *= 1000;
+  return Math.abs(sekarang - ms) <= toleransiMs;
 }
 
 /* Mencerminkan persis signatureValid() di pages/api/paymenku/webhook.js. */
@@ -90,6 +102,34 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
 
   const signatureBenar = crypto.createHmac('sha256', secretAsli).update(timestamp + '.' + rawBody).digest('hex');
   assert(signatureValid(rawBody, { 'x-paymenku-signature': signatureBenar, 'x-paymenku-timestamp': timestamp }, secretAsli) === true, 'signature BENAR + secret cocok -> diterima (sanity check, bukan tujuan utama tes ini)');
+
+  console.log('\n=== Timestamp webhook tidak boleh terlalu tua/jauh di masa depan (replay) ===');
+  const TOLERANSI = 5 * 60 * 1000;
+  assert(timestampFresh(String(Date.now()), TOLERANSI) === true, 'timestamp SEKARANG -> diterima');
+  assert(timestampFresh(String(Math.floor(Date.now() / 1000)), TOLERANSI) === true, 'timestamp SEKARANG dalam unix seconds -> diterima (dua format didukung)');
+  assert(timestampFresh(String(Date.now() - 10 * 60 * 1000), TOLERANSI) === false, 'timestamp 10 menit LALU (di luar toleransi 5 menit) -> ditolak (anti-replay)');
+  assert(timestampFresh(String(Date.now() + 10 * 60 * 1000), TOLERANSI) === false, 'timestamp 10 menit ke DEPAN -> ditolak');
+  assert(timestampFresh('', TOLERANSI) === false, 'timestamp kosong -> ditolak');
+  assert(timestampFresh('bukan-angka', TOLERANSI) === false, 'timestamp bukan angka -> ditolak');
+  assert(timestampFresh(String(Date.now() - 60 * 1000), TOLERANSI) === true, 'timestamp 1 menit lalu (masih dalam toleransi) -> diterima (sanity check)');
+
+  console.log('\n=== Rate limit per IP (HTTP sungguhan ke /api/paymenku/webhook, tidak pernah lolos ke signature/Paymenku) ===');
+  const ipPalsu = '203.0.113.' + (1 + Math.floor(Math.random() * 253));
+  const ctxRl = await request.newContext();
+  let kode429 = false;
+  let percobaanSebelum429 = 0;
+  for (let i = 0; i < 70 && !kode429; i++) {
+    const r = await ctxRl.post(BASE + '/api/paymenku/webhook', {
+      data: { reference_id: 'RL-TEST-' + i },
+      headers: { 'Content-Type': 'application/json', 'x-forwarded-for': ipPalsu }
+    });
+    percobaanSebelum429 = i + 1;
+    if (r.status() === 429) kode429 = true;
+    else assert(r.status() === 401, 'percobaan #' + (i + 1) + ' dari IP palsu ditolak 401 (signature invalid, BUKAN diproses) sebelum rate limit kena');
+  }
+  console.log('  429 muncul setelah ' + percobaanSebelum429 + ' percobaan dari IP ' + ipPalsu);
+  assert(kode429, 'rate limit per IP: setelah banyak percobaan cepat dari 1 IP, webhook membalas 429 (bukan diproses terus)');
+  await ctxRl.dispose();
 
   console.log('\n=== Nominal & reference_id (sebelum kredit) ===');
   const depositContoh = { id: 'DEP-999', nominal: 50000 };

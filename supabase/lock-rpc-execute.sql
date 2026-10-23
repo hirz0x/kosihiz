@@ -21,6 +21,11 @@
 -- Cara jalankan: Supabase Dashboard -> SQL Editor -> New query -> paste seluruh file ini -> Run.
 -- (Belum dijalankan ke database manapun oleh proses ini — lihat AUDIT_REPORT.md untuk urutan
 -- deploy yang disarankan: isi PAYMENKU_WEBHOOK_SECRET dulu, baru migrasi ini, baru redeploy app.)
+--
+-- Dibungkus satu transaksi: kalau ada satu statement yang gagal (misalnya nama fungsi berubah),
+-- SEMUA di file ini dibatalkan bersama (tidak ada perubahan separuh jalan yang nyangkut). Kalau
+-- perlu membatalkan SETELAH berhasil di-commit, pakai supabase/lock-rpc-execute.rollback.sql.
+begin;
 
 -- 1) Enam fungsi saldo/komisi yang belum punya REVOKE eksplisit.
 revoke all on function public.add_saldo(text, bigint) from public, anon, authenticated;
@@ -77,3 +82,5 @@ alter function public.tambah_pesan_tiket(bigint, jsonb, text, boolean) set searc
 alter function public.rl_tick(text, int, bigint) set search_path = public;
 alter function public.rl_gagal(text, int) set search_path = public;
 alter function public.waktu_per_layanan() set search_path = public;
+
+commit;

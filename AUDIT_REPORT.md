@@ -35,7 +35,7 @@ perilaku/arsitektur (lihat RLS-02 soal REVOKE fungsi RPC, PERF-01 soal query adm
 | CODE-01 | Low | `pages/api/{invoice,pengguna,riwayat,statistik,tickets}.js` | Fungsi format tanggal/waktu WIB diimplementasikan ulang terpisah di 5 file, sebagian tanpa penjaga tanggal tidak valid | Risiko rendah — kalau ada bug di satu, 4 lainnya tidak otomatis ikut benar | **Diperbaiki** — disatukan ke `lib/waktu.js` |
 | CODE-02 | Low | `components/sosmedgo/AdminPage.jsx` | Punya `ambilJson()` sendiri, duplikat dari versi di `DashboardPage.jsx` yang sudah diperbaiki sesi sebelumnya (logging per-percobaan retry + pesan error spesifik timeout/401/500) | Admin tidak dapat perbaikan observability yang sama seperti dashboard pelanggan | **Opsional** — belum dikerjakan, file admin besar (1023 baris), risiko regresi untuk perbaikan non-critical |
 | DANGER-03 | Low | `pages/api/services.js` (PATCH markup) | Markup % tidak punya batas atas, cuma dijamin ≥0 | Admin salah ketik bisa set markup ekstrem (langsung kelihatan di UI, bisa dikoreksi) | **Diperbaiki** — batas 0-500% (nilai dipilih kamu), ditolak 400 di server dengan pesan jelas kalau di luar batas, `max="500"` di input UI. Diuji di `tests/markup-bounds.test.js` |
-| RLS-02 | Medium | `supabase/schema.sql` — fungsi `add_saldo`, `potong_saldo`, `add_komisi`, `potong_komisi`, `kembalikan_komisi`, `pindah_komisi_ke_saldo` | 6 dari 11 fungsi RPC yang menyentuh saldo/komisi TIDAK punya `REVOKE ... FROM anon, authenticated` eksplisit, beda dari 5 fungsi lain (`add_saldo_aman`, `tambah_pesan_tiket`, `rl_tick`, `rl_gagal`, `waktu_per_layanan`) yang sudah di-revoke | **Diuji empiris langsung pakai `SUPABASE_ANON_KEY` sungguhan** (lihat bagian RLS di bawah): keenamnya BISA dipanggil anon (HTTP 200, bukan permission denied) tapi hasilnya selalu `null` — RLS di tabel `profiles` (aktif, nol policy) menahan `UPDATE`-nya dari dalam, walau fungsinya sendiri tidak ditolak. **Tidak tereksploitasi saat ini** (diverifikasi dengan akun tester sungguhan yang punya saldo 5.000 — saldo TIDAK berubah), tapi ini pertahanan berlapis yang hilang, bukan sesuatu yang seharusnya diandalkan terus | **Perlu keputusan** — kamu minta "jangan ubah policy, cukup laporkan", jadi REVOKE ini TIDAK saya tambahkan. Rekomendasi: tambahkan `revoke execute on function <nama>(...) from public, anon, authenticated;` + `grant ... to service_role;` untuk ke-6 fungsi ini, menyamakan pola dengan 5 fungsi lain |
+| RLS-02 | Medium | `supabase/schema.sql` — fungsi `add_saldo`, `potong_saldo`, `add_komisi`, `potong_komisi`, `kembalikan_komisi`, `pindah_komisi_ke_saldo` | 6 dari 11 fungsi RPC yang menyentuh saldo/komisi TIDAK punya `REVOKE ... FROM anon, authenticated` eksplisit, beda dari 5 fungsi lain (`add_saldo_aman`, `tambah_pesan_tiket`, `rl_tick`, `rl_gagal`, `waktu_per_layanan`) yang sudah di-revoke | **Diuji empiris langsung pakai `SUPABASE_ANON_KEY` sungguhan** (lihat bagian RLS di bawah): keenamnya BISA dipanggil anon (HTTP 200, bukan permission denied) tapi hasilnya selalu `null` — RLS di tabel `profiles` (aktif, nol policy) menahan `UPDATE`-nya dari dalam, walau fungsinya sendiri tidak ditolak. **Tidak tereksploitasi saat ini** (diverifikasi dengan akun tester sungguhan yang punya saldo 5.000 — saldo TIDAK berubah), tapi ini pertahanan berlapis yang hilang, bukan sesuatu yang seharusnya diandalkan terus | **Migrasi disiapkan, BELUM dijalankan ke database** — `supabase/lock-rpc-execute.sql` (baru, tidak mengedit `schema.sql`/`fix-security.sql` lama). Lihat bagian "RLS-02: migrasi REVOKE RPC" di bawah untuk isi, bukti grep pemanggil, tes otomatis, dan urutan deploy |
 | CODE-03 | Info | `DashboardPage.jsx` (1874 baris), `AdminPage.jsx` (1023 baris) | File terbesar di repo | Belum ada masalah fungsional, akan makin sulit dirawat kalau terus bertambah | **Tidak diubah** — refactor struktural besar, di luar scope audit ini |
 
 ### Yang sudah diperiksa dan TERBUKTI AMAN (bukan cuma "tidak ditemukan masalah" — dibuktikan aktif)
@@ -106,7 +106,92 @@ amount 1.000 — saldo tetap 5.000 sesudahnya (dicek pakai service key secara te
 kebocoran data atau uang yang tereksploitasi hari ini**, tapi lapis pertahanan ini sebaiknya
 ditutup juga (rekomendasi REVOKE eksplisit, tidak saya terapkan sesuai instruksi "jangan ubah policy").
 
-Tidak saya ubah satu baris SQL/policy pun — semua di atas murni laporan.
+Tidak saya ubah satu baris SQL/policy pun — semua di atas murni laporan (bagian ini). Lanjutan
+kerja untuk RLS-02 (migrasi + tes) ada di bagian berikut, dikerjakan di sesi lanjutan setelah
+laporan di atas selesai.
+
+## RLS-02: migrasi REVOKE RPC (lanjutan — belum dijalankan ke database)
+
+**Langkah 1 — grep semua pemanggil `rpc/...` di kode aplikasi (bukan di tes) sebelum menyentuh
+privilege apa pun**, sesuai instruksi "laporkan dulu, jangan revoke kalau ada pemanggil anon/
+authenticated tanpa konfirmasi":
+
+- Aplikasi memanggil RPC Supabase lewat REST (`fetch .../rest/v1/rpc/<nama>`), BUKAN lewat SDK
+  `supabase-js` (`.rpc(...)`) — proyek ini tidak memakai `supabase-js` sama sekali. Jadi yang
+  digrep adalah pola `'rpc/<nama>'` dan `createClient`/pemakai `SUPABASE_ANON_KEY`/
+  `NEXT_PUBLIC_SUPABASE*`.
+- **Satu-satunya titik yang memanggil RPC dari kode aplikasi**: fungsi `sb()` di `lib/store.js`
+  (baris 13-27) — semua 11 fungsi RPC (`add_saldo`, `potong_saldo`, `add_komisi`, `potong_komisi`*,
+  `kembalikan_komisi`*, `pindah_komisi_ke_saldo`, `add_saldo_aman`, `tambah_pesan_tiket`, `rl_tick`,
+  `rl_gagal`, `waktu_per_layanan`) dipanggil lewat `sb('rpc/<nama>', ...)`, dan `sb()` **selalu**
+  memakai `SUPABASE_SECRET_KEY` (service_role) dari `process.env` — tidak ada parameter atau jalur
+  lain untuk memakai kunci anon/authenticated. Dipanggil dari `pages/api/*` (server-side saja).
+  (*`potong_komisi` dan `kembalikan_komisi` didefinisikan di `schema.sql` tapi **tidak dipanggil di
+  mana pun** di kode aplikasi saat ini — fungsi "mati" dari sisi pemanggil, kemungkinan disiapkan
+  untuk fitur penarikan komisi yang belum/tidak dipakai jalurnya. Tidak masalah untuk tetap
+  direvoke — malah lebih aman karena memang tidak ada yang perlu memanggilnya dari luar
+  service_role.)
+- `NEXT_PUBLIC_SUPABASE*`: nol hasil di seluruh repo (dikonfirmasi ulang audit sebelumnya) —
+  `SUPABASE_ANON_KEY` cuma dipakai di `middleware.js`/`lib/account.js`/`lib/storage.js` untuk alur
+  Supabase Auth (login/sesi), BUKAN untuk panggilan RPC apa pun.
+- **Kesimpulan: tidak ada pemanggil produksi yang memakai client anon/authenticated untuk RPC apa
+  pun.** Aman menambahkan REVOKE ke seluruh 11 fungsi tanpa menunggu konfirmasi tambahan (tidak
+  ada "fungsi yang dipanggil anon" yang perlu dikecualikan).
+
+**Langkah 2 — migrasi baru**: `supabase/lock-rpc-execute.sql`. Isinya:
+1. `revoke all ... from public, anon, authenticated` + `grant execute ... to service_role` untuk
+   SEMUA 11 fungsi RPC sensitif (6 yang belum pernah direvoke + 5 yang sudah direvoke di
+   `schema.sql`, di-ulang di sini juga supaya file migrasi ini berdiri sendiri/idempoten, tidak
+   diam-diam bergantung urutan dengan `schema.sql`).
+2. `alter default privileges in schema public revoke execute on functions from public, anon, authenticated` —
+   fungsi RPC baru yang dibuat setelah ini TIDAK otomatis terbuka ke PUBLIC/anon/authenticated lagi.
+3. `alter function ... set search_path = public` untuk 5 fungsi yang belum dikunci
+   `fix-security.sql` (`add_saldo_aman`, `tambah_pesan_tiket`, `rl_tick`, `rl_gagal`,
+   `waktu_per_layanan`) — defense-in-depth yang sama alasannya dengan `fix-security.sql`, walau
+   kesebelas fungsi ini **bukan** `SECURITY DEFINER` (jadi search_path hijacking tidak berdampak
+   privilege-escalation hari ini, cuma mengunci kalau nanti berubah jadi DEFINER tanpa sadar
+   menambahkan search_path).
+   
+   Tidak satu baris pun di `supabase/schema.sql`, `fix-security.sql`, atau `rls.sql` yang diedit —
+   semuanya murni di file baru ini, sesuai instruksi.
+
+**Langkah 3 — tes otomatis**: `tests/rpc-privileges.test.js` (baru, masuk ke `npm run test:security`
+lewat script `test:rpc-privileges`). Memanggil seluruh 11 fungsi lewat `SUPABASE_ANON_KEY`
+(harus ditolak "permission denied") dan lewat `SUPABASE_SECRET_KEY` (harus tetap jalan normal,
+round-trip saldo/komisi/rate-limit/tiket dikembalikan ke nilai semula di akhir, tidak pernah
+menyentuh akun asli). **Dijalankan SEBELUM migrasi**, hasilnya sesuai ekspektasi:
+
+```
+5/11 fungsi sudah menolak anon.   (5 yang sudah lama direvoke di schema.sql)
+6 TES GAGAL                        (6 fungsi RLS-02 yang migrasinya belum dijalankan)
+service_role: SEMUA 9 pengecekan alur normal LOLOS
+```
+
+Ini pembuktian langsung temuan RLS-02 sebelum diperbaiki, sekaligus bukti migrasinya tidak
+mematahkan alur normal (bagian service_role lolos semua, termasuk `tambah_pesan_tiket` yang
+sebelumnya tidak ada tes otomatisnya sama sekali). **Setelah migrasi dijalankan, jalankan ulang
+`npm run test:rpc-privileges` — seharusnya jadi 11/11 fungsi menolak anon.**
+
+**Migrasi ini TIDAK dijalankan ke database** sesuai instruksi — lihat "Urutan deploy" di bawah.
+
+## Webhook: anti-replay timestamp + rate limit per IP (lanjutan)
+
+Dua lapis tambahan di `pages/api/paymenku/webhook.js`, di atas signature HMAC + verifikasi ulang
+status/nominal/reference_id ke API Paymenku yang sudah ada:
+
+- **Anti-replay timestamp** (`timestampFresh()`): menolak (401) kalau `X-PaymenKu-Timestamp` lebih
+  dari 5 menit di masa lalu atau masa depan dari waktu server — mencegah permintaan lama yang
+  signature-nya sendiri sah (misalnya hasil sadap jaringan) dipakai ulang belakangan. Mendukung
+  timestamp dalam unix seconds maupun milliseconds.
+- **Rate limit per IP** (`bolehCoba('paymenku_webhook_ip:' + ip, 60, 60_000)`, pakai mekanisme
+  atomic `rl_tick` yang sama dengan limiter login/registrasi) — maksimal 60 permintaan/menit per
+  IP, dicek PALING AWAL (sebelum baca body/signature) supaya tidak bisa dipakai menebak
+  reference_id/signature bertubi-tubi. Dikonfirmasi lewat tes HTTP sungguhan
+  (`tests/webhook-security.test.js`): 61 permintaan cepat dari 1 IP palsu → permintaan ke-61
+  dibalas 429, 60 sebelumnya 401 (ditolak signature, **tidak pernah diproses/menyentuh Paymenku**).
+
+Keduanya diuji di `tests/webhook-security.test.js` (bagian "Timestamp webhook" dan "Rate limit per
+IP") — sudah dijalankan dan lolos semua, lihat "Cara menjalankan tes" di bawah.
 
 ## Invoice Paymenku sungguhan yang pernah tercipta (jawaban item 3)
 
@@ -149,6 +234,38 @@ langsung tanpa pernah melalui alur yang memanggil Paymenku.
 8. **`pages/api/services.js`, `components/sosmedgo/AdminPage.jsx`, `components/sosmedgo/AdminLayanan.jsx`** — batas markup 0-500% (server + UI).
 9. **`tests/markup-bounds.test.js`** (baru) — markup di luar batas ditolak 400 sebelum data disentuh.
 10. **`package.json`** — tambah script `test:admin-authz`, `test:saldo-race`, `test:webhook-idempotency`, `test:webhook-security`, `test:markup-bounds`, `test:security`.
+11. **`supabase/lock-rpc-execute.sql`** (baru, belum dijalankan ke database) — RLS-02: REVOKE EXECUTE dari `public`/`anon`/`authenticated` + GRANT ke `service_role` untuk seluruh 11 fungsi RPC sensitif, `ALTER DEFAULT PRIVILEGES` supaya fungsi baru tidak otomatis terbuka, dan `search_path` untuk 5 fungsi yang belum dikunci `fix-security.sql`. Lihat bagian "RLS-02: migrasi REVOKE RPC" di atas.
+12. **`pages/api/paymenku/webhook.js`** — anti-replay timestamp (`timestampFresh()`, toleransi 5 menit) + rate limit per IP (60/menit, dicek paling awal). Lihat bagian "Webhook: anti-replay timestamp + rate limit per IP" di atas.
+13. **`tests/rpc-privileges.test.js`** (baru) — anon ditolak utk semua 11 fungsi RPC sensitif (5/11 lolos sebelum migrasi, 11/11 setelah) + service_role tetap jalan normal (9 pengecekan, termasuk `tambah_pesan_tiket` yang sebelumnya tidak ada tes otomatisnya).
+14. **`tests/webhook-security.test.js`** — tambah tes timestamp (anti-replay) dan rate limit per IP (HTTP sungguhan, 61 request dari 1 IP palsu → 429).
+15. **`package.json`** — tambah script `test:rpc-privileges`, masuk ke pipeline `test:security`.
+
+## Urutan deploy (webhook secret → migrasi → redeploy → tes Rp10.000)
+
+Ikuti urutan ini, bukan sembarang urutan — supaya tidak ada jendela waktu endpoint webhook
+menolak notifikasi sah atau deposit nyata ter-delay tanpa sebab yang jelas:
+
+1. **Isi `PAYMENKU_WEBHOOK_SECRET`** di environment produksi (Vercel/hosting lain) — ambil dari
+   dashboard Paymenku (Settings → Webhook). Tanpa ini, webhook fail-closed menolak SEMUA notifikasi
+   (bukan bug baru — sudah begini sejak WEBHOOK-03 diperbaiki). Deposit yang masuk selagi secret
+   belum diisi tetap bisa dikreditkan manual oleh admin lewat tab Deposit, atau otomatis saat
+   tombol "Cek status" dipakai (jalur itu tidak lewat webhook).
+2. **Jalankan migrasi `supabase/lock-rpc-execute.sql`** — buka Supabase Dashboard project ini →
+   SQL Editor → New query → paste seluruh isi file → Run. (Tidak ada koneksi `psql`/connection
+   string langsung di `.env.local`/`.env.example` proyek ini — satu-satunya cara yang konsisten
+   dengan `rls.sql`/`fix-security.sql` yang sudah ada adalah lewat SQL Editor dashboard, bukan CLI.)
+   Verifikasi lewat `npm run test:rpc-privileges` (dev server harus jalan) — harus jadi
+   **11/11 fungsi menolak anon**, dan bagian service_role tetap 9/9 lolos.
+3. **Deploy ulang aplikasi** (perubahan `pages/api/paymenku/webhook.js` di commit terpisah) —
+   migrasi di langkah 2 tidak mengubah kode aplikasi, jadi urutan 2-lalu-3 vs 3-lalu-2 sebenarnya
+   tidak saling bergantung, tapi migrasi lebih dulu supaya privilege RPC sudah benar SEBELUM kode
+   baru (yang tidak berubah perilakunya terhadap RPC) jalan di produksi.
+4. **Tes deposit Rp 10.000 sungguhan** — dari akun asli (bukan tester), ajukan deposit QRIS
+   Rp 10.000, bayar sungguhan, lalu konfirmasi: (a) notifikasi webhook Paymenku diterima & saldo
+   bertambah otomatis TANPA perlu klik "Cek status" manual, (b) `admin_log`/`saldo_log` mencatat
+   kreditnya, (c) invoice `DEP-1792722543127` (lihat bagian "Invoice Paymenku sungguhan" di bawah)
+   sudah dibatalkan/kedaluwarsa duluan di dashboard Paymenku kalau belum, supaya tidak ada deposit
+   pending lama yang membingungkan saat mengecek log.
 
 ## Cara menjalankan tes
 
@@ -159,10 +276,19 @@ npm run test:security
 
 Tes butuh `.env.local` terisi (dibaca langsung, dipakai lewat kredensial Supabase yang sama dengan
 app — **bukan** kredensial baru yang saya buat) dan akan membuat/memakai akun tester
-`qa.*@example.com` sekali pakai. `saldo-race.test.js` dan `webhook-idempotency.test.js` mengubah
-saldo akun tester tersebut sementara lalu mengembalikannya ke 0 di akhir — **tidak pernah menyentuh
-akun asli**. Belum disambungkan ke CI (butuh dev server jalan + `.env.local` berisi kredensial asli,
-tidak aman untuk CI publik tanpa secret management terpisah).
+`qa.*@example.com` sekali pakai. `saldo-race.test.js`, `webhook-idempotency.test.js`, dan
+`rpc-privileges.test.js` mengubah saldo/komisi akun tester tersebut sementara lalu mengembalikannya
+ke nilai semula di akhir — **tidak pernah menyentuh akun asli**. Belum disambungkan ke CI (butuh
+dev server jalan + `.env.local` berisi kredensial asli, tidak aman untuk CI publik tanpa secret
+management terpisah).
+
+**Catatan soal `npm run test:security` SEBELUM migrasi RLS-02 dijalankan**: skrip ini akan keluar
+dengan exit code bukan-nol (gagal) karena `test:rpc-privileges` sengaja melaporkan 6 fungsi RPC
+yang anon-nya belum ditolak (persis temuan RLS-02 yang migrasinya belum dijalankan ke database —
+lihat bagian "RLS-02: migrasi REVOKE RPC" di atas). Ini BUKAN regresi dari perbaikan sesi ini;
+semua tes lain (`admin-authz`, `saldo-race`, `webhook-idempotency`, `webhook-security`,
+`markup-bounds`) lolos penuh. Jalankan migrasinya lalu ulangi `npm run test:rpc-privileges` untuk
+memverifikasi 11/11.
 
 ## Bagian yang tidak bisa saya verifikasi
 

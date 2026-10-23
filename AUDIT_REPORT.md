@@ -183,6 +183,21 @@ status/nominal/reference_id ke API Paymenku yang sudah ada:
   dari 5 menit di masa lalu atau masa depan dari waktu server — mencegah permintaan lama yang
   signature-nya sendiri sah (misalnya hasil sadap jaringan) dipakai ulang belakangan. Mendukung
   timestamp dalam unix seconds maupun milliseconds.
+
+  **Header/field yang dipakai — dikonfirmasi langsung dari docs.paymenku.com/events/webhooks**
+  (bukan asumsi): header signature `X-PaymenKu-Signature`, header timestamp `X-PaymenKu-Timestamp`
+  ("Unix timestamp saat dikirim"), rumus `signature = HMAC-SHA256(timestamp + "." + raw_body, webhook_secret)`.
+  Tidak ada field timestamp di body JSON webhook (cuma `paid_at`/`created_at`, itu waktu transaksi,
+  bukan waktu kirim notifikasi) — jadi satu-satunya sumber timestamp memang header ini.
+  **Karena timestamp ikut ditandatangani (bagian dari string yang di-HMAC), timestamp ini WAJIB
+  ada di setiap webhook ASLI dari Paymenku** — tanpanya signature tidak mungkin valid. Jadi kalau
+  timestamp tidak ada/kosong, permintaan SUDAH ditolak lebih dulu di pengecekan signature (401),
+  sebelum sampai ke `timestampFresh()` — tidak perlu (dan tidak aman) membuat `timestampFresh()`
+  "melewatkan dengan aman" kasus timestamp hilang, karena untuk webhook Paymenku yang sah kasus itu
+  memang mustahil terjadi; kalau DIBUAT melewatkan, itu justru celah (penyerang bisa sengaja
+  menghapus header timestamp buat lolos dari pengecekan replay — tapi tetap akan ditolak di
+  signature). Dokumentasi tidak menyebut unit timestampnya (unix seconds vs milliseconds) —
+  `timestampFresh()` mendukung dua-duanya sekaligus (deteksi dari panjang digit).
 - **Rate limit per IP** (`bolehCoba('paymenku_webhook_ip:' + ip, 60, 60_000)`, pakai mekanisme
   atomic `rl_tick` yang sama dengan limiter login/registrasi) — maksimal 60 permintaan/menit per
   IP, dicek PALING AWAL (sebelum baca body/signature) supaya tidak bisa dipakai menebak
@@ -190,8 +205,90 @@ status/nominal/reference_id ke API Paymenku yang sudah ada:
   (`tests/webhook-security.test.js`): 61 permintaan cepat dari 1 IP palsu → permintaan ke-61
   dibalas 429, 60 sebelumnya 401 (ditolak signature, **tidak pernah diproses/menyentuh Paymenku**).
 
+  **IP diambil dari mana** — diperbaiki di `ambilIp()` (`lib/loginGuard.js`, dipakai bersama oleh
+  login/registrasi/webhook), urutan kepercayaan:
+  1. `X-Vercel-Forwarded-For` — di-set oleh infrastruktur Vercel sendiri, TIDAK BISA dipalsukan
+     klien (Vercel selalu menimpanya). Dipakai duluan kalau aplikasi jalan di Vercel.
+  2. `X-Real-IP` — umum di-set reverse proxy (nginx dkk) di hosting non-Vercel.
+  3. `X-Forwarded-For` (entri pertama) — FALLBACK PALING TIDAK DIPERCAYA: kalau tidak di belakang
+     proxy yang menimpa header ini, klien bisa mengirim header ini sendiri dan meniru IP apa pun.
+     Sebelumnya ini SATU-SATUNYA header yang dipakai (celah yang diperbaiki sesi ini) — sekarang
+     cuma fallback terakhir sebelum (4).
+  4. `req.socket.remoteAddress` — IP koneksi TCP langsung.
+
+  **Kalau IP tidak terbaca sama sekali** (keempatnya kosong — jarang, tapi bisa di lingkungan
+  non-standar): `ambilIp()` mengembalikan `'tidak-diketahui'`, dan SEMUA request dengan IP tidak
+  terbaca berbagi SATU kunci rate-limit yang sama (`paymenku_webhook_ip:tidak-diketahui`). Ini
+  TIDAK membuka celah "lewat rate limit sepenuhnya" — tetap dibatasi 60/menit, cuma dibagi rata ke
+  satu ember bersama (bukan fail-open/skip limiter). Dipilih begini karena rate limit cuma lapis
+  pertahanan TAMBAHAN: signature HMAC + verifikasi ulang status/nominal/reference_id ke API
+  Paymenku tetap jadi penghalang utama terlepas dari apakah IP pemanggil berhasil diidentifikasi.
+
 Keduanya diuji di `tests/webhook-security.test.js` (bagian "Timestamp webhook" dan "Rate limit per
 IP") — sudah dijalankan dan lolos semua, lihat "Cara menjalankan tes" di bawah.
+
+## Guard keamanan tes + pembersihan akun tester (lanjutan)
+
+**`tests/_guard.js`** (baru) — dipanggil di baris paling awal SEMUA `tests/*.test.js` (sebelum
+request/panggilan apa pun), menolak (`process.exit(1)`) jalan kalau:
+1. `TEST_ALLOWED_SUPABASE_URL` belum diisi di `.env.local`, atau `SUPABASE_URL` yang aktif tidak
+   ada di daftar itu (dipisah koma kalau lebih dari satu) — mencegah tes ini (yang bikin/hapus
+   akun & baris data) diam-diam jalan ke project Supabase PRODUKSI.
+2. `PAYMENKU_API_KEY` berawalan `sk_live_` — kunci LIVE (lihat WEBHOOK-04). Tes-tes ini sudah
+   dijaga supaya tidak pernah memanggil API Paymenku sungguhan, tapi guard ini lapis tambahan:
+   kalau kuncinya live, berhenti total, jangan andalkan cuma penjaga di masing-masing tes.
+
+**Status saat ini (terverifikasi langsung)**: `.env.local` proyek ini BELUM mengisi
+`TEST_ALLOWED_SUPABASE_URL`, jadi **SEMUA tes di folder `tests/` sekarang menolak jalan** —
+dijalankan `node tests/admin-authz.test.js` secara terpisah (bukan lewat `npm run test:security`,
+sesuai instruksi "jangan jalankan test:security/test:rpc-privileges sampai guard aktif") untuk
+memverifikasi guard-nya sendiri bekerja:
+```
+DIHENTIKAN: TEST_ALLOWED_SUPABASE_URL belum diisi di .env.local.
+...
+EXIT CODE: 1
+```
+Ini **disengaja** — guard ini justru dibuat supaya tidak ada yang bisa menjalankan tes keamanan ke
+Supabase yang sedang terpasang sekarang (yang juga punya `PAYMENKU_API_KEY` live) tanpa secara
+sadar menyiapkan project Supabase testing dulu. **Untuk mengaktifkan kembali seluruh
+`npm run test:security`**, siapkan project Supabase testing (schema sama, boleh kosong datanya),
+isi `TEST_ALLOWED_SUPABASE_URL` di `.env.local` dengan URL-nya, dan pastikan `PAYMENKU_API_KEY`
+tidak berawalan `sk_live_` (boleh kosong kalau cuma mau tes yang tidak menyentuh Paymenku).
+
+**`scripts/cleanup-test-accounts.js`** (baru) — membersihkan akun tester sekali-pakai (email
+berakhiran `@example.com`, konvensi yang dipakai semua `tests/*.test.js`) beserta baris data yang
+menempel (`profiles`, `deposits`, `tickets`, `refunds`, `withdrawals`, `orders`, `saldo_log`), lalu
+akun Auth-nya sendiri. **DRY RUN secara default** — cuma melaporkan, tidak menghapus apa pun,
+sampai dijalankan ulang dengan `--confirm`. Juga menerima `--reject-deposit=<ID>` untuk menandai
+satu deposit `menunggu` jadi `ditolak` (transisi CAS yang sama dengan tombol "Tolak" admin) —
+dipakai untuk `DEP-1792722543127` (invoice Paymenku live pending dari sesi sebelum audit, lihat
+bagian "Invoice Paymenku sungguhan" di bawah), juga dry-run kecuali disertai `--confirm`.
+Memanggil `pastikanAmanUntukTes()` yang sama, jadi juga menolak jalan sampai guard di atas aktif.
+
+**Belum dijalankan dengan `--confirm` oleh proses ini** (baik untuk hapus akun maupun tolak
+deposit) — sesuai instruksi. Dry run:
+```
+node scripts/cleanup-test-accounts.js
+node scripts/cleanup-test-accounts.js --reject-deposit=DEP-1792722543127
+```
+keduanya saat ini langsung berhenti di guard (lihat di atas) sampai `TEST_ALLOWED_SUPABASE_URL`
+diisi — belum sempat menunjukkan daftar akun yang sebenarnya. Jalankan lagi setelah guard aktif
+untuk melihat laporan dry-run yang sesungguhnya, lalu `--confirm` secara manual kalau hasilnya
+sesuai ekspektasi.
+
+## Migrasi RLS-02: transaksi + rollback (lanjutan)
+
+`supabase/lock-rpc-execute.sql` sekarang dibungkus `begin;` / `commit;` — kalau ada satu statement
+yang gagal (misalnya nama/tanda tangan fungsi berubah sebelum migrasi dijalankan), SEMUA perubahan
+di file itu batal bersama, tidak ada yang nyangkut separuh jalan.
+
+**`supabase/lock-rpc-execute.rollback.sql`** (baru) — `GRANT EXECUTE` balik ke `public`/`anon`/
+`authenticated` untuk seluruh 11 fungsi yang direvoke migrasi di atas, dan mengembalikan default
+privileges schema `public` ke perilaku bawaan Postgres. Dipakai HANYA kalau migrasi
+`lock-rpc-execute.sql` ternyata mematahkan sesuatu yang sah di produksi setelah di-deploy (grep
+pemanggil RPC di bagian "RLS-02: migrasi REVOKE RPC" di atas sudah memastikan tidak ada pemanggil
+anon/authenticated saat ini, tapi kode bisa berubah). **Tidak** membatalkan `search_path` yang
+dikunci migrasi aslinya — itu pengerasan independen yang tidak berbahaya untuk tetap terkunci.
 
 ## Invoice Paymenku sungguhan yang pernah tercipta (jawaban item 3)
 
@@ -239,6 +336,14 @@ langsung tanpa pernah melalui alur yang memanggil Paymenku.
 13. **`tests/rpc-privileges.test.js`** (baru) — anon ditolak utk semua 11 fungsi RPC sensitif (5/11 lolos sebelum migrasi, 11/11 setelah) + service_role tetap jalan normal (9 pengecekan, termasuk `tambah_pesan_tiket` yang sebelumnya tidak ada tes otomatisnya).
 14. **`tests/webhook-security.test.js`** — tambah tes timestamp (anti-replay) dan rate limit per IP (HTTP sungguhan, 61 request dari 1 IP palsu → 429).
 15. **`package.json`** — tambah script `test:rpc-privileges`, masuk ke pipeline `test:security`.
+16. **`tests/_guard.js`** (baru) — guard keamanan: SEMUA `tests/*.test.js` menolak jalan kalau `SUPABASE_URL` tidak ada di `TEST_ALLOWED_SUPABASE_URL`, atau `PAYMENKU_API_KEY` berawalan `sk_live_`. Lihat bagian "Guard keamanan tes" di atas.
+17. **`.env.example`** — tambah `TEST_ALLOWED_SUPABASE_URL` + penjelasan.
+18. **`scripts/cleanup-test-accounts.js`** (baru) — bersihkan akun tester `@example.com` + baris data terkait (DRY RUN default, `--confirm` untuk hapus sungguhan), dan `--reject-deposit=<ID>` untuk menandai satu deposit `menunggu` jadi `ditolak`. Lihat bagian "Guard keamanan tes + pembersihan akun tester" di atas.
+19. **`lib/loginGuard.js`** — `ambilIp()` sekarang memilih `X-Vercel-Forwarded-For`/`X-Real-IP` dulu sebelum fallback ke `X-Forwarded-For` mentah (yang sebelumnya satu-satunya sumber, bisa dipalsukan klien kalau tidak di belakang proxy yang menimpanya). Dipakai bersama oleh login/registrasi/webhook.
+20. **`pages/api/paymenku/webhook.js`** — komentar diperbarui mengutip langsung docs.paymenku.com (lihat bagian "Webhook: anti-replay timestamp" di atas) — tidak ada perubahan logika dari sesi sebelumnya untuk `timestampFresh()`/`signatureValid()` sendiri, cuma dikonfirmasi dengan dokumentasi asli.
+21. **`supabase/lock-rpc-execute.sql`** — dibungkus `begin;`/`commit;`.
+22. **`supabase/lock-rpc-execute.rollback.sql`** (baru) — kebalikan dari migrasi RLS-02: `GRANT EXECUTE` balik ke `public`/`anon`/`authenticated` untuk seluruh 11 fungsi + kembalikan default privileges.
+23. **`package.json`** — tambah script `cleanup:test-accounts`.
 
 ## Urutan deploy (webhook secret → migrasi → redeploy → tes Rp10.000)
 
@@ -251,11 +356,14 @@ menolak notifikasi sah atau deposit nyata ter-delay tanpa sebab yang jelas:
    belum diisi tetap bisa dikreditkan manual oleh admin lewat tab Deposit, atau otomatis saat
    tombol "Cek status" dipakai (jalur itu tidak lewat webhook).
 2. **Jalankan migrasi `supabase/lock-rpc-execute.sql`** — buka Supabase Dashboard project ini →
-   SQL Editor → New query → paste seluruh isi file → Run. (Tidak ada koneksi `psql`/connection
+   SQL Editor → New query → paste seluruh isi file (sudah dibungkus `begin;`/`commit;`, jadi kalau
+   ada satu statement gagal semuanya batal bersama) → Run. (Tidak ada koneksi `psql`/connection
    string langsung di `.env.local`/`.env.example` proyek ini — satu-satunya cara yang konsisten
    dengan `rls.sql`/`fix-security.sql` yang sudah ada adalah lewat SQL Editor dashboard, bukan CLI.)
-   Verifikasi lewat `npm run test:rpc-privileges` (dev server harus jalan) — harus jadi
-   **11/11 fungsi menolak anon**, dan bagian service_role tetap 9/9 lolos.
+   Verifikasi lewat `npm run test:rpc-privileges` (dev server harus jalan, dan guard tes di bawah
+   harus sudah aktif) — harus jadi **11/11 fungsi menolak anon**, dan bagian service_role tetap
+   9/9 lolos. Kalau ternyata mematahkan sesuatu yang sah, jalankan
+   `supabase/lock-rpc-execute.rollback.sql` (cara yang sama, lewat SQL Editor) untuk membalikkannya.
 3. **Deploy ulang aplikasi** (perubahan `pages/api/paymenku/webhook.js` di commit terpisah) —
    migrasi di langkah 2 tidak mengubah kode aplikasi, jadi urutan 2-lalu-3 vs 3-lalu-2 sebenarnya
    tidak saling bergantung, tapi migrasi lebih dulu supaya privilege RPC sudah benar SEBELUM kode
@@ -269,6 +377,12 @@ menolak notifikasi sah atau deposit nyata ter-delay tanpa sebab yang jelas:
 
 ## Cara menjalankan tes
 
+**Langkah 0 (WAJIB, baru di sesi ini) — aktifkan guard tes dulu** (lihat "Guard keamanan tes" di
+atas): siapkan project Supabase KHUSUS testing, isi `TEST_ALLOWED_SUPABASE_URL` di `.env.local`
+dengan `SUPABASE_URL` project itu, dan pastikan `PAYMENKU_API_KEY` tidak berawalan `sk_live_`.
+Tanpa ini, SEMUA tes di bawah berhenti duluan dengan pesan `DIHENTIKAN: ...` — ini disengaja,
+bukan bug.
+
 ```
 npm run dev          # di terminal terpisah, biarkan jalan
 npm run test:security
@@ -276,19 +390,24 @@ npm run test:security
 
 Tes butuh `.env.local` terisi (dibaca langsung, dipakai lewat kredensial Supabase yang sama dengan
 app — **bukan** kredensial baru yang saya buat) dan akan membuat/memakai akun tester
-`qa.*@example.com` sekali pakai. `saldo-race.test.js`, `webhook-idempotency.test.js`, dan
+`@example.com` sekali pakai. `saldo-race.test.js`, `webhook-idempotency.test.js`, dan
 `rpc-privileges.test.js` mengubah saldo/komisi akun tester tersebut sementara lalu mengembalikannya
-ke nilai semula di akhir — **tidak pernah menyentuh akun asli**. Belum disambungkan ke CI (butuh
-dev server jalan + `.env.local` berisi kredensial asli, tidak aman untuk CI publik tanpa secret
-management terpisah).
+ke nilai semula di akhir — **tidak pernah menyentuh akun asli**, dan sekarang bisa dibersihkan
+lebih tuntas lewat `npm run cleanup:test-accounts` (lihat bagian "Guard keamanan tes + pembersihan
+akun tester" di atas). Belum disambungkan ke CI (butuh dev server jalan + `.env.local` berisi
+kredensial Supabase testing, tidak aman untuk CI publik tanpa secret management terpisah).
 
-**Catatan soal `npm run test:security` SEBELUM migrasi RLS-02 dijalankan**: skrip ini akan keluar
-dengan exit code bukan-nol (gagal) karena `test:rpc-privileges` sengaja melaporkan 6 fungsi RPC
-yang anon-nya belum ditolak (persis temuan RLS-02 yang migrasinya belum dijalankan ke database —
-lihat bagian "RLS-02: migrasi REVOKE RPC" di atas). Ini BUKAN regresi dari perbaikan sesi ini;
-semua tes lain (`admin-authz`, `saldo-race`, `webhook-idempotency`, `webhook-security`,
-`markup-bounds`) lolos penuh. Jalankan migrasinya lalu ulangi `npm run test:rpc-privileges` untuk
-memverifikasi 11/11.
+**Status di sesi ini**: `.env.local` proyek ini BELUM punya `TEST_ALLOWED_SUPABASE_URL`, jadi
+`npm run test:security` / `npm run test:rpc-privileges` **SENGAJA TIDAK dijalankan** (sesuai
+instruksi "jangan jalankan test:security/test:rpc-privileges sampai guard aktif") — cuma satu file
+tes dijalankan terpisah (`node tests/admin-authz.test.js`) untuk memverifikasi guard-nya sendiri
+benar-benar menghentikan eksekusi (lihat output di bagian "Guard keamanan tes" di atas), BUKAN
+untuk menjalankan isi tesnya. Setelah guard diaktifkan (langkah 0), jalankan
+`npm run test:rpc-privileges` — harus jadi 11/11 fungsi menolak anon kalau migrasi RLS-02 sudah
+dijalankan, atau 5/11 kalau belum (persis temuan RLS-02, lihat bagian "RLS-02: migrasi REVOKE RPC"
+di atas) — dan `npm run test:security` untuk sisanya (`admin-authz`, `saldo-race`,
+`webhook-idempotency`, `webhook-security`, `markup-bounds`, sudah dikonfirmasi lolos penuh di sesi
+audit sebelum guard ini dipasang).
 
 ## Bagian yang tidak bisa saya verifikasi
 

@@ -2,14 +2,15 @@
 
 import { getDeposit, getSetting } from '../../lib/store';
 import { userDariRequest } from '../../lib/account';
+import { waktuWib as waktuWibInti } from '../../lib/waktu';
 
 const STATUS = { menunggu: 'Menunggu pembayaran', disetujui: 'Lunas', ditolak: 'Dibatalkan' };
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const waktuWib = (iso) => {
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? '-' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' WIB';
+  const hasil = waktuWibInti(iso);
+  return hasil ? hasil + ' WIB' : '-';
 };
 
 export default async function handler(req, res) {

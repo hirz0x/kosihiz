@@ -2,12 +2,7 @@
 
 import { semuaProfil, getOrders } from '../../lib/store';
 import { wajibAdmin } from '../../lib/auth';
-
-/* Tanggal dalam WIB. */
-const tanggalWib = (iso) => {
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? '' : new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10);
-};
+import { tanggalWib } from '../../lib/waktu';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Metode tidak didukung.' });

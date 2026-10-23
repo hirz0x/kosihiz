@@ -7,14 +7,11 @@ import { tambahNotif } from '../../lib/notif';
 import { totalBelanjaSemua, ambilPeringkat, indexPeringkat } from '../../lib/peringkat';
 import { catatAktivitas } from '../../lib/adminLog';
 import { bolehCoba } from '../../lib/loginGuard';
+import { waktuWib, sekarangWib } from '../../lib/waktu';
 
 const KATEGORI = ['order', 'service', 'payment', 'other'];
 const SUB_MAKS = 40;
 const PESAN_MAKS = 2000;
-
-/* Waktu ditampilkan dalam WIB. */
-const waktuWib = (iso) => new Date(new Date(iso).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ');
-const sekarangWib = () => waktuWib(new Date().toISOString());
 
 function keKlien(t) {
   return { id: t.id, username: t.username, kategori: t.kategori, sub: t.sub, orderId: t.orderId, status: t.status, userBaca: t.userBaca, diupdate: waktuWib(t.diupdate), pesan: t.pesan };

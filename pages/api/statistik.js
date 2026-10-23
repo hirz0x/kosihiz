@@ -3,16 +3,10 @@
 import { getOrders, listDeposits, semuaProfil } from '../../lib/store';
 import { wajibAdmin } from '../../lib/auth';
 import { KOMISI_PERSEN } from '../../lib/affiliate';
+import { tanggalWib } from '../../lib/waktu';
 
 const MAKS_HARI = 366;
 const POLA_TANGGAL = /^\d{4}-\d{2}-\d{2}$/;
-
-/* Tanggal dalam WIB. Kosong kalau waktunya tidak valid. */
-function tanggalWib(iso) {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return '';
-  return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10);
-}
 
 function hariDalamRentang(a, b) {
   const out = [];

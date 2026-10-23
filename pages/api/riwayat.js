@@ -3,12 +3,10 @@
 import { listRiwayat, tambahRiwayat, hapusRiwayat } from '../../lib/store';
 import { wajibAdmin, isAdmin } from '../../lib/auth';
 import { catatAktivitas } from '../../lib/adminLog';
+import { tanggalWib } from '../../lib/waktu';
 
 const TIPE = ['up', 'down', 'off', 'new'];
 const TAMPIL_MAKS = 300;
-
-/* Tanggal dalam WIB, sama seperti tanggal di halaman lain. */
-const tanggalWib = (iso) => new Date(new Date(iso).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10);
 
 export default async function handler(req, res) {
   try {

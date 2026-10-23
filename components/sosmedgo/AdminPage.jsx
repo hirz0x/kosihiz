@@ -46,6 +46,11 @@ async function ambilJson(url, opts, percobaan) {
   }
 }
 
+/* Harus sinkron dengan MARKUP_MIN/MARKUP_MAKS di pages/api/services.js — itu yang benar-benar
+   menolak, batas di sini cuma supaya admin ketahuan salah ketik SEBELUM request dikirim. */
+const MARKUP_MIN = 0;
+const MARKUP_MAKS = 500;
+
 export default function AdminPage() {
   const [theme, setTheme] = useState('dark');
   const [themeMode, setThemeMode] = useState('dark');
@@ -672,7 +677,8 @@ export default function AdminPage() {
      sendiri sudah merupakan langkah yang disengaja. */
   const applyMarkup = async (ids) => {
     const m = Number(massMarkup);
-    if (massMarkup === '' || !Number.isFinite(m) || m < 0) return;
+    if (massMarkup === '' || !Number.isFinite(m) || m < MARKUP_MIN) return;
+    if (m > MARKUP_MAKS) { tampilkanToast(false, 'Markup harus antara ' + MARKUP_MIN + '% dan ' + MARKUP_MAKS + '%.'); return; }
     if (ids === null) {
       const label = PROVIDER_LABEL[svcProvider] || svcProvider;
       if (!(await tanyaKonfirmasi('Terapkan markup ' + m + '% ke SEMUA ' + svcInProvider.length + ' layanan ' + label + '? Harga jual semua layanan itu akan berubah setelah disimpan.'))) return;
@@ -702,7 +708,7 @@ export default function AdminPage() {
     setServices((list) => list.map((x) => (kena.has(x.id) ? { ...x, aktif } : x)));
     tandai(Array.from(kena), { massal: true });
   };
-  const setServiceMarkup = (id, val) => { setServices((list) => list.map((x) => (x.id === id ? { ...x, markup: Math.max(0, Number(val) || 0) } : x))); tandai([id]); };
+  const setServiceMarkup = (id, val) => { setServices((list) => list.map((x) => (x.id === id ? { ...x, markup: Math.min(MARKUP_MAKS, Math.max(MARKUP_MIN, Number(val) || 0)) } : x))); tandai([id]); };
 
   const updMsg = (u) => (u.from ? UPS[u.type].label + ' dari ' + u.from + ' ke ' + u.to : UPS[u.type].label);
   const updDays = (() => {

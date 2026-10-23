@@ -24,7 +24,7 @@ function AdminLayanan({ v }) {
           <div className="card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ fontSize: '14px', fontWeight: '700' }}>Markup massal</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-              <input className="inp" type="number" min="0" placeholder="Markup %" value={massMarkup} onChange={(e) => setMassMarkup(e.target.value)} style={{ maxWidth: '160px', margin: 0 }} aria-label="Markup persen" />
+              <input className="inp" type="number" min="0" max="500" placeholder="Markup % (0-500)" value={massMarkup} onChange={(e) => setMassMarkup(e.target.value)} style={{ maxWidth: '160px', margin: 0 }} aria-label="Markup persen, 0 sampai 500" />
               <button type="button" className="submit" disabled={massMarkup === ''} onClick={() => applyMarkup(null)}>Terapkan ke semua ({svcInProvider.length})</button>
               <button type="button" className="ghost" disabled={selCount === 0 || massMarkup === ''} onClick={() => applyMarkup(selectedIds)}>Terapkan ke {selCount} dipilih</button>
               <button type="button" className="ghost" onClick={resetMarkup}>Reset ke harga dasar</button>
@@ -120,7 +120,7 @@ function AdminLayanan({ v }) {
                       <td>{rp(s.dasar)}</td>
                       <td>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <input className="inp" type="number" min="0" value={s.markup} onChange={(e) => setServiceMarkup(s.id, e.target.value)} style={{ maxWidth: '84px', margin: 0, height: '34px' }} aria-label={'Markup ' + s.nama} />
+                          <input className="inp" type="number" min="0" max="500" value={s.markup} onChange={(e) => setServiceMarkup(s.id, e.target.value)} style={{ maxWidth: '84px', margin: 0, height: '34px' }} aria-label={'Markup ' + s.nama + ', 0 sampai 500 persen'} />
                           <span className="muted">%</span>
                         </span>
                       </td>

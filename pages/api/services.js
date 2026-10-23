@@ -11,6 +11,9 @@ import { catatAktivitas } from '../../lib/adminLog';
 
 export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
 
+export const MARKUP_MIN = 0;
+export const MARKUP_MAKS = 500;
+
 /* Respons untuk PELANGGAN di-cache. Katalognya sudah lebih dari 5.000 layanan aktif (~1.5MB JSON)
    — tanpa cache, data sebanyak itu ditarik ulang dari database DAN diproses ulang (decode nama,
    gabung rata-rata waktu selesai, dst) dari NOL di setiap request, oleh SETIAP pengunjung, di
@@ -115,6 +118,20 @@ export default async function handler(req, res) {
     if (!wajibAdmin(req, res)) return;
     try {
       const { updates, kurs } = req.body || {};
+
+      /* Batas markup: 0-500% (keputusan admin, lihat AUDIT_REPORT.md temuan DANGER-03). Ditolak
+         semua (bukan dipotong diam-diam) kalau ada satu saja yang di luar batas — supaya admin
+         tahu persis input mana yang salah, bukan tiba-tiba angkanya beda dari yang diketik. */
+      if (Array.isArray(updates)) {
+        const invalid = updates.filter((u) => u.markup !== undefined && (!Number.isFinite(Number(u.markup)) || Number(u.markup) < MARKUP_MIN || Number(u.markup) > MARKUP_MAKS));
+        if (invalid.length) {
+          return res.status(400).json({
+            error: 'Markup harus angka antara ' + MARKUP_MIN + '% dan ' + MARKUP_MAKS + '%. Layanan bermasalah: ' +
+              invalid.slice(0, 5).map((u) => '#' + u.id + ' (' + u.markup + '%)').join(', ') + (invalid.length > 5 ? ', dan ' + (invalid.length - 5) + ' lainnya' : '') + '.'
+          });
+        }
+      }
+
       const settings = await getSettings();
       const kursBerubah = Number(kurs) > 0 && Number(kurs) !== settings.kurs;
 
@@ -143,7 +160,7 @@ export default async function handler(req, res) {
           if (!u) return s;
           const hasil = {
             ...s,
-            markup: u.markup === undefined ? s.markup : Math.max(0, Number(u.markup) || 0),
+            markup: u.markup === undefined ? s.markup : Math.min(MARKUP_MAKS, Math.max(MARKUP_MIN, Number(u.markup) || 0)),
             aktif: u.aktif === undefined ? s.aktif : !!u.aktif
           };
           /* Perubahan dari aksi borongan (massal) sengaja tidak dicatat ke riwayat/Update — kalau

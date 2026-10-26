@@ -16,7 +16,8 @@
     "test:webhook-security": "node tests/webhook-security.test.js",
     "test:markup-bounds": "node tests/markup-bounds.test.js",
     "test:rpc-privileges": "node tests/rpc-privileges.test.js",
-    "test:security": "npm run test:admin-authz && npm run test:saldo-race && npm run test:webhook-idempotency && npm run test:webhook-security && npm run test:markup-bounds && npm run test:rpc-privileges"
+    "test:cron-deposits-security": "node tests/cron-deposits-security.test.js",
+    "test:security": "npm run test:admin-authz && npm run test:saldo-race && npm run test:webhook-idempotency && npm run test:webhook-security && npm run test:markup-bounds && npm run test:rpc-privileges && npm run test:cron-deposits-security"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

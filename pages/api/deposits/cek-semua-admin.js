@@ -11,13 +11,19 @@ import { wajibAdmin } from '../../../lib/auth';
 import { cekSemuaDepositPending } from '../../../lib/paymenku-kredit';
 import { catatAktivitas } from '../../../lib/adminLog';
 
+/* AUTH: wajibAdmin() (lib/auth.js) -- butuh cookie sesi admin yang valid (lihat isAdmin()), sama
+   dengan endpoint admin lain. Diuji otomatis di tests/admin-authz.test.js (tanpa login & dari user
+   biasa, dua-duanya harus 401/403). Batas & jeda: lihat komentar cekSemuaDepositPending() di
+   lib/paymenku-kredit.js dan pages/api/cron/deposits.js -- sama persis angkanya (maks 50 deposit
+   "menunggu" <24 jam per panggilan, jeda 300ms antar panggilan ke Paymenku). */
 const BATAS = 50;
+const JEDA_MS = 300;
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Metode tidak didukung.' });
   if (!wajibAdmin(req, res)) return;
   try {
-    const hasil = await cekSemuaDepositPending({ uid: null, batas: BATAS });
+    const hasil = await cekSemuaDepositPending({ uid: null, batas: BATAS, jedaMs: JEDA_MS });
     if (hasil.disetujui > 0) {
       await catatAktivitas('deposit_cek_admin', hasil.disetujui + ' dari ' + hasil.dicek + ' deposit menunggu berhasil dikreditkan (cek manual ke Paymenku).');
     }

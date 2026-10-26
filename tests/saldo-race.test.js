@@ -11,7 +11,7 @@
 
    Jalankan: node tests/saldo-race.test.js   (dev server harus sudah jalan di localhost:3000) */
 const { request } = require('playwright');
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+const { bacaEnvTes, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 
@@ -34,7 +34,7 @@ function assert(kondisi, pesan) {
 }
 
 (async () => {
-  const env = bacaEnvLocal();
+  const env = bacaEnvTes();
   pastikanAmanUntukTes(env);
 
   // Akun tester: coba daftar baru, kalau kena rate-limit pendaftaran (sudah banyak dibuat sesi ini),

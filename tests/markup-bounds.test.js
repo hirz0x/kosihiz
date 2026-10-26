@@ -5,7 +5,7 @@
 
    Jalankan: node tests/markup-bounds.test.js   (dev server harus sudah jalan) */
 const { request } = require('playwright');
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+const { bacaEnvTes, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
@@ -14,7 +14,7 @@ function assert(kondisi, pesan) {
 }
 
 (async () => {
-  const env = bacaEnvLocal();
+  const env = bacaEnvTes();
   pastikanAmanUntukTes(env);
   const ctx = await request.newContext();
   const login = await ctx.post(BASE + '/api/admin-login', { data: { username: env.ADMIN_USERNAME, password: env.ADMIN_PASSWORD }, headers: { 'Content-Type': 'application/json' } });

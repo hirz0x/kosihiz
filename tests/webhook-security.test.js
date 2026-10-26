@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { request } = require('playwright');
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+const { bacaEnvTes, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
@@ -85,7 +85,7 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
 }
 
 (async () => {
-  const env = bacaEnvLocal();
+  const env = bacaEnvTes();
   pastikanAmanUntukTes(env);
   const lepasPenjaga = pasangPenjagaFetch();
 

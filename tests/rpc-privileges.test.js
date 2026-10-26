@@ -20,7 +20,7 @@
 
    Jalankan: node tests/rpc-privileges.test.js   (dev server harus sudah jalan di localhost:3000) */
 const { request } = require('playwright');
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+const { bacaEnvTes, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 let gagal = 0;
@@ -64,7 +64,7 @@ const FUNGSI_ANON = [
 ];
 
 (async () => {
-  const env = bacaEnvLocal();
+  const env = bacaEnvTes();
   pastikanAmanUntukTes(env);
   if (!env.SUPABASE_ANON_KEY) { console.log('SUPABASE_ANON_KEY belum diisi di .env.local — tidak bisa jalankan tes ini.'); process.exit(1); }
 

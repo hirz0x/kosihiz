@@ -12,7 +12,7 @@
 
    Jalankan: node tests/webhook-idempotency.test.js   (dev server harus sudah jalan) */
 const { request } = require('playwright');
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('./_guard');
+const { bacaEnvTes, pastikanAmanUntukTes } = require('./_guard');
 
 const BASE = 'http://localhost:3000';
 
@@ -35,7 +35,7 @@ function assert(kondisi, pesan) {
 }
 
 (async () => {
-  const env = bacaEnvLocal();
+  const env = bacaEnvTes();
   pastikanAmanUntukTes(env);
 
   const ctx = await request.newContext();

@@ -28,13 +28,20 @@
 import { cekSemuaDepositPending } from '../../../lib/paymenku-kredit';
 import { cekBearerRahasia } from '../../../lib/auth';
 
-/* Batas per pemanggilan: maks 50 deposit "menunggu" berusia <24 jam dicek per run (lihat
-   cekSemuaDepositPending() di lib/paymenku-kredit.js utk alasan dua batas itu), dengan jeda 300ms
-   antar panggilan ke API Paymenku supaya satu run cron tidak menembak API Paymenku beruntun tanpa
-   jeda sampai 50x dalam hitungan detik. Scheduler eksternal (lihat AUDIT_REPORT.md bagian "Scheduler
-   eksternal") yang menentukan SEBERAPA SERING endpoint ini dipanggil -- nilai di sini cuma
-   membatasi BERAPA BANYAK yang diproses dalam SATU pemanggilan. */
-const BATAS = 50;
+/* Batas waktu eksekusi function serverless (Vercel) — 60 detik. Dengan BATAS=20 + JEDA_MS=300 di
+   bawah, waktu minimum satu run (cuma jeda, belum termasuk latensi tiap panggilan API Paymenku
+   sendiri) ada di kisaran ~6 detik — jauh di bawah 60 detik, menyisakan banyak ruang untuk latensi
+   Paymenku yang sesungguhnya tanpa kena limit ini. */
+export const config = { maxDuration: 60 };
+
+/* Batas per pemanggilan: maks 20 deposit "menunggu" berusia <24 jam dicek per run (diturunkan dari
+   50 — lihat cekSemuaDepositPending() di lib/paymenku-kredit.js utk alasan dua batas itu), dengan
+   jeda 300ms antar panggilan ke API Paymenku supaya satu run cron tidak menembak API Paymenku
+   beruntun tanpa jeda sampai 20x dalam hitungan detik. Scheduler eksternal (lihat AUDIT_REPORT.md
+   bagian "Scheduler eksternal") yang menentukan SEBERAPA SERING endpoint ini dipanggil -- nilai di
+   sini cuma membatasi BERAPA BANYAK yang diproses dalam SATU pemanggilan, dan dipilih supaya satu
+   run tetap selesai jauh di bawah maxDuration di atas. */
+const BATAS = 20;
 const JEDA_MS = 300;
 
 export default async function handler(req, res) {

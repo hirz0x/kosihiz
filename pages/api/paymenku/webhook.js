@@ -22,7 +22,24 @@
    2. Timestamp (X-PaymenKu-Timestamp) tidak boleh terlalu tua/jauh di masa depan — mencegah replay
       permintaan lama yang signature-nya sendiri sah (mis. hasil sadap) dipakai ulang belakangan.
    3. lib/paymenku-kredit.js: status, nominal, DAN reference_id dicek ulang langsung ke API Paymenku
-      (bukan percaya isi notifikasi webhook sama sekali) sebelum saldo benar-benar ditambah. */
+      (bukan percaya isi notifikasi webhook sama sekali) sebelum saldo benar-benar ditambah.
+
+   APA YANG TERJADI KALAU PAYMENKU ME-RETRY CALLBACK DENGAN TIMESTAMP LAMA (>5 menit)?
+   Ditolak 401 di sini (lapisan #2, timestampFresh()) — SENGAJA, bukan bug. Retry dengan timestamp
+   lama secara definisi gagal lolos anti-replay yang sama persis dipakai untuk menolak notifikasi
+   lama yang disadap/diputar ulang orang lain; webhook ini tidak punya cara membedakan "retry sah
+   dari Paymenku sendiri karena percobaan pertama gagal terkirim" dari "replay oleh pihak lain",
+   jadi dua-duanya ditolak sama rata. Ini TIDAK membuat deposit macet selamanya — ada jalur
+   pemulihan independen dari webhook, yang mengecek ULANG langsung ke API Paymenku (bukan percaya
+   retry apa pun) lewat cekDanKreditDeposit() yang SAMA dipakai di sini, jadi kredit tetap lewat
+   CAS yang sama dan aman dipanggil berulang:
+     - User: pages/api/deposits/cek.js (tombol "cek" di dashboard) dan cek-semua.js (otomatis saat
+       dashboard dibuka) — tapi cuma mengecek deposit milik user yang sedang login.
+     - Admin: pages/api/deposits/cek-semua-admin.js (tombol "Cek status ke Paymenku" di tab Deposit)
+       — mengecek SEMUA user, dipakai kalau ada laporan "sudah bayar tapi saldo belum masuk" dari
+       user yang tidak/belum membuka dashboardnya lagi.
+     - Cron: pages/api/cron/deposits.js (scripts/cron-deposits.js, `npm run cron:deposits`) —
+       mengecek SEMUA user secara terjadwal, tanpa perlu ada yang klik apa pun. */
 
 import crypto from 'crypto';
 import { getDeposit, getDepositByTrx } from '../../../lib/store';

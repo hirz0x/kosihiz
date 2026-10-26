@@ -52,6 +52,10 @@ function assertSumberKodeCocok() {
   assert(kredit.includes('if (!trx) {'), '[tripwire] paymenku-kredit.js masih menolak kalau transaksi tidak ditemukan');
   assert(webhook.includes('export function timestampFresh'), '[tripwire] webhook.js masih punya pengecekan umur timestamp');
   assert(webhook.includes("bolehCoba('paymenku_webhook_ip:' + ip"), '[tripwire] webhook.js masih punya rate limit per IP');
+  assert(webhook.includes('export const config = { api: { bodyParser: false } }'), '[tripwire] webhook.js masih menonaktifkan bodyParser bawaan Next.js (wajib baca raw body sendiri)');
+  assert(webhook.includes('const rawBody = await bacaRawBody(req)'), '[tripwire] webhook.js masih membaca RAW body (stream req.on("data")) SEBELUM verifikasi signature');
+  assert(webhook.includes('if (!signatureValid(rawBody, req))'), '[tripwire] webhook.js masih memverifikasi signature memakai rawBody mentah, BUKAN body yang sudah di-JSON.parse ulang');
+  assert(/const rawBody = await bacaRawBody\(req\);[\s\S]*if \(!signatureValid\(rawBody, req\)\)[\s\S]*let body = \{\};[\s\S]*JSON\.parse\(rawBody\)/.test(webhook), '[tripwire] webhook.js masih memverifikasi signature SEBELUM JSON.parse(rawBody) dijalankan (urutan ini wajib: signature dicek atas BYTE asli, baru body di-parse)');
 }
 
 /* Mencerminkan persis timestampFresh() di pages/api/paymenku/webhook.js. */
@@ -105,6 +109,35 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
 
   const signatureBenar = crypto.createHmac('sha256', secretAsli).update(timestamp + '.' + rawBody).digest('hex');
   assert(signatureValid(rawBody, { 'x-paymenku-signature': signatureBenar, 'x-paymenku-timestamp': timestamp }, secretAsli) === true, 'signature BENAR + secret cocok -> diterima (sanity check, bukan tujuan utama tes ini)');
+
+  console.log('\n=== Signature dihitung dari RAW BODY (byte asli), BUKAN hasil JSON.stringify ulang ===');
+  /* webhook.js WAJIB memverifikasi signature atas byte raw body ASLI yang dikirim Paymenku (lihat
+     config: { api: { bodyParser: false } } + bacaRawBody() yang membaca stream req.on('data')
+     mentah-mentah, SEBELUM JSON.parse). Kalau implementasinya sampai berubah jadi: body di-parse
+     dulu jadi objek, lalu di-stringify ULANG untuk dicocokkan ke signature — webhook akan keliru
+     MENOLAK notifikasi ASLI dari Paymenku setiap kali raw body-nya punya spasi/urutan key yang
+     beda dari hasil JSON.stringify (umum terjadi; serializer tiap bahasa/HTTP client tidak selalu
+     menghasilkan string JSON yang identik walau isinya sama). Dibuktikan di bawah dengan raw body
+     yang SENGAJA ditulis beda spasi & urutan key dari JSON.stringify(objek yang sama). */
+  const payloadRaw = { trx_id: 'TRX-RAWTEST', reference_id: 'DEP-RAWTEST', amount: 50000 };
+  const rawAsli = '{ "amount": 50000,   "reference_id": "DEP-RAWTEST",  "trx_id": "TRX-RAWTEST" }';
+  assert(JSON.stringify(JSON.parse(rawAsli)) !== JSON.stringify(payloadRaw) || rawAsli !== JSON.stringify(payloadRaw), '(sanity) rawAsli secara STRING beda dari JSON.stringify(payloadRaw) walau isi datanya sama (spasi & urutan key disengaja beda)');
+  assert(JSON.parse(rawAsli).trx_id === payloadRaw.trx_id && JSON.parse(rawAsli).amount === payloadRaw.amount, '(sanity) rawAsli tetap valid JSON, isi datanya sama dengan payloadRaw');
+
+  const secretRaw = 'rahasia-rawbody-tes';
+  const tsRaw = String(Date.now());
+  const sigUntukRawAsli = crypto.createHmac('sha256', secretRaw).update(tsRaw + '.' + rawAsli).digest('hex');
+  assert(
+    signatureValid(rawAsli, { 'x-paymenku-signature': sigUntukRawAsli, 'x-paymenku-timestamp': tsRaw }, secretRaw) === true,
+    'signature dihitung dari raw body ASLI -> valid saat diverifikasi dengan raw body yang SAMA persis (termasuk spasi/urutan key)'
+  );
+
+  const rawStringifyUlang = JSON.stringify(JSON.parse(rawAsli));
+  assert(rawStringifyUlang !== rawAsli, '(sanity) hasil JSON.stringify ulang beda secara string dari raw body asli (urutan key JS mengikuti urutan deklarasi objek, bukan urutan di rawAsli)');
+  assert(
+    signatureValid(rawStringifyUlang, { 'x-paymenku-signature': sigUntukRawAsli, 'x-paymenku-timestamp': tsRaw }, secretRaw) === false,
+    'signature yang sama DITOLAK kalau "dicocokkan" ke versi JSON.stringify ulang (byte beda dari raw asli) -- membuktikan verifikasi memang bergantung pada raw body asli, bukan body yang sempat di-parse+stringify ulang'
+  );
 
   console.log('\n=== Timestamp webhook tidak boleh terlalu tua/jauh di masa depan (replay) ===');
   const TOLERANSI = 5 * 60 * 1000;

@@ -17,6 +17,7 @@ const ADMIN_ENDPOINTS = [
   { method: 'POST', url: '/api/services', body: { nama: 'x' } },
   { method: 'PATCH', url: '/api/deposits', body: { id: 'DEP-FAKE', aksi: 'setujui' } },
   { method: 'POST', url: '/api/deposits', body: { manual: true, userId: 'x', nominal: 1000000 } },
+  { method: 'GET', url: '/api/deposits/cek-semua-admin' },
   { method: 'POST', url: '/api/undian', body: { aksi: 'cabut' } },
   { method: 'PATCH', url: '/api/peringkat', body: { nama: 'Starter', min: 0 } },
   { method: 'POST', url: '/api/artikel/upload-gambar' },

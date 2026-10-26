@@ -21,7 +21,9 @@
 
    Isi TEST_ALLOWED_SUPABASE_URL di .env.test.local dengan SUPABASE_URL project Supabase KHUSUS
    testing (boleh lebih dari satu, pisahkan koma) sebelum menjalankan npm run test:security / tes
-   manapun di folder ini. Salin .env.test.example jadi .env.test.local untuk mulai. */
+   manapun di folder ini. Buat file .env.test.local (tidak otomatis dibuat) berisi SUPABASE_URL,
+   SUPABASE_ANON_KEY, SUPABASE_SECRET_KEY, TEST_ALLOWED_SUPABASE_URL, ADMIN_USERNAME,
+   ADMIN_PASSWORD (lihat variabel yang dibaca lib/supabase dkk) untuk mulai. */
 const fs = require('fs');
 const path = require('path');
 
@@ -36,7 +38,7 @@ function bacaEnvTes() {
     console.error('.env.local (env aplikasi/produksi) — supaya tes yang membuat/menghapus data');
     console.error('sintetis tidak pernah ikut diam-diam menyasar Supabase produksi hanya karena');
     console.error('.env.local sedang diarahkan ke sana untuk kebutuhan lain (deploy, dll).');
-    console.error('Salin .env.test.example jadi .env.test.local lalu isi kredensial project');
+    console.error('Buat .env.test.local lalu isi kredensial project');
     console.error('Supabase KHUSUS testing (bukan produksi).');
     process.exit(1);
   }
@@ -59,7 +61,7 @@ function pastikanAmanUntukTes(env) {
     console.error('\nDIHENTIKAN: TEST_ALLOWED_SUPABASE_URL belum diisi di .env.test.local.');
     console.error('Tes ini membuat/menghapus akun & baris data lewat Supabase sungguhan — isi');
     console.error('TEST_ALLOWED_SUPABASE_URL dengan SUPABASE_URL project Supabase KHUSUS testing');
-    console.error('(bukan produksi) sebelum menjalankan tes keamanan apa pun. Lihat .env.test.example.');
+    console.error('(bukan produksi) sebelum menjalankan tes keamanan apa pun.');
     process.exit(1);
   }
   if (!url || !daftarAman.includes(url)) {

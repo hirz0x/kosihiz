@@ -1,26 +1,41 @@
-/* Bersihkan akun tester sekali-pakai (email berakhiran @example.com — konvensi yang dipakai semua
-   tests/*.test.js di proyek ini, lihat AUDIT_REPORT.md) dan baris data yang menempel padanya
-   (profiles, deposits, tickets, refunds, withdrawals, orders, saldo_log), lalu akun Auth-nya sendiri.
+/* Bersihkan akun tester sekali-pakai (HANYA email lokal-part berawalan "qa." atau "auditqd", domain
+   @example.com — konvensi dua pola yang benar-benar dipakai tests/*.test.js & sesi audit sebelumnya;
+   SENGAJA BUKAN "semua @example.com" supaya tidak menyapu akun lain yang kebetulan memakai domain
+   itu untuk alasan lain) dan baris data yang menempel padanya (profiles, deposits, tickets, refunds,
+   withdrawals, orders, saldo_log), lalu akun Auth-nya sendiri.
 
-   DRY RUN SECARA DEFAULT — HANYA MELAPORKAN, TIDAK MENGHAPUS APA PUN. Tambahkan --confirm untuk
-   benar-benar menghapus.
+   GUARD SKRIP INI SENDIRI (BUKAN tests/_guard.js — skrip ini memang dibuat untuk bisa menyentuh
+   project Supabase PRODUKSI, bukan cuma project testing, karena akun tester kadang bocor ke prod
+   lewat alur customer biasa, lihat AUDIT_REPORT.md bagian "Invoice Paymenku sungguhan"):
+     1. Wajib flag --target-prod-i-understand di command line. Tanpa ini skrip langsung berhenti,
+        tidak membaca/menghubungi Supabase sama sekali.
+     2. Kalau (1) terpenuhi, skrip menanyakan interaktif: ketik ulang PROJECT REF Supabase (subdomain
+        di SUPABASE_URL, mis. "abcdefgh" dari https://abcdefgh.supabase.co) yang sedang aktif di
+        .env.local. Salah ketik/kosong -> berhenti. Ini memastikan orang yang menjalankan skrip
+        SADAR project mana yang akan disentuh, tidak cuma menekan Enter di command yang disalin dari
+        riwayat/dokumentasi.
+   Kedua lapis ini WAJIB lolos dulu sebelum skrip membaca daftar akun sekalipun (termasuk dry run) —
+   supaya tidak ada jalan pintas "kebetulan jalan" ke project yang salah.
+
+   DRY RUN SECARA DEFAULT SETELAH GUARD LOLOS — HANYA MELAPORKAN, TIDAK MENGHAPUS APA PUN. Tambahkan
+   --confirm untuk benar-benar menghapus (tetap wajib lolos guard di atas juga).
 
    Opsi tambahan: --reject-deposit=<ID> menandai SATU deposit yang masih "menunggu" jadi "ditolak"
    (persis transisi yang dilakukan tombol "Tolak" admin di pages/api/deposits.js — CAS dari
    menunggu ke ditolak, tidak pernah menyentuh saldo karena saldo cuma berubah di jalur "disetujui").
-   Dipakai misalnya untuk DEP-1792722543127 (invoice Paymenku live pending yang ditemukan audit —
-   lihat AUDIT_REPORT.md bagian "Invoice Paymenku sungguhan yang pernah tercipta"). Juga dry-run
-   kecuali --confirm disertakan.
+   Juga dry-run kecuali --confirm disertakan.
 
    Jalankan:
-     node scripts/cleanup-test-accounts.js                              (lihat apa yang AKAN dihapus)
-     node scripts/cleanup-test-accounts.js --confirm                    (benar-benar hapus)
-     node scripts/cleanup-test-accounts.js --reject-deposit=DEP-xxx     (lihat apa yang AKAN diubah)
-     node scripts/cleanup-test-accounts.js --reject-deposit=DEP-xxx --confirm   (benar-benar tolak)
+     node scripts/cleanup-test-accounts.js --target-prod-i-understand
+     node scripts/cleanup-test-accounts.js --target-prod-i-understand --confirm
+     node scripts/cleanup-test-accounts.js --target-prod-i-understand --reject-deposit=DEP-xxx
+     node scripts/cleanup-test-accounts.js --target-prod-i-understand --reject-deposit=DEP-xxx --confirm
      (keduanya boleh digabung dalam satu pemanggilan) */
-const { bacaEnvLocal, pastikanAmanUntukTes } = require('../tests/_guard');
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
 
-const POLA_EMAIL_TES = /@example\.com$/i;
+const POLA_EMAIL_TES = /^(qa\.[^@]*|auditqd[^@]*)@example\.com$/i;
 const TABEL_ANAK = ['deposits', 'tickets', 'refunds', 'withdrawals', 'orders'];
 
 function argFlag(nama) {
@@ -29,6 +44,51 @@ function argFlag(nama) {
 function argNilai(nama) {
   const p = process.argv.find((a) => a.startsWith('--' + nama + '='));
   return p ? p.slice(nama.length + 3) : null;
+}
+
+function bacaEnvLocal() {
+  const file = path.join(__dirname, '..', '.env.local');
+  const txt = fs.readFileSync(file, 'utf8');
+  const env = {};
+  for (const line of txt.split('\n')) {
+    const m = line.match(/^([A-Z_]+)=(.*)$/);
+    if (m) env[m[1]] = m[2].trim();
+  }
+  return env;
+}
+
+function ambilProjectRef(supabaseUrl) {
+  const m = String(supabaseUrl || '').match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
+  return m ? m[1] : null;
+}
+
+function tanya(pertanyaan) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(pertanyaan, (jawaban) => { rl.close(); resolve(jawaban); });
+  });
+}
+
+/* Guard skrip ini sendiri — lihat komentar di atas file. Berhenti total (process.exit(1)) kalau
+   salah satu lapis tidak lolos. */
+async function pastikanTargetDisadari(env) {
+  if (!argFlag('target-prod-i-understand')) {
+    console.error('\nDIHENTIKAN: skrip ini butuh flag --target-prod-i-understand.');
+    console.error('Skrip ini bisa menyentuh project Supabase PRODUKSI (bukan cuma testing) — flag');
+    console.error('ini memastikan kamu sengaja menjalankannya, bukan tidak sadar.');
+    process.exit(1);
+  }
+  const ref = ambilProjectRef(env.SUPABASE_URL);
+  if (!ref) {
+    console.error('\nDIHENTIKAN: tidak bisa membaca project ref dari SUPABASE_URL di .env.local (' + (env.SUPABASE_URL || '(kosong)') + ').');
+    process.exit(1);
+  }
+  console.log('\nProject Supabase yang AKAN disentuh: ' + ref + ' (' + env.SUPABASE_URL + ')');
+  const jawaban = await tanya('Ketik ulang project ref di atas ("' + ref + '") untuk konfirmasi: ');
+  if (jawaban.trim() !== ref) {
+    console.error('\nDIHENTIKAN: project ref yang diketik tidak cocok. Tidak ada yang disentuh.');
+    process.exit(1);
+  }
 }
 
 async function sb(env, p, opts = {}) {
@@ -113,13 +173,13 @@ async function prosesRejectDeposit(env, id, konfirmasi) {
 
 (async () => {
   const env = bacaEnvLocal();
-  pastikanAmanUntukTes(env);
+  await pastikanTargetDisadari(env);
   const konfirmasi = argFlag('confirm');
   const rejectId = argNilai('reject-deposit');
 
   if (rejectId) await prosesRejectDeposit(env, rejectId, konfirmasi);
 
-  console.log('\n=== Akun tester (email berakhiran @example.com) ===');
+  console.log('\n=== Akun tester (email lokal-part "qa.*" atau "auditqd*", domain @example.com) ===');
   const akun = await daftarAkunTes(env);
   if (akun.length === 0) { console.log('Tidak ada akun tester ditemukan.'); return; }
 

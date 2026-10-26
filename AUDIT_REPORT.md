@@ -340,9 +340,9 @@ cekSemuaDepositPending()`, dipakai bersama oleh ketiganya):
   yang tidak/belum membuka dashboardnya lagi.
 - **Cron**: `pages/api/cron/deposits.js` (`scripts/cron-deposits.js`, `npm run cron:deposits`, sama
   polanya dengan `cron:orders` yang sudah ada) — mengecek SEMUA user secara terjadwal, tanpa perlu
-  ada yang klik apa pun. Belum disambungkan ke scheduler produksi (tidak ada `vercel.json` cron di
-  repo ini untuk job manapun, termasuk `cron:orders`/`cron:services` yang sudah ada sebelumnya) —
-  perlu dijadwalkan manual (Vercel Cron, cron OS, atau `npm run cron:deposits` dibiarkan jalan).
+  ada yang klik apa pun. Sengaja TIDAK disambungkan ke `vercel.json` — dijadwalkan lewat scheduler
+  eksternal (crontab sendiri, dll), lihat bagian "Scheduler eksternal" di bawah untuk contoh
+  konkretnya & auth/batas/jeda-nya lihat bagian "Tinjauan keamanan: /api/cron/deposits" di bawah.
 
 **Bukti HMAC dihitung dari raw body, bukan body yang di-parse+stringify ulang**: `config = { api: {
 bodyParser: false } }` + `bacaRawBody()` (baca stream `req.on('data')` mentah) di
@@ -355,6 +355,116 @@ body itu (byte beda) — membuktikan implementasinya memang bergantung pada byte
 representasi JSON yang dinormalisasi ulang (yang akan keliru menolak notifikasi Paymenku ASLI kalau
 serializer-nya menghasilkan spasi/urutan key yang berbeda, sesuatu yang umum terjadi antar bahasa/
 HTTP client).
+
+## Tinjauan keamanan: /api/cron/deposits & tombol admin "Cek status" (lanjutan)
+
+**`pages/api/cron/deposits.js` — auth, kode persis:**
+```js
+const rahasia = process.env.CRON_SECRET || '';
+if (!rahasia) return res.status(500).json({ error: 'CRON_SECRET belum diisi di .env.local.' });
+if (!cekBearerRahasia(req, rahasia)) return res.status(401).json({ error: 'Tidak diizinkan.' });
+```
+`cekBearerRahasia()` (`lib/auth.js`, dipakai bersama semua endpoint `/api/cron/*`):
+```js
+export function cekBearerRahasia(req, rahasia) {
+  if (!rahasia) return false;
+  const header = String(req.headers.authorization || '');
+  return sama(header, 'Bearer ' + rahasia);
+}
+```
+`sama()` (`lib/auth.js`, dipakai bersama login admin & bearer cron):
+```js
+function sama(a, b) {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+```
+**Fail-closed, dua lapis independen** (keduanya diverifikasi di `tests/cron-deposits-security.test.js`):
+1. `process.env.CRON_SECRET || ''` — kalau environment variable itu tidak diisi sama sekali,
+   `rahasia` jadi string KOSONG (bukan `undefined`), dan baris berikutnya langsung `return
+   res.status(500)` SEBELUM `cekBearerRahasia()` dipanggil sama sekali — endpoint berhenti total,
+   apa pun isi header `Authorization`-nya (termasuk tanpa header sama sekali). Ini lapis PERTAMA:
+   **CRON_SECRET kosong di environment = tolak semua.**
+2. Kalau `rahasia` terisi, `cekBearerRahasia()` sendiri JUGA `return false` duluan kalau parameter
+   `rahasia`-nya kosong — lapis KEDUA yang identik, independen dari pengecekan di handler. Kalau
+   terisi, perbandingan header ke `'Bearer ' + rahasia` lewat `sama()` — **hash SHA-256 kedua sisi
+   dulu, baru `crypto.timingSafeEqual()` atas hash itu** (bukan atas string Authorization mentah).
+   Hashing dulu membuat kedua sisi SELALU 32 byte sebelum `timingSafeEqual()`, jadi: (a) tidak
+   pernah melempar exception "length mismatch" untuk header sepanjang apa pun (yang kalau dibiarkan
+   crash tanpa ditangkap bisa jadi DoS murah), dan (b) waktu eksekusi `timingSafeEqual()` sendiri
+   tidak lagi bergantung pada PANJANG `CRON_SECRET` asli — penyerang tidak bisa menyimpulkan
+   panjang secret dari mengukur waktu respons.
+
+**Batas tambahan di satu pemanggilan** (`lib/paymenku-kredit.js: cekSemuaDepositPending()`, dipakai
+bersama oleh cron & admin):
+- **Maks 50 deposit per run** (turun dari 200 di draft sebelumnya) — supaya satu pemanggilan tidak
+  bisa membebani API Paymenku/database tanpa batas, dan tetap aman dalam batas waktu eksekusi
+  function serverless kalau dijadwalkan sering.
+- **Hanya deposit `menunggu` berusia < 24 jam** — dihitung dari `dibuat` tiap baris. Invoice QRIS
+  Paymenku sendiri kedaluwarsa jauh lebih cepat dari 24 jam, jadi deposit `menunggu` yang sudah
+  seumur itu nyaris pasti sudah mati di sisi Paymenku; terus mengeceknya cuma buang panggilan API.
+  Tidak menghapus/mengubah baris yang lebih tua — cuma tidak diikutkan ke pengecekan otomatis.
+- **Jeda 300ms antar panggilan ke Paymenku** dalam satu run — mencegah satu pemanggilan ini sendiri
+  menembak API Paymenku beruntun tanpa jeda sampai 50x dalam hitungan detik.
+
+**`pages/api/deposits/cek-semua-admin.js` — auth, kode persis:**
+```js
+if (req.method !== 'GET') return res.status(405).json({ error: 'Metode tidak didukung.' });
+if (!wajibAdmin(req, res)) return;
+```
+`wajibAdmin()` butuh cookie sesi admin yang valid (`isAdmin()`, lihat bagian otorisasi admin di
+atas) — endpoint ini TIDAK memakai `CRON_SECRET`, memakai mekanisme login admin yang sama dengan
+seluruh endpoint admin lain. Sudah diuji otomatis di `tests/admin-authz.test.js` (baris
+`GET /api/deposits/cek-semua-admin`, ditambahkan sesi sebelumnya) — tanpa login & dari user biasa,
+dua-duanya harus 401/403, sama seperti 15 endpoint admin lain. Memakai batas & jeda yang SAMA dengan
+cron (maks 50, usia < 24 jam, jeda 300ms) lewat `cekSemuaDepositPending()` yang sama.
+
+**`tests/cron-deposits-security.test.js`** (baru) — "tanpa secret", "secret salah", "secret kosong
+di header Authorization" (`Bearer ` tanpa nilai), dan "header tanpa scheme Bearer" diuji HTTP
+sungguhan ke server yang sedang jalan (semuanya harus ditolak, bukan 200, dan body tidak pernah
+mengandung hasil pengecekan deposit). "CRON_SECRET kosong di ENVIRONMENT server" tidak bisa diuji
+lewat HTTP sungguhan (tidak bisa mengosongkan env server yang sedang jalan dari proses tes) — diuji
+level fungsi lewat cerminan persis `cekBearerRahasia()`/`sama()`, diperiksa ulang lewat tripwire
+anti-drift yang mem-baca source `lib/auth.js` dan `pages/api/cron/deposits.js` langsung. Masuk ke
+`npm run test:security` (`test:cron-deposits-security`).
+
+## Scheduler eksternal (lanjutan — TIDAK memakai `vercel.json`)
+
+Sesuai instruksi, **tidak ada `vercel.json` di repo ini** — baik untuk `/api/cron/deposits` maupun
+`/api/cron/orders`/`/api/cron/services` yang sudah ada sebelumnya. Penjadwalan jadi tanggung jawab
+scheduler eksternal (crontab server sendiri, cron job hosting lain, atau layanan cron pihak ketiga),
+yang memanggil endpoint-endpoint ini lewat HTTP biasa dengan header `Authorization: Bearer
+<CRON_SECRET>`.
+
+**Contoh crontab** (ganti `https://domain-anda.com` dan `CRON_SECRET_ANDA`; simpan output ke log
+supaya gagal/berhasilnya kelihatan tanpa harus login ke dashboard tiap saat):
+```cron
+# Cek deposit Paymenku yang masih "menunggu" tiap 5 menit
+*/5 * * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" https://domain-anda.com/api/cron/deposits >> /var/log/sosmedgo/cron-deposits.log 2>&1
+
+# Cek status pesanan tiap 1 menit (sudah ada sebelumnya, pola yang sama)
+* * * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" https://domain-anda.com/api/cron/orders >> /var/log/sosmedgo/cron-orders.log 2>&1
+
+# Sinkron katalog layanan 1x sehari jam 03:00 (berat, lihat komentar pages/api/cron/services.js)
+0 3 * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" "https://domain-anda.com/api/cron/services" >> /var/log/sosmedgo/cron-services.log 2>&1
+```
+`curl -f` membuat `curl` keluar dengan exit code bukan-nol kalau respons HTTP-nya error (4xx/5xx) —
+berguna kalau crontab-nya sendiri diawasi lewat exit code (mis. `MAILTO=` di crontab, atau wrapper
+monitoring seperti healthchecks.io/cronitor).
+
+**Alternatif: `npm run cron:deposits`** (`scripts/cron-deposits.js`) — proses Node yang dibiarkan
+jalan terus (bukan dipanggil scheduler per-interval), memanggil `/api/cron/deposits` tiap 60 detik
+sendiri lewat `setInterval`. Cocok untuk server yang sudah selalu punya proses Node long-running
+(VM/VPS sendiri, PM2, systemd service, dll) — BUKAN untuk platform serverless (Vercel) yang memang
+tidak mendukung proses background seperti ini (makanya pola `/api/cron/*` + scheduler eksternal
+lebih cocok untuk itu). Baca `CRON_SECRET`/`APP_URL` dari `.env.local` yang sama dengan aplikasi.
+Jalankan di terminal terpisah (atau di belakang `pm2 start npm --name cron-deposits -- run cron:deposits`
+kalau memakai PM2), biarkan tetap jalan selama server aplikasi jalan:
+```
+npm run cron:deposits
+```
+Sama persis pola & keluaran log-nya dengan `npm run cron:orders` yang sudah ada sebelumnya.
 
 ## Migrasi RLS-02: transaksi + rollback (lanjutan)
 
@@ -430,6 +540,13 @@ langsung tanpa pernah melalui alur yang memanggil Paymenku.
 27. **`lib/paymenku-kredit.js`** — tambah `cekSemuaDepositPending()`: jalur pemulihan deposit yang masih "menunggu" (webhook ditolak/tidak sampai), mengecek ulang ke Paymenku lewat `cekDanKreditDeposit()` yang sama. Dipakai ulang oleh `pages/api/deposits/cek-semua.js` (refactor, perilaku user tidak berubah), endpoint admin baru **`pages/api/deposits/cek-semua-admin.js`**, dan cron baru **`pages/api/cron/deposits.js`** + **`scripts/cron-deposits.js`** (`npm run cron:deposits`). Tombol "Cek status ke Paymenku" ditambah di tab Deposit admin (`AdminDeposit.jsx`/`AdminPage.jsx`). Endpoint admin baru diikutkan ke `tests/admin-authz.test.js`. Lihat bagian "Webhook: jalur pemulihan retry timestamp lama" di bawah.
 28. **`lib/loginGuard.js`** — `ambilIp()`: `X-Forwarded-For` sekarang HANYA dipercaya kalau `process.env.VERCEL` aktif (di luar Vercel, header itu dilewati total, langsung fallback ke `req.socket.remoteAddress`) — sebelumnya dipercaya sebagai fallback di hosting apa pun. Lihat bagian "Guard cleanup-test-accounts & pemisahan env tes" di bawah untuk dampaknya ke `tests/webhook-security.test.js`.
 29. **`tests/webhook-security.test.js`** — tambah tes "signature dihitung dari raw body, bukan hasil `JSON.stringify` ulang" (raw body dengan spasi/urutan key beda dari `JSON.stringify` objek yang sama tetap valid; versi stringify-ulangnya ditolak) + tripwire baru memastikan `webhook.js` masih baca raw body & verifikasi signature SEBELUM `JSON.parse`. Komentar tes rate-limit per IP diperbarui soal dampak item 28 di atas.
+30. **`lib/paymenku-kredit.js`** — `cekSemuaDepositPending()` dapat 2 batas baru: `maksUsiaMs` (default 24 jam — deposit `menunggu` yang lebih tua dilewati, tidak ikut dicek/dihitung ke `batas`) dan `jedaMs` (delay antar panggilan ke `cekDanKreditDeposit()`/Paymenku dalam satu run, default 0). Lihat bagian "Tinjauan keamanan: /api/cron/deposits & tombol admin 'Cek status'" di bawah.
+31. **`pages/api/cron/deposits.js`** — `BATAS` diturunkan dari 200 jadi **50** per run, tambah `JEDA_MS = 300` (ms) antar panggilan ke Paymenku. Komentar baru menjelaskan persis dua lapis fail-closed auth-nya (CRON_SECRET kosong di environment, dan `cekBearerRahasia()` gagal).
+32. **`pages/api/deposits/cek-semua-admin.js`** — tambah `JEDA_MS = 300` (sama dengan cron), komentar baru menjelaskan auth-nya (`wajibAdmin()`, diuji di `tests/admin-authz.test.js`).
+33. **`tests/cron-deposits-security.test.js`** (baru) — tanpa header Authorization, secret salah, secret kosong di header, header tanpa scheme "Bearer": semua diuji HTTP sungguhan harus ditolak. "CRON_SECRET kosong di ENVIRONMENT server" diuji level fungsi (cerminan `cekBearerRahasia()`/`sama()` + tripwire baca source asli) karena tidak bisa mengosongkan env server yang sedang jalan dari proses tes. Masuk `npm run test:security`.
+34. **`package.json`** — tambah script `test:cron-deposits-security`, masuk ke pipeline `test:security`.
+35. **`.env.example`** — `TEST_ALLOWED_SUPABASE_URL` diberi catatan bahwa variabel ini sudah tidak dibaca kode apa pun (dipindah ke `.env.test.local`); `CRON_SECRET` diberi penjelasan fail-closed + contoh header `Authorization: Bearer`.
+36. **`.env.test.example`** — tambah `CRON_SECRET`/`PAYMENKU_WEBHOOK_SECRET` (belum dibaca tes manapun saat ini, dipertahankan supaya file ini tetap mencerminkan seluruh kredensial server dev yang sedang jalan).
 
 ## Urutan deploy (webhook secret → migrasi → redeploy → tes Rp10.000)
 
@@ -460,6 +577,84 @@ menolak notifikasi sah atau deposit nyata ter-delay tanpa sebab yang jelas:
    kreditnya, (c) invoice `DEP-1792722543127` (lihat bagian "Invoice Paymenku sungguhan" di bawah)
    sudah dibatalkan/kedaluwarsa duluan di dashboard Paymenku kalau belum, supaya tidak ada deposit
    pending lama yang membingungkan saat mengecek log.
+
+## Checklist deploy final
+
+Checklist end-to-end, dari staging sampai PR — kumpulan semua langkah yang tersebar di bagian-bagian
+di atas, diurutkan jadi satu daftar centang. Setiap baris menunjuk ke bagian yang menjelaskan
+detailnya; tidak ada langkah baru yang tidak sudah dijelaskan di tempat lain di laporan ini.
+
+**1. Staging (sebelum menyentuh produksi sama sekali)**
+- [ ] Siapkan project Supabase KHUSUS staging/testing (schema sama dengan produksi, boleh kosong
+      datanya) — **bukan** project produksi.
+- [ ] Salin `.env.test.example` → `.env.test.local`, isi kredensial project staging di atas (lihat
+      "Guard cleanup-test-accounts & pemisahan env tes").
+- [ ] Jalankan `npm run dev` dengan `.env.local` juga diarahkan ke project staging yang SAMA (bukan
+      produksi) + `PAYMENKU_API_KEY` sandbox/kosong (bukan `sk_live_...`).
+- [ ] Jalankan migrasi `supabase/lock-rpc-execute.sql` di project **staging** dulu (SQL Editor →
+      paste → Run) — lihat "Urutan deploy" langkah 2 untuk detail & cara rollback.
+- [ ] `npm run test:security` penuh (6 file tes + `test:cron-deposits-security`) — harus
+      **SEMUA LOLOS** di staging, termasuk `test:rpc-privileges` jadi 11/11 menolak anon.
+- [ ] `npm run build` lolos tanpa error (sudah diverifikasi di sesi ini — lihat bawah).
+
+**2. Environment Vercel (atau hosting lain) — produksi**
+- [ ] `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SECRET_KEY` — project Supabase **produksi**
+      (bukan yang dipakai staging/testing di atas).
+- [ ] `PAYMENKU_API_KEY` — pastikan ini benar kunci yang dimaksud untuk produksi (lihat WEBHOOK-04:
+      kunci yang terpasang sebelumnya adalah `sk_live_...`; keputusan ini tetap ada di tangan kamu,
+      bukan sesuatu yang diubah laporan ini).
+- [ ] `PAYMENKU_WEBHOOK_SECRET` — isi dari dashboard Paymenku (Settings → Webhook) SEBELUM deploy
+      kode baru (lihat "Urutan deploy" langkah 1 — tanpa ini webhook fail-closed menolak semua).
+- [ ] `CRON_SECRET` — string acak panjang (`openssl rand -hex 32`), BEDA dari staging. Simpan juga
+      di tempat scheduler eksternal kamu akan membaca header `Authorization: Bearer` (lihat
+      "Scheduler eksternal").
+- [ ] `ADMIN_USERNAME`/`ADMIN_PASSWORD` — kredensial produksi (beda dari staging).
+- [ ] `APP_URL` — domain produksi sungguhan (dipakai link reset password & kembali dari pembayaran).
+- [ ] **JANGAN** set `TEST_ALLOWED_SUPABASE_URL` ke project produksi di environment manapun yang
+      juga menjalankan `tests/*.test.js` — variabel ini sudah tidak dibaca aplikasi, tapi kalau ada
+      yang menjalankan tes lawas secara manual dengan `.env.local` yang keliru, ini lapis terakhir.
+- [ ] **TIDAK** menambah `vercel.json` cron — scheduler-nya eksternal (lihat "Scheduler eksternal").
+
+**3. Produksi — migrasi + rollback siap**
+- [ ] Jalankan `supabase/lock-rpc-execute.sql` di project **produksi** (SQL Editor → Run) — lihat
+      "Urutan deploy" langkah 2.
+- [ ] Simpan `supabase/lock-rpc-execute.rollback.sql` siap dijalankan (SQL Editor yang sama) kalau
+      migrasi di atas mematahkan sesuatu yang sah setelah deploy — jangan tunggu sampai ada
+      laporan user, siapkan dulu SEBELUM deploy supaya tidak panik cari filenya saat insiden.
+- [ ] Deploy ulang aplikasi (kode webhook/cron/admin di branch ini) — urutan vs migrasi tidak saling
+      bergantung (lihat "Urutan deploy" langkah 3), tapi migrasi lebih dulu lebih aman.
+- [ ] Jadwalkan scheduler eksternal untuk `/api/cron/deposits` (dan `/api/cron/orders` kalau belum)
+      — contoh crontab ada di "Scheduler eksternal". Verifikasi satu kali manual dulu:
+      `curl -i -H "Authorization: Bearer $CRON_SECRET" https://domain-anda.com/api/cron/deposits`
+      harus balas `200` + `{"dicek":...,"disetujui":...}`, BUKAN 401/500.
+
+**4. Tes deposit Rp 10.000 sungguhan**
+- [ ] Ikuti "Urutan deploy" langkah 4 di atas secara lengkap (akun asli, QRIS Rp 10.000, konfirmasi
+      webhook + `admin_log`/`saldo_log` + invoice lama `DEP-1792722543127` sudah dibersihkan).
+- [ ] Coba juga jalur pemulihan: tombol admin "Cek status ke Paymenku" di tab Deposit (lihat
+      "Tinjauan keamanan: /api/cron/deposits & tombol admin 'Cek status'") — pastikan tombolnya
+      muncul & tidak error untuk admin yang sedang login.
+
+**5. Cleanup akun tester — dry run dulu, baru `--confirm`**
+- [ ] `node scripts/cleanup-test-accounts.js --target-prod-i-understand` (dry run) — baca daftar
+      akun `qa.*`/`auditqd*` + jumlah baris data terkait yang DITAMPILKAN, JANGAN langsung
+      `--confirm` sebelum membaca daftarnya (lihat "Cleanup script" / "Guard cleanup-test-accounts").
+- [ ] Setelah yakin daftarnya benar (bukan akun asli yang kebetulan cocok pola), baru:
+      `node scripts/cleanup-test-accounts.js --target-prod-i-understand --confirm` — akan diminta
+      mengetik ulang project ref Supabase sebagai konfirmasi terakhir.
+- [ ] Deposit live pending `DEP-1792722543127` (lihat "Invoice Paymenku sungguhan") kalau belum
+      kedaluwarsa sendiri: `--reject-deposit=DEP-1792722543127` (dry run dulu, lalu `--confirm`).
+
+**6. Push & PR**
+- [ ] `git log` — review ulang daftar commit di branch `audit/admin` dari awal (bukan cuma commit
+      terakhir), pastikan tidak ada yang kelewat/salah urut.
+- [ ] `git push -u origin audit/admin` (eksplisit minta konfirmasi dulu — belum dilakukan oleh sesi
+      ini, sesuai instruksi "jangan push").
+- [ ] Buka PR ke `main`, judul singkat merujuk ke audit ini, body merangkum Ringkasan + Tabel temuan
+      di atas (bukan menyalin seluruh `AUDIT_REPORT.md` apa adanya ke body PR — pakai ringkasannya,
+      tautkan ke file ini untuk detail lengkap).
+- [ ] Setelah PR dibuat: checklist 1-5 di atas tetap harus dijalankan manual terpisah (migrasi SQL,
+      isi secret produksi, dry-run cleanup) — merge PR TIDAK otomatis menjalankan satupun dari itu.
 
 ## Cara menjalankan tes
 

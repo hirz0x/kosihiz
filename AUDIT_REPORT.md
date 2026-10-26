@@ -437,21 +437,57 @@ scheduler eksternal (crontab server sendiri, cron job hosting lain, atau layanan
 yang memanggil endpoint-endpoint ini lewat HTTP biasa dengan header `Authorization: Bearer
 <CRON_SECRET>`.
 
-**Contoh crontab** (ganti `https://domain-anda.com` dan `CRON_SECRET_ANDA`; simpan output ke log
-supaya gagal/berhasilnya kelihatan tanpa harus login ke dashboard tiap saat):
+**Contoh crontab — secret dibaca dari FILE env (permission 600), TIDAK ditulis langsung di command.**
+Menulis `CRON_SECRET` langsung di baris crontab (`-H "Authorization: Bearer xxx"`) membuatnya
+kebaca siapa pun yang bisa `crontab -l`/membuka `/var/spool/cron/crontabs/<user>`, ikut ke `MAILTO`
+kalau crontab-nya mengirim email error, dan nyangkut di shell history kalau sempat ditest manual
+dulu. Simpan di file terpisah, kunci permission-nya, baru di-source saat crontab jalan:
+
+```bash
+# 1. Buat file env KHUSUS untuk cron ini, isi CRON_SECRET saja (sekali, lewat shell biasa):
+sudo install -d -m 700 -o deploy -g deploy /etc/sosmedgo
+sudo install -m 600 -o deploy -g deploy /dev/null /etc/sosmedgo/cron.env
+echo 'CRON_SECRET=isi-dengan-CRON_SECRET-produksi-yang-sama-dengan-Vercel' | sudo tee /etc/sosmedgo/cron.env >/dev/null
+sudo chmod 600 /etc/sosmedgo/cron.env   # pastikan tetap 600 setelah ditulis -- rw- --- --- , cuma pemiliknya yang bisa baca
+sudo chown deploy:deploy /etc/sosmedgo/cron.env   # ganti "deploy" dengan user yang menjalankan crontab ini
+```
 ```cron
+# 2. crontab -e (sebagai user "deploy" yang sama, BUKAN root, supaya $CRON_SECRET tidak ikut
+#    kebaca proses lain yang jalan sebagai root):
+
 # Cek deposit Paymenku yang masih "menunggu" tiap 5 menit
-*/5 * * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" https://domain-anda.com/api/cron/deposits >> /var/log/sosmedgo/cron-deposits.log 2>&1
+*/5 * * * * . /etc/sosmedgo/cron.env && curl -fsS -X GET -H "Authorization: Bearer $CRON_SECRET" https://domain-anda.com/api/cron/deposits >> /var/log/sosmedgo/cron-deposits.log 2>&1
 
 # Cek status pesanan tiap 1 menit (sudah ada sebelumnya, pola yang sama)
-* * * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" https://domain-anda.com/api/cron/orders >> /var/log/sosmedgo/cron-orders.log 2>&1
+* * * * * . /etc/sosmedgo/cron.env && curl -fsS -X GET -H "Authorization: Bearer $CRON_SECRET" https://domain-anda.com/api/cron/orders >> /var/log/sosmedgo/cron-orders.log 2>&1
 
 # Sinkron katalog layanan 1x sehari jam 03:00 (berat, lihat komentar pages/api/cron/services.js)
-0 3 * * * curl -fsS -X GET -H "Authorization: Bearer CRON_SECRET_ANDA" "https://domain-anda.com/api/cron/services" >> /var/log/sosmedgo/cron-services.log 2>&1
+0 3 * * * . /etc/sosmedgo/cron.env && curl -fsS -X GET -H "Authorization: Bearer $CRON_SECRET" "https://domain-anda.com/api/cron/services" >> /var/log/sosmedgo/cron-services.log 2>&1
 ```
 `curl -f` membuat `curl` keluar dengan exit code bukan-nol kalau respons HTTP-nya error (4xx/5xx) —
 berguna kalau crontab-nya sendiri diawasi lewat exit code (mis. `MAILTO=` di crontab, atau wrapper
-monitoring seperti healthchecks.io/cronitor).
+monitoring seperti healthchecks.io/cronitor). `. /etc/sosmedgo/cron.env` (dot/source POSIX biasa,
+bukan `source` ala bash supaya tetap jalan di `sh` minimal yang dipakai banyak sistem cron) membaca
+`CRON_SECRET` dari file itu ke environment shell cron, BUKAN disalin ke baris crontab itu sendiri —
+`crontab -l` tidak akan menampilkan nilainya, cuma path file-nya.
+
+**Catatan lebih ketat (opsional)**: baris `curl -H "Authorization: Bearer $CRON_SECRET"` di atas
+tetap membuat nilai `CRON_SECRET` sempat muncul sebagai argumen proses `curl` itu sendiri selama ia
+berjalan (kebaca lewat `ps aux`/`/proc/<pid>/cmdline` oleh user lain di mesin yang sama, SELAMA
+curl itu berjalan — biasanya sepersekian detik). Kalau itu juga ingin dihindari, pakai file konfigurasi
+`curl` sendiri (`-K`, BUKAN `-H` di command) yang isinya header lengkap dengan permission 600 yang
+sama:
+```bash
+# /etc/sosmedgo/cron-deposits.curlrc (permission 600, isi header LENGKAP, bukan cuma secretnya)
+echo 'header = "Authorization: Bearer isi-dengan-CRON_SECRET-produksi"' | sudo tee /etc/sosmedgo/cron-deposits.curlrc >/dev/null
+sudo chmod 600 /etc/sosmedgo/cron-deposits.curlrc
+```
+```cron
+*/5 * * * * curl -fsS -K /etc/sosmedgo/cron-deposits.curlrc https://domain-anda.com/api/cron/deposits >> /var/log/sosmedgo/cron-deposits.log 2>&1
+```
+Dengan `-K`, `curl` membaca header langsung dari file (perlu satu file `.curlrc` per endpoint kalau
+secretnya sama tapi mau log terpisah, atau satu file dipakai bersama kalau cukup), dan nilainya
+TIDAK PERNAH muncul sebagai argumen command line sama sekali.
 
 **Alternatif: `npm run cron:deposits`** (`scripts/cron-deposits.js`) — proses Node yang dibiarkan
 jalan terus (bukan dipanggil scheduler per-interval), memanggil `/api/cron/deposits` tiap 60 detik
@@ -547,6 +583,9 @@ langsung tanpa pernah melalui alur yang memanggil Paymenku.
 34. **`package.json`** — tambah script `test:cron-deposits-security`, masuk ke pipeline `test:security`.
 35. **`.env.example`** — `TEST_ALLOWED_SUPABASE_URL` diberi catatan bahwa variabel ini sudah tidak dibaca kode apa pun (dipindah ke `.env.test.local`); `CRON_SECRET` diberi penjelasan fail-closed + contoh header `Authorization: Bearer`.
 36. **`.env.test.example`** — tambah `CRON_SECRET`/`PAYMENKU_WEBHOOK_SECRET` (belum dibaca tes manapun saat ini, dipertahankan supaya file ini tetap mencerminkan seluruh kredensial server dev yang sedang jalan).
+37. **`pages/api/cron/deposits.js`** — `BATAS` diturunkan lagi dari 50 jadi **20** per run, tambah `export const config = { maxDuration: 60 };` (batas waktu eksekusi function serverless Vercel). `lib/paymenku-kredit.js` komentar `cekSemuaDepositPending()` diperbarui soal angka 20 ini.
+38. **`tests/cron-deposits-security.test.js`** — digeneralisasi: dulu cuma `/api/cron/deposits`, sekarang menguji KETIGA endpoint `/api/cron/*` (`deposits`, `orders`, `services`) dengan 4 skenario HTTP yang sama (tanpa header, secret salah, secret kosong di header, tanpa scheme "Bearer") + tripwire yang membaca source ketiga route cron tersebut, membuktikan `orders.js`/`services.js` memang memakai `cekBearerRahasia()` yang sama (bukan implementasi auth terpisah yang bisa diam-diam berbeda) dan fail-closed yang sama persis dengan `deposits.js`.
+39. **`AUDIT_REPORT.md`** — contoh crontab diubah dari secret ditulis langsung di command (`-H "Authorization: Bearer CRON_SECRET_ANDA"`) jadi dibaca dari file env terpisah permission 600 (`. /etc/sosmedgo/cron.env && curl ... -H "Authorization: Bearer $CRON_SECRET"`), supaya `crontab -l` tidak menampilkan nilai secretnya. Tambah catatan opsional soal `curl -K` (config file) untuk mencegah secret muncul di `ps aux` sama sekali.
 
 ## Urutan deploy (webhook secret → migrasi → redeploy → tes Rp10.000)
 

@@ -53,9 +53,10 @@ export const config = { api: { bodyParser: false } };
    sedikit beda). Di luar itu, permintaan ditolak walau signature-nya sendiri valid. */
 const TOLERANSI_TIMESTAMP_MS = 5 * 60 * 1000;
 /* Rate limit sederhana PER IP (lihat lib/loginGuard.js: ambilIp() memilih X-Vercel-Forwarded-For
-   atau X-Real-IP kalau tersedia — baru fallback ke X-Forwarded-For/koneksi TCP langsung yang
-   lebih mudah dipalsukan). Cukup untuk menutup celah coba-coba reference_id/signature bertubi-
-   tubi, tanpa mengganggu retry notifikasi wajar dari server Paymenku sendiri. */
+   atau X-Real-IP kalau tersedia; X-Forwarded-For hanya dipercaya kalau process.env.VERCEL aktif
+   (tidak bisa dipalsukan klien di Vercel), DI LUAR Vercel header itu dilewati total — fallback
+   langsung ke koneksi TCP langsung). Cukup untuk menutup celah coba-coba reference_id/signature
+   bertubi-tubi, tanpa mengganggu retry notifikasi wajar dari server Paymenku sendiri. */
 const RATE_LIMIT_MAKS = 60;
 const RATE_LIMIT_JENDELA_MS = 60 * 1000;
 

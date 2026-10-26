@@ -150,6 +150,12 @@ function depositBolehDikredit(deposit, trx, nominalDiharapkan) {
   assert(timestampFresh(String(Date.now() - 60 * 1000), TOLERANSI) === true, 'timestamp 1 menit lalu (masih dalam toleransi) -> diterima (sanity check)');
 
   console.log('\n=== Rate limit per IP (HTTP sungguhan ke /api/paymenku/webhook, tidak pernah lolos ke signature/Paymenku) ===');
+  /* Header x-forwarded-for di bawah cuma benar-benar dipercaya ambilIp() kalau process.env.VERCEL
+     aktif (lihat lib/loginGuard.js) — dev server lokal TIDAK mengisi env itu, jadi di sini header
+     ini diabaikan dan semua percobaan jatuh ke SATU kunci rate-limit yang sama (IP koneksi TCP
+     lokal), terlepas dari nilai ipPalsu di bawah. Itu tidak masalah untuk tes ini: tes cuma
+     memastikan 429 MUNCUL setelah banyak percobaan cepat, tidak mengandalkan isolasi per-IP-palsu
+     (isolasi itu baru berlaku nyata saat deploy sungguhan di Vercel). */
   const ipPalsu = '203.0.113.' + (1 + Math.floor(Math.random() * 253));
   const ctxRl = await request.newContext();
   let kode429 = false;

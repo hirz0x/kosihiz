@@ -229,6 +229,12 @@ IP") — sudah dijalankan dan lolos semua, lihat "Cara menjalankan tes" di bawah
 
 ## Guard keamanan tes + pembersihan akun tester (lanjutan)
 
+**Catatan: bagian ini mendeskripsikan state di sesi SEBELUM "Guard cleanup-test-accounts &
+pemisahan env tes" di bawah — dipertahankan sebagai riwayat.** Sejak bagian itu:
+`scripts/cleanup-test-accounts.js` sudah TIDAK memakai `pastikanAmanUntukTes()`/
+`TEST_ALLOWED_SUPABASE_URL` lagi (punya guard sendiri), dan `tests/_guard.js` membaca
+`.env.test.local`, bukan `.env.local` seperti disebut di bawah.
+
 **`tests/_guard.js`** (baru) — dipanggil di baris paling awal SEMUA `tests/*.test.js` (sebelum
 request/panggilan apa pun), menolak (`process.exit(1)`) jalan kalau:
 1. `TEST_ALLOWED_SUPABASE_URL` belum diisi di `.env.local`, atau `SUPABASE_URL` yang aktif tidak
@@ -275,6 +281,80 @@ keduanya saat ini langsung berhenti di guard (lihat di atas) sampai `TEST_ALLOWE
 diisi — belum sempat menunjukkan daftar akun yang sebenarnya. Jalankan lagi setelah guard aktif
 untuk melihat laporan dry-run yang sesungguhnya, lalu `--confirm` secara manual kalau hasilnya
 sesuai ekspektasi.
+
+## Guard cleanup-test-accounts & pemisahan env tes (lanjutan)
+
+**`scripts/cleanup-test-accounts.js`** tidak lagi memakai `tests/_guard.js`/`TEST_ALLOWED_SUPABASE_URL`
+— skrip ini memang dibuat untuk bisa menyentuh project Supabase PRODUKSI (bukan cuma testing),
+karena akun tester kadang bocor ke prod lewat alur customer biasa (lihat `DEP-1792722543127` di
+bagian "Invoice Paymenku sungguhan" di bawah — itu contoh nyata kejadiannya). Guard-nya sendiri,
+dua lapis, WAJIB lolos dulu sebelum skrip membaca daftar akun sekalipun (termasuk dry run):
+1. Flag `--target-prod-i-understand` di command line.
+2. Prompt interaktif: ketik ulang project ref Supabase (diambil dari subdomain `SUPABASE_URL` di
+   `.env.local`) yang sedang aktif. Salah ketik/kosong → berhenti.
+
+Filter akun juga dipersempit: sebelumnya "semua email berakhiran `@example.com`", sekarang HANYA
+lokal-part `qa.*` atau `auditqd*` (domain tetap `@example.com`) — dua pola yang benar-benar dipakai
+`tests/*.test.js` dan sesi audit sebelumnya (`auditqd1792722540929`, dll). Mengurangi risiko
+menyapu akun lain yang kebetulan memakai domain itu untuk alasan lain.
+
+**Tes (`tests/_guard.js` + semua `tests/*.test.js`)** sekarang membaca kredensial dari
+**`.env.test.local`** (baru, lihat `.env.test.example`), bukan `.env.local` — TANPA fallback kalau
+filenya tidak ada (berhenti dengan pesan jelas, bukan diam-diam lanjut pakai `.env.local`).
+Alasannya: `.env.local` adalah env aplikasi, dibaca otomatis oleh `next dev`/`next build`, dan bisa
+diarahkan ke Supabase produksi kapan saja (misalnya untuk deploy) tanpa pemberitahuan khusus ke
+folder `tests/`. Sebelumnya itu berarti SATU KALI `.env.local` diarahkan ke produksi cukup untuk
+membuat seluruh guard `TEST_ALLOWED_SUPABASE_URL` ikut membandingkan terhadap `SUPABASE_URL`
+produksi itu sendiri — kalau kebetulan nilainya juga dimasukkan ke `TEST_ALLOWED_SUPABASE_URL`
+(misalnya salah copy-paste), guard tidak akan menangkapnya. Dengan file terpisah yang tidak
+pernah ikut berubah otomatis, kredensial testing harus diisi ulang secara SADAR & eksplisit tiap
+kali memang ingin menguji project yang berbeda.
+
+**Dampak ke `tests/webhook-security.test.js` dari perubahan `ambilIp()` (item 28 di "Perbaikan yang
+diterapkan")**: bagian tes rate-limit per IP mengirim header `x-forwarded-for` palsu untuk
+mensimulasikan banyak IP berbeda — sekarang di dev server lokal (`process.env.VERCEL` tidak aktif)
+header itu diabaikan total oleh `ambilIp()`, jadi semua percobaan jatuh ke SATU kunci rate-limit
+yang sama (IP koneksi TCP lokal). Tes tetap valid: assertion-nya cuma memastikan 429 MUNCUL setelah
+banyak percobaan cepat, tidak mengandalkan isolasi per-IP-palsu (isolasi itu baru berlaku nyata saat
+deploy sungguhan di Vercel, lewat `X-Vercel-Forwarded-For`/`X-Forwarded-For` yang ditimpa
+infrastruktur Vercel sendiri).
+
+## Webhook: jalur pemulihan retry timestamp lama (lanjutan)
+
+Pertanyaan: "apa yang terjadi kalau Paymenku me-retry callback dengan `X-PaymenKu-Timestamp` yang
+sudah lebih dari 5 menit?" — **Ditolak 401** oleh `timestampFresh()` (lapisan #2 di
+`pages/api/paymenku/webhook.js`), SENGAJA, bukan bug: webhook tidak punya cara membedakan "retry
+sah dari Paymenku sendiri karena percobaan pertama gagal terkirim" dari "replay oleh pihak lain",
+jadi dua-duanya ditolak sama rata lewat anti-replay yang sama.
+
+Ini **tidak membuat deposit macet selamanya** — ditutup lewat jalur pemulihan independen dari
+webhook, yang mengecek ULANG langsung ke API Paymenku (bukan percaya retry apa pun) lewat
+`cekDanKreditDeposit()` yang sama dipakai webhook asli (CAS `ubahStatusDeposit` yang sama, aman
+dipanggil berulang/bersamaan). Sebelum sesi ini, jalur itu HANYA ada di level user
+(`pages/api/deposits/cek.js` — tombol "cek" dashboard, dan `cek-semua.js` — otomatis saat dashboard
+dibuka), jadi kalau user tidak pernah membuka dashboardnya lagi setelah membayar, deposit itu tetap
+"menunggu" tanpa ada yang mengecek ulang. Ditambah di sesi ini (lewat `lib/paymenku-kredit.js:
+cekSemuaDepositPending()`, dipakai bersama oleh ketiganya):
+- **Admin**: tombol "Cek status ke Paymenku" di tab Deposit (`pages/api/deposits/cek-semua-admin.js`)
+  — mengecek SEMUA user, dipakai kalau ada laporan "sudah bayar tapi saldo belum masuk" dari user
+  yang tidak/belum membuka dashboardnya lagi.
+- **Cron**: `pages/api/cron/deposits.js` (`scripts/cron-deposits.js`, `npm run cron:deposits`, sama
+  polanya dengan `cron:orders` yang sudah ada) — mengecek SEMUA user secara terjadwal, tanpa perlu
+  ada yang klik apa pun. Belum disambungkan ke scheduler produksi (tidak ada `vercel.json` cron di
+  repo ini untuk job manapun, termasuk `cron:orders`/`cron:services` yang sudah ada sebelumnya) —
+  perlu dijadwalkan manual (Vercel Cron, cron OS, atau `npm run cron:deposits` dibiarkan jalan).
+
+**Bukti HMAC dihitung dari raw body, bukan body yang di-parse+stringify ulang**: `config = { api: {
+bodyParser: false } }` + `bacaRawBody()` (baca stream `req.on('data')` mentah) di
+`pages/api/paymenku/webhook.js` — signature diverifikasi atas `rawBody` ini SEBELUM `JSON.parse`
+dijalankan sama sekali. Dibuktikan otomatis di `tests/webhook-security.test.js` ("Signature dihitung
+dari RAW BODY..."): raw body yang sengaja ditulis beda spasi & urutan key dari
+`JSON.stringify(objek yang sama)` tetap lolos verifikasi kalau dicocokkan ke raw body yang SAMA
+persis, tapi signature yang SAMA ditolak kalau "dicocokkan" ke hasil `JSON.stringify` ulang dari
+body itu (byte beda) — membuktikan implementasinya memang bergantung pada byte asli, bukan
+representasi JSON yang dinormalisasi ulang (yang akan keliru menolak notifikasi Paymenku ASLI kalau
+serializer-nya menghasilkan spasi/urutan key yang berbeda, sesuatu yang umum terjadi antar bahasa/
+HTTP client).
 
 ## Migrasi RLS-02: transaksi + rollback (lanjutan)
 
@@ -344,6 +424,12 @@ langsung tanpa pernah melalui alur yang memanggil Paymenku.
 21. **`supabase/lock-rpc-execute.sql`** — dibungkus `begin;`/`commit;`.
 22. **`supabase/lock-rpc-execute.rollback.sql`** (baru) — kebalikan dari migrasi RLS-02: `GRANT EXECUTE` balik ke `public`/`anon`/`authenticated` untuk seluruh 11 fungsi + kembalikan default privileges.
 23. **`package.json`** — tambah script `cleanup:test-accounts`.
+24. **`scripts/cleanup-test-accounts.js`** — diubah total: tidak lagi memakai `tests/_guard.js` (guard itu sekarang murni untuk `tests/*.test.js`). Guard sendiri: wajib flag `--target-prod-i-understand` + mengetik ulang project ref Supabase saat prompt interaktif, sebelum membaca/menghubungi Supabase sama sekali (termasuk dry run). Filter akun dipersempit dari "semua `@example.com`" jadi HANYA lokal-part `qa.*` atau `auditqd*` (domain tetap `@example.com`) — lihat bagian "Guard cleanup-test-accounts & pemisahan env tes" di bawah.
+25. **`tests/_guard.js`** — `bacaEnvLocal()` diganti `bacaEnvTes()`, membaca `.env.test.local` (bukan `.env.local`), TANPA fallback (berhenti dengan pesan jelas kalau filenya tidak ada). Semua 6 file `tests/*.test.js` diikutkan.
+26. **`.env.test.example`** (baru) — kredensial testing terpisah dari `.env.example`/`.env.local`. `.gitignore` ditambah pengecualian supaya file contoh ini tetap ikut ter-commit.
+27. **`lib/paymenku-kredit.js`** — tambah `cekSemuaDepositPending()`: jalur pemulihan deposit yang masih "menunggu" (webhook ditolak/tidak sampai), mengecek ulang ke Paymenku lewat `cekDanKreditDeposit()` yang sama. Dipakai ulang oleh `pages/api/deposits/cek-semua.js` (refactor, perilaku user tidak berubah), endpoint admin baru **`pages/api/deposits/cek-semua-admin.js`**, dan cron baru **`pages/api/cron/deposits.js`** + **`scripts/cron-deposits.js`** (`npm run cron:deposits`). Tombol "Cek status ke Paymenku" ditambah di tab Deposit admin (`AdminDeposit.jsx`/`AdminPage.jsx`). Endpoint admin baru diikutkan ke `tests/admin-authz.test.js`. Lihat bagian "Webhook: jalur pemulihan retry timestamp lama" di bawah.
+28. **`lib/loginGuard.js`** — `ambilIp()`: `X-Forwarded-For` sekarang HANYA dipercaya kalau `process.env.VERCEL` aktif (di luar Vercel, header itu dilewati total, langsung fallback ke `req.socket.remoteAddress`) — sebelumnya dipercaya sebagai fallback di hosting apa pun. Lihat bagian "Guard cleanup-test-accounts & pemisahan env tes" di bawah untuk dampaknya ke `tests/webhook-security.test.js`.
+29. **`tests/webhook-security.test.js`** — tambah tes "signature dihitung dari raw body, bukan hasil `JSON.stringify` ulang" (raw body dengan spasi/urutan key beda dari `JSON.stringify` objek yang sama tetap valid; versi stringify-ulangnya ditolak) + tripwire baru memastikan `webhook.js` masih baca raw body & verifikasi signature SEBELUM `JSON.parse`. Komentar tes rate-limit per IP diperbarui soal dampak item 28 di atas.
 
 ## Urutan deploy (webhook secret → migrasi → redeploy → tes Rp10.000)
 
@@ -377,27 +463,29 @@ menolak notifikasi sah atau deposit nyata ter-delay tanpa sebab yang jelas:
 
 ## Cara menjalankan tes
 
-**Langkah 0 (WAJIB, baru di sesi ini) — aktifkan guard tes dulu** (lihat "Guard keamanan tes" di
-atas): siapkan project Supabase KHUSUS testing, isi `TEST_ALLOWED_SUPABASE_URL` di `.env.local`
-dengan `SUPABASE_URL` project itu, dan pastikan `PAYMENKU_API_KEY` tidak berawalan `sk_live_`.
-Tanpa ini, SEMUA tes di bawah berhenti duluan dengan pesan `DIHENTIKAN: ...` — ini disengaja,
-bukan bug.
+**Langkah 0 (WAJIB) — siapkan `.env.test.local` dulu** (lihat "Guard cleanup-test-accounts &
+pemisahan env tes" di atas): salin `.env.test.example` jadi `.env.test.local`, siapkan project
+Supabase KHUSUS testing, isi `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SECRET_KEY`/
+`TEST_ALLOWED_SUPABASE_URL`/`ADMIN_USERNAME`/`ADMIN_PASSWORD` di sana (SAMA dengan yang dipakai
+server dev yang sedang jalan dari `.env.local`-nya sendiri), dan pastikan `PAYMENKU_API_KEY` di
+sana tidak berawalan `sk_live_`. Tanpa `.env.test.local`, SEMUA tes di bawah berhenti duluan dengan
+pesan `DIHENTIKAN: ...` — ini disengaja, bukan bug.
 
 ```
 npm run dev          # di terminal terpisah, biarkan jalan
 npm run test:security
 ```
 
-Tes butuh `.env.local` terisi (dibaca langsung, dipakai lewat kredensial Supabase yang sama dengan
-app — **bukan** kredensial baru yang saya buat) dan akan membuat/memakai akun tester
+Tes butuh `.env.test.local` terisi (lihat Langkah 0 di atas) dan akan membuat/memakai akun tester
 `@example.com` sekali pakai. `saldo-race.test.js`, `webhook-idempotency.test.js`, dan
 `rpc-privileges.test.js` mengubah saldo/komisi akun tester tersebut sementara lalu mengembalikannya
 ke nilai semula di akhir — **tidak pernah menyentuh akun asli**, dan sekarang bisa dibersihkan
-lebih tuntas lewat `npm run cleanup:test-accounts` (lihat bagian "Guard keamanan tes + pembersihan
-akun tester" di atas). Belum disambungkan ke CI (butuh dev server jalan + `.env.local` berisi
-kredensial Supabase testing, tidak aman untuk CI publik tanpa secret management terpisah).
+lebih tuntas lewat `npm run cleanup:test-accounts --target-prod-i-understand` (lihat bagian "Guard
+cleanup-test-accounts & pemisahan env tes" di atas). Belum disambungkan ke CI (butuh dev server
+jalan + `.env.test.local` berisi kredensial Supabase testing, tidak aman untuk CI publik tanpa
+secret management terpisah).
 
-**Status di sesi ini**: `.env.local` proyek ini BELUM punya `TEST_ALLOWED_SUPABASE_URL`, jadi
+**Status di sesi sebelumnya**: `.env.local` proyek ini BELUM punya `TEST_ALLOWED_SUPABASE_URL`, jadi
 `npm run test:security` / `npm run test:rpc-privileges` **SENGAJA TIDAK dijalankan** (sesuai
 instruksi "jangan jalankan test:security/test:rpc-privileges sampai guard aktif") — cuma satu file
 tes dijalankan terpisah (`node tests/admin-authz.test.js`) untuk memverifikasi guard-nya sendiri

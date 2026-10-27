@@ -232,6 +232,8 @@ class DashboardPage extends React.Component {
     clearInterval(this._saldoInterval);
     document.removeEventListener('mousedown', this._ddOutside);
     document.removeEventListener('keydown', this._ddEscape);
+    document.removeEventListener('visibilitychange', this._onVisible);
+    window.removeEventListener('online', this._onOnline);
   }
   /* Semua dropdown (kategori/layanan di form pesanan, filter status pesanan, metode pembayaran,
      kategori layanan, bahasa/saldo/akun/menu di header) sebelumnya hanya bisa ditutup dengan
@@ -450,6 +452,16 @@ class DashboardPage extends React.Component {
        ikut berubah sampai pelanggan refresh manual, karena tidak ada yang mengecek ulang. Dicek
        ulang berkala di latar belakang selama dashboard terbuka supaya saldo ikut ter-update sendiri. */
     this._saldoInterval = setInterval(function () { self.muatMe(); }, 25000);
+    /* Kalau koneksi putus pas lagi kirim pesanan (sinyal lemah, pindah wifi/data, atau tab
+       di-background sampai browser nge-suspend-nya), request-nya bisa saja sudah SUKSES diproses
+       server, tapi response-nya tidak pernah sampai balik ke browser — jadi submitOrder() di atas
+       tidak pernah tahu harus menampilkan toast sukses maupun gagal. Begitu tab aktif lagi atau
+       koneksi balik, saldo & daftar pesanan disegarkan diam-diam supaya pesanan yang sebenarnya
+       sudah masuk langsung kelihatan tanpa perlu reload manual. */
+    this._onVisible = function () { if (document.visibilityState === 'visible') { self.muatMe(); self.muatOrdersAwal(); } };
+    this._onOnline = function () { self.muatMe(); self.muatOrdersAwal(); };
+    document.addEventListener('visibilitychange', this._onVisible);
+    window.addEventListener('online', this._onOnline);
   }
   muatMe() {
     var self = this;

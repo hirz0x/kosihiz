@@ -7,8 +7,9 @@ import { ACCENTS, accentVarsFor } from './theme';
 import Markdown from './Markdown';
 
 import {
-  ICON, TABS_MAIN, TABS_SUPPORT, TAB_CRUMB, PROVIDER_LOW, NOTIF_ITEMS, SOCIAL_FA, UPS, refundAdmin, tiketAdmin, rp, tanggalWib, hargaJual, TODAY, hariLalu, RANGE_OPTS, CHART_COLORS, CHART_SERIES, Svg, Badge, StatCard, Toggle, resolveRange, daysBetween, TrendChart, TrendTable, OrdersTable
+  ICON, TABS_MAIN, TABS_SUPPORT, TAB_CRUMB, PROVIDER_LOW, NOTIF_ITEMS, SOCIAL_FA, UPS, refundAdmin, tiketAdmin, rp, tanggalWib, hargaJual, TODAY, hariLalu, RANGE_OPTS, CHART_COLORS, CHART_SERIES, Svg, Badge, StatCard, Toggle, resolveRange, daysBetween, TrendChart, TrendTable, OrdersTable, ADMIN_LU_MENU
 } from './admin-kit';
+import { LuIcon } from './dashboard-kit';
 
 import AdminRingkasan from './AdminRingkasan';
 import AdminStatistik from './AdminStatistik';
@@ -684,6 +685,11 @@ export default function AdminPage() {
       if (Array.isArray(segar.services) && segar.services.length) setServices(segar.services);
       setProvMsg((m) => ({ ...m, [svcProvider]: { ok: true, text: ids.length ? ids.length + ' layanan tersimpan.' : 'Kurs tersimpan.' } }));
     } catch (e) {
+      /* provMsg cuma dirender di tab Pengaturan, bukan di tab Layanan tempat tombol "Simpan X
+         perubahan" ini berada — tanpa toast di sini, kalau PATCH gagal (nama layanan 500, network
+         putus, dll) admin yang nonaktifkan/ubah layanan dari tab Layanan tidak dapat tanda apa-apa
+         sama sekali: tidak ada toast sukses (karena memang gagal) dan tidak ada toast gagal juga. */
+      tampilkanToast(false, e.message || 'Gagal menyimpan perubahan layanan.');
       setProvMsg((m) => ({ ...m, [svcProvider]: { ok: false, text: e.message } }));
     }
     setSvcSaving(false);
@@ -845,7 +851,7 @@ export default function AdminPage() {
     const n = badges[t.id] || 0;
     return (
       <button key={t.id} type="button" className={'sb' + (on ? ' on' : '')} aria-current={on ? 'page' : undefined} onClick={() => bukaTab(t.id)}>
-        <Svg d={t.icon} />
+        <LuIcon icon={ADMIN_LU_MENU[t.id]} size={20} style={{ color: 'currentColor', width: '20px' }} />
         <span style={{ flex: '1' }}>{t.id}</span>
         {n > 0 ? <span className="count" style={{ background: on ? 'rgba(255,255,255,.25)' : 'var(--accent)' }}>{n}</span> : null}
         {on ? <Svg d={ICON.chev} size={14} sw={2.4} /> : null}
@@ -865,9 +871,10 @@ export default function AdminPage() {
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
       </Head>
       <style jsx global>{`
-.theme-dark{--bg:#0B0B0E;--s0:#0D0D10;--s1:#111115;--s2:#141418;--s3:#16161A;--s4:#1E1E23;--b1:#18181D;--b2:#1E1E24;--b3:#23232A;--b4:#26262C;--b5:#2A2A30;--b6:#3A3A42;--tx:#F4F4F5;--t1:#E4E4E7;--t2:#C9CBD1;--t3:#A1A3AB;--t4:#8B8D96;--t5:#6B6E78;--t6:#4B4D56;--rt:#FF5A75;--rt2:#FFB3C0;--gr:#22C55E;--am:#F59E0B;--bl:#60A5FA;--hi:#FFFFFF}
-.theme-light{--bg:#FFFFFF;--s0:#FFFFFF;--s1:#FFFFFF;--s2:#FFFFFF;--s3:#F1F5F9;--s4:#E2E8F0;--b1:#F1F5F9;--b2:#E2E8F0;--b3:#E2E8F0;--b4:#CBD5E1;--b5:#CBD5E1;--b6:#94A3B8;--tx:#0F172A;--t1:#1E293B;--t2:#334155;--t3:#475569;--t4:#64748B;--t5:#94A3B8;--t6:#CBD5E1;--rt2:#9F1239;--gr:#15803D;--am:#B45309;--bl:#2563EB;--hi:#0F172A}
+.theme-dark{--bg:#0B0B0E;--s0:#0D0D10;--s1:#111115;--s2:#141418;--s3:#16161A;--s4:#1E1E23;--b1:#18181D;--b2:#1E1E24;--b3:#23232A;--b4:#26262C;--b5:#2A2A30;--b6:#3A3A42;--tx:#F4F4F5;--t1:#E4E4E7;--t2:#C9CBD1;--t3:#A1A3AB;--t4:#8B8D96;--t5:#6B6E78;--t6:#4B4D56;--r1:#1A0A0E;--r2:#1F0B10;--r3:#2A0E14;--r4:#3A121B;--r5:#5A1A26;--r6:#2A1218;--rt:var(--accent-l);--rt2:#FFB3C0;--g1:#130A0D;--g2:#3A0E18;--gr:#22C55E;--am:#F59E0B;--bl:#60A5FA;--hi:#FFFFFF}
+.theme-light{--bg:#FFFFFF;--s0:#FFFFFF;--s1:#FFFFFF;--s2:#FFFFFF;--s3:#F1F5F9;--s4:#E2E8F0;--b1:#F1F5F9;--b2:#E2E8F0;--b3:#E2E8F0;--b4:#CBD5E1;--b5:#CBD5E1;--b6:#94A3B8;--tx:#0F172A;--t1:#1E293B;--t2:#334155;--t3:#475569;--t4:#64748B;--t5:#94A3B8;--t6:#CBD5E1;--r1:#FFF0F2;--r2:#FFF0F2;--r3:#FFE3E8;--r4:#FBC9D3;--r5:#F5A3B3;--r6:#FBD5DC;--rt:var(--accent);--rt2:#9F1239;--g1:#FFF3F5;--g2:#FFE4EA;--gr:#15803D;--am:#B45309;--bl:#2563EB;--hi:#0F172A}
 .theme-light .card{border-color:#E2E8F0;box-shadow:0 4px 16px rgba(16,24,40,.07)}
+.theme-dark .card{box-shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 24px -14px rgba(0,0,0,.55)}
 .theme-light .dash-head{background:linear-gradient(180deg,rgba(var(--accent-rgb),.06) 0%,rgba(var(--accent-rgb),0) 100%)}
 body{margin:0;background:var(--bg);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 html{scroll-behavior:smooth}
@@ -933,16 +940,18 @@ button:active:not(:disabled){transform:scale(.97)}
 .idpill{flex:none;font-size:11px;font-weight:700;color:var(--rt);background:var(--r3);border:1px solid var(--r5);border-radius:999px;padding:3px 10px}
 .bubble{border-radius:12px;padding:10px 14px;font-size:13px;line-height:1.5;max-width:80%;white-space:pre-wrap}
 .adm-layout{display:flex;flex-wrap:wrap}
-.adm-aside{flex:1 1 230px;max-width:250px;min-width:0;border-right:1px solid var(--b1);padding:22px 16px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box}
+.adm-aside{flex:1 1 230px;max-width:250px;min-width:0;border-right:1px solid var(--b1);padding:22px 16px;display:flex;flex-direction:column;gap:2px;box-sizing:border-box;height:100vh;height:100dvh}
 .adm-main{flex:999 1 640px;min-width:0;display:flex;flex-direction:column}
 .nav-toggle{display:none;align-items:center;justify-content:center;width:38px;height:38px;flex:none;border-radius:10px;background:var(--s2);border:1px solid var(--b3);color:var(--t2);cursor:pointer}
+.dash-hero{position:relative;overflow:hidden;padding:52px 40px 56px;border-bottom:1px solid var(--b1)}
 @media (max-width:900px){
   .nav-toggle{display:inline-flex}
   .dash-crumb{flex:1 1 auto;min-width:0}
   .adm-aside{display:none !important}
-  .adm-aside.buka{display:flex !important;max-width:none !important;flex:1 1 100% !important;border-right:0 !important;border-bottom:1px solid var(--b1) !important}
+  .adm-aside.buka{display:flex !important;max-width:none !important;flex:1 1 100% !important;border-right:0 !important;border-bottom:1px solid var(--b1) !important;height:auto !important}
   .dash-head{padding:12px 16px !important}
   .dash-main{padding:18px 16px 48px !important}
+  .dash-hero{padding:26px 20px 24px !important}
 }
 @media (max-width:640px){
   /* iOS memperbesar halaman kalau font input di bawah 16px. */
@@ -952,17 +961,17 @@ button:active:not(:disabled){transform:scale(.97)}
 `}</style>
 
       <div className={isDark ? 'theme-dark' : 'theme-light'} style={{ ...accentVars, fontFamily: "'Inter',system-ui,sans-serif", color: 'var(--tx)', background: 'var(--bg)', minHeight: '100vh', display: 'flex', flexWrap: 'wrap' }}>
-        <aside className={"adm-aside" + (navOpen ? " buka" : "")}>
+        <aside className={"adm-aside" + (navOpen ? " buka" : "")} style={{ position: 'sticky', top: '0', alignSelf: 'flex-start', overflowX: 'hidden', overflowY: 'auto' }}>
           <Link href="/admin" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '22px', padding: '6px' }}>
             <img src="/icon.png" alt="" aria-hidden="true" className="logo-mark" width="24" height="24" style={{ borderRadius: "8px", display: "block" }} />
             <span style={{ fontSize: '17px', fontWeight: '800', color: 'var(--hi)', letterSpacing: '-.03em' }}>SosmedGo</span>
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--s2)', border: '1px solid var(--b3)', borderRadius: '12px', padding: '10px', marginBottom: '14px' }}>
-            <span style={{ width: '32px', height: '32px', borderRadius: '9px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '800', color: '#FFFFFF' }}>A</span>
-            <span style={{ flex: '1', lineHeight: '1.35' }}>
-              <span style={{ display: 'block', fontSize: '10px', color: 'var(--t5)' }}>Akun admin</span>
-              <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--hi)' }}>Administrator</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--s2)', border: '1px solid var(--b3)', borderRadius: '14px', padding: '12px', minHeight: '64px', boxSizing: 'border-box', marginBottom: '14px' }}>
+            <span style={{ width: '40px', height: '40px', borderRadius: '11px', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: '800', color: '#FFFFFF', flex: 'none' }}>A</span>
+            <span style={{ flex: '1', lineHeight: '1.35', minWidth: '0' }}>
+              <span style={{ display: 'block', fontSize: '12px', color: 'var(--t5)' }}>Akun admin</span>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--hi)' }}>Administrator</span>
             </span>
           </div>
 
@@ -975,10 +984,10 @@ button:active:not(:disabled){transform:scale(.97)}
           </nav>
           <div style={{ height: '1px', background: 'var(--b2)', margin: '14px 10px' }} />
           <button type="button" className={'sb' + (tab === 'Pengaturan' ? ' on' : '')} aria-current={tab === 'Pengaturan' ? 'page' : undefined} onClick={() => bukaTab('Pengaturan')}>
-            <Svg d={ICON.lock} /> Pengaturan
+            <LuIcon icon={ADMIN_LU_MENU.Pengaturan} size={20} style={{ color: 'currentColor', width: '20px' }} /> Pengaturan
           </button>
-          <Link href="/dashboard" className="sb"><Svg d={ICON.back} /> Ke panel user</Link>
-          <a href="/api/admin-logout" className="sb"><Svg d={ICON.logout} /> Keluar</a>
+          <Link href="/dashboard" className="sb"><LuIcon icon={ADMIN_LU_MENU.back} size={20} style={{ color: 'currentColor', width: '20px' }} /> Ke panel user</Link>
+          <a href="/api/admin-logout" className="sb"><LuIcon icon={ADMIN_LU_MENU.logout} size={20} style={{ color: 'currentColor', width: '20px' }} /> Keluar</a>
         </aside>
 
         <div className="adm-main">
@@ -1006,14 +1015,15 @@ button:active:not(:disabled){transform:scale(.97)}
             </div>
           </header>
 
-          <main className="dash-main" style={{ padding: '34px 40px 60px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-            <div>
-              <h1 style={{ margin: '0', fontSize: '26px', fontWeight: '700', letterSpacing: '-.02em' }}>
-                {tab === 'Pengaturan' ? 'Pengaturan' : TAB_CRUMB[tab]} <span style={{ color: 'var(--accent-l)' }}>admin</span>
-              </h1>
-              <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--t4)' }}>Data di halaman ini diambil dari database dan provider.</p>
-            </div>
+          <div className="dash-hero" style={{ background: 'linear-gradient(120deg,var(--bg) 30%,var(--r1) 100%)' }}>
+            <div aria-hidden="true" style={{ position: 'absolute', inset: '0', backgroundImage: 'linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px)', backgroundSize: '46px 46px', WebkitMaskImage: 'linear-gradient(90deg,transparent 40%,#000)', maskImage: 'linear-gradient(90deg,transparent 40%,#000)' }} />
+            <h1 style={{ position: 'relative', margin: '0', fontSize: '28px', fontWeight: '700', letterSpacing: '-.03em' }}>
+              {tab === 'Pengaturan' ? 'Pengaturan' : TAB_CRUMB[tab]} <span style={{ color: 'var(--accent-l)' }}>admin</span>
+            </h1>
+            <p style={{ position: 'relative', margin: '10px 0 0', fontSize: '13px', color: 'var(--t3)' }}>Data di halaman ini diambil dari database dan provider.</p>
+          </div>
 
+          <main className="dash-main" style={{ padding: '34px 40px 60px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
             <AdminRingkasan v={v} />
 
             <Toast toast={toast} onClose={() => setToast(null)} />

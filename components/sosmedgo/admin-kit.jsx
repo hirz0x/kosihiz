@@ -1,4 +1,8 @@
 import React from 'react';
+import {
+  LayoutDashboard, BarChart3, Users, ClipboardList, Wallet, Layers, Headphones,
+  TrendingUp, RotateCcw, UserPlus, Gem, Newspaper, History, Settings, ArrowLeft, LogOut
+} from 'lucide-react';
 
 /* Konstanta, ikon, dan komponen presentasional admin yang tidak bergantung pada state AdminPage.
    Dipisah dari AdminPage.jsx supaya file utamanya lebih ringkas. */
@@ -56,6 +60,17 @@ export const FA_ADMIN = {
   [ICON.moon]: 'fa-solid fa-moon',
   [ICON.mode]: 'fa-solid fa-circle-half-stroke',
   [ICON.riwayat]: 'fa-solid fa-clock-rotate-left'
+};
+
+/* Ikon sidebar admin — set outline lucide (sama seperti dashboard user, lihat LU_MENU di
+   dashboard-kit.jsx) dipakai untuk semua tombol navigasi (.sb) di sidebar, supaya gaya ikonnya
+   konsisten dengan panel user. Ikon lain di luar sidebar (header, kartu statistik, dsb) tetap
+   pakai set Font Awesome (Svg/ICON) seperti sebelumnya — dashboard user juga begitu. */
+export const ADMIN_LU_MENU = {
+  Ringkasan: LayoutDashboard, Statistik: BarChart3, Pengguna: Users, Pesanan: ClipboardList,
+  Deposit: Wallet, Layanan: Layers, Tiket: Headphones, Update: TrendingUp, Refund: RotateCcw,
+  Afiliasi: UserPlus, Peringkat: Gem, Blog: Newspaper, 'Log Aktivitas': History,
+  Pengaturan: Settings, back: ArrowLeft, logout: LogOut
 };
 
 export const TABS_MAIN = [

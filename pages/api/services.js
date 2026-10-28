@@ -35,6 +35,17 @@ export const MARKUP_MAKS = 500;
    berikutnya kebagian rebuild ulang dari nol (~6-7 detik) walau datanya sama sekali tidak berubah.
    Diperpanjang ke 1 jam supaya itu jauh lebih jarang kejadian. */
 const CACHE_MS = 60 * 60 * 1000;
+/* Vercel menjalankan banyak instance server paralel yang memorinya terpisah-pisah — tiap instance
+   rawat "cacheMemori"-nya sendiri. Sebelumnya umur cache memori ini ikut disamakan dengan umur cache
+   database (1 jam): begitu satu instance sempat baca data lama ke memorinya, instance itu akan terus
+   nyuguhin data lama itu sampai 1 jam penuh, SAMA SEKALI tidak peduli datanya di database sudah
+   dibersihkan/diperbarui (kosongkanKatalogPelanggan cuma kosongin memori instance yang nanganin
+   request admin itu sendiri, bukan instance lain). Jadi tiap ada perubahan (layanan diaktif/nonaktifkan,
+   markup diubah, atau kode tampilannya sendiri diperbarui), pengunjung bisa kena data beda-beda
+   tergantung instance mana yang nanganin, sampai 1 jam. Cache memori dikasih umur jauh lebih pendek
+   di sini (beda dari umur cache database) supaya tiap instance ngecek ulang ke database paling lambat
+   semenit sekali — cache database tetap boleh berumur panjang (dibaca semua instance, bukan masalah). */
+const CACHE_MEMORI_MS = 60 * 1000;
 const CACHE_KEY = 'services_cache_pelanggan';
 let cacheMemori = null; // { data, sampai }
 
@@ -43,7 +54,7 @@ async function ambilKatalogPelanggan() {
   if (cacheMemori && sekarang < cacheMemori.sampai) return cacheMemori.data;
   const simpan = await getSetting(CACHE_KEY, null);
   if (simpan && simpan.data && simpan.sampai && sekarang < simpan.sampai) {
-    cacheMemori = { data: simpan.data, sampai: simpan.sampai };
+    cacheMemori = { data: simpan.data, sampai: sekarang + CACHE_MEMORI_MS };
     return simpan.data;
   }
   return null;
@@ -51,7 +62,7 @@ async function ambilKatalogPelanggan() {
 
 async function simpanKatalogPelanggan(data) {
   const sampai = Date.now() + CACHE_MS;
-  cacheMemori = { data, sampai };
+  cacheMemori = { data, sampai: Date.now() + CACHE_MEMORI_MS };
   await setSetting(CACHE_KEY, { data, sampai });
 }
 

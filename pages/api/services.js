@@ -79,17 +79,58 @@ export default async function handler(req, res) {
         getServices(admin ? undefined : { aktifOnly: true }), waktuPerLayanan(), getSettings(), getSetting('services_synced', null)
       ]);
       /* Kategori iklan/promosi dari provider disembunyikan dari katalog. Datanya tetap ada di database,
-         cuma tidak ditampilkan — "Other ad | Don't use" (smmsoc) dan "LIKEO - Private ..." (Ads/Jap/Mf/
-         Heysmm, dkk — kategori reseller internal likeo, bukan layanan beneran buat dijual). */
+         cuma tidak ditampilkan — "Other ad | Don't use" (smmsoc) dan sejenisnya. Layanan "iklan gabung
+         reseller" yang provider selipkan ke katalog beneran (bukan cuma judul kategori, misal kategori
+         "LIKEO - Ads Provider" isinya 4 baris "Likeo.net [...] [Join Us] ...") sudah dinonaktifkan
+         langsung di database, bukan cuma disaring di sini — kalau cuma disaring di respons ini,
+         baris itu tetap bisa dipesan langsung lewat POST /api/orders (yang cuma cek "aktif"). */
       const kategoriTersembunyi = /don.t use|private/i;
       const tampil = services.filter((s) => !kategoriTersembunyi.test(String(s.kategori || '')));
       /* "provider" (smmsoc/likeo) cuma dipakai internal — dibuang dari respons pelanggan supaya nama
          provider upstream tidak kebocor lewat tab Network (admin tetap butuh ini buat sub-tab Layanan).
          "rate" (harga asli USD dari provider) dan "batal" juga tidak pernah dipakai halaman pelanggan,
-         dan "aktif" jadi redundan karena sudah difilter di query — dibuang biar respons lebih ringkas. */
+         dan "aktif" jadi redundan karena sudah difilter di query — dibuang biar respons lebih ringkas.
+         Sebagian kategori/nama layanan dari provider juga menyebut brand mereka sendiri apa adanya
+         (mis. "LIKEO - Jap Provider", "Likeo.net [...] ...") — kalau ditampilkan mentah, nama provider
+         upstream kebocor ke pelanggan walau field "provider" sudah dibuang. Dibersihkan khusus di
+         respons pelanggan; admin tetap lihat teks asli supaya gampang dicocokkan ke katalog provider. */
+      const PROVIDER_BRANDS = ['likeo\\.net', 'likeo', 'smmsoc\\.com', 'smmsoc'];
+      const brandRe = new RegExp('\\b(?:' + PROVIDER_BRANDS.join('|') + ')\\b[\\s:–-]*', 'gi');
+      const bersihkanBrand = (teks) => {
+        if (!teks) return teks;
+        const hasil = String(teks).replace(brandRe, '').replace(/\s{2,}/g, ' ').trim();
+        return hasil || teks;
+      };
+      /* Nama layanan dari smmsoc penuh tag "[ Max X ]" / "No Refill" / "Instant Start" yang bikin
+         ramai tapi sebenarnya SUDAH ditampilkan lagi secara terpisah sebagai pill Min/Maks, Refill,
+         dan waktu mulai di halaman pelanggan (lihat DashboardServices.jsx, pages/layanan/index.js).
+         Cuma 3 pola yang murni duplikat itu yang dibuang di sini — tag kualitas/drop/durasi refill/
+         kapasitas harian (mis. "HQ Accounts", "Non Drop", "365 Days", "Day 50K") SENGAJA dibiarkan,
+         karena itu beneran beda antar varian layanan yang mirip (dan harganya ikut beda) — bukan
+         sekadar hiasan. Tabel admin tidak disentuh (admin perlu nama asli apa adanya). */
+      const rapikanNama = (teks) => {
+        if (!teks) return teks;
+        let h = String(teks)
+          .replace(/\[\s*(max|min)\.?\s*[\d.,]*\s*[a-z]*\s*\]/gi, '')
+          .replace(/\|?\s*no refill\s*(?:⚠️|⚠)?\s*\|?/gi, '|')
+          .replace(/\|?\s*(instant start|superinstant)\s*\|?/gi, '|')
+          .replace(/\[\s*\]/g, '')
+          .replace(/\|\s*\|/g, '|')
+          .replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '')
+          .replace(/\s{2,}/g, ' ').trim();
+        return h || String(teks).trim();
+      };
       const hasil = tampil.map((s) => {
-        const { provider, rate, batal, aktif, ...sisanya } = s;
-        return { ...sisanya, ...(admin ? { provider, rate, batal, aktif } : {}), nama: decodeEntitas(s.nama), refill: Boolean(s.refill), ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {}) };
+        const { provider, rate, batal, aktif, kategori, ...sisanya } = s;
+        const namaDecoded = decodeEntitas(s.nama);
+        return {
+          ...sisanya,
+          kategori: admin ? kategori : bersihkanBrand(kategori),
+          ...(admin ? { provider, rate, batal, aktif } : {}),
+          nama: admin ? namaDecoded : rapikanNama(bersihkanBrand(namaDecoded)),
+          refill: Boolean(s.refill),
+          ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {})
+        };
       });
       const payload = { services: hasil, settings, disinkron };
       if (!admin) await simpanKatalogPelanggan(payload);

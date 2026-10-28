@@ -101,6 +101,37 @@ export default async function handler(req, res) {
         const hasil = String(teks).replace(brandRe, '').replace(/\s{2,}/g, ' ').trim();
         return hasil || teks;
       };
+      /* Sebagian kategori/nama dari smmsoc ditulis pakai huruf Unicode "gaya" (bold/fraktur/sans-serif
+         dari blok Mathematical Alphanumeric Symbols, mis. "𝗥𝗘𝗙𝗜𝗟𝗟 𝗕𝘂𝘁𝘁𝗼𝗻 𝗪𝗼𝗿𝗸𝗶𝗻𝗴", "𝐍𝐄𝐖") — beda
+         font/berat sama teks biasa di sekitarnya, jadi kelihatan rusak/tidak konsisten. Dikembalikan
+         ke huruf ASCII biasa (bukan dihapus — isinya tetap sama, cuma tampilannya rapi). Cuma gaya yang
+         beneran kepakai di katalog smmsoc yang ditangani di sini (dicek langsung dari data produksi) —
+         gaya lain (kalau suatu saat muncul) dibiarkan apa adanya, lebih aman daripada salah tebak. */
+      const FANCY_LETTER_BASES = [0x1D400, 0x1D56C, 0x1D5D4]; // Bold, Bold Fraktur, Sans-Serif Bold
+      const FANCY_DIGIT_BASES = [0x1D7EC]; // Sans-Serif Bold
+      const rapikanUnicode = (teks) => {
+        if (!teks) return teks;
+        return String(teks).replace(/[\u{1D400}-\u{1D7FF}]/gu, (ch) => {
+          const cp = ch.codePointAt(0);
+          for (const base of FANCY_LETTER_BASES) {
+            if (cp >= base && cp < base + 26) return String.fromCharCode(65 + (cp - base));
+            if (cp >= base + 26 && cp < base + 52) return String.fromCharCode(97 + (cp - base - 26));
+          }
+          for (const base of FANCY_DIGIT_BASES) {
+            if (cp >= base && cp < base + 10) return String.fromCharCode(48 + (cp - base));
+          }
+          return ch;
+        }).replace(/İ/g, 'I');
+      };
+      /* Badge "ᴺᴱᵂ" (huruf kapital kecil, dipakai provider sebagai penanda "baru") nempel hampir di
+         semua kategori smmsoc — bukan pembeda antar layanan (banyak yang beda cuma soal ini doang
+         ada/tidak ada badge-nya), jadi aman dibuang sepenuhnya di tampilan pelanggan. */
+      const buangBadgeBaru = (teks) => (teks ? String(teks).replace(/\s*ᴺᴱᵂ\s*/g, ' ') : teks);
+      const rapikanTeks = (teks) => {
+        if (!teks) return teks;
+        const hasil = buangBadgeBaru(rapikanUnicode(bersihkanBrand(teks))).replace(/\s{2,}/g, ' ').trim();
+        return hasil || String(teks).trim();
+      };
       /* Nama layanan dari smmsoc penuh tag "[ Max X ]" / "No Refill" / "Instant Start" yang bikin
          ramai tapi sebenarnya SUDAH ditampilkan lagi secara terpisah sebagai pill Min/Maks, Refill,
          dan waktu mulai di halaman pelanggan (lihat DashboardServices.jsx, pages/layanan/index.js).
@@ -125,9 +156,9 @@ export default async function handler(req, res) {
         const namaDecoded = decodeEntitas(s.nama);
         return {
           ...sisanya,
-          kategori: admin ? kategori : bersihkanBrand(kategori),
+          kategori: admin ? kategori : rapikanTeks(kategori),
           ...(admin ? { provider, rate, batal, aktif } : {}),
-          nama: admin ? namaDecoded : rapikanNama(bersihkanBrand(namaDecoded)),
+          nama: admin ? namaDecoded : rapikanNama(rapikanTeks(namaDecoded)),
           refill: Boolean(s.refill),
           ...(waktu[s.id] ? { waktuRata: waktu[s.id].rata, waktuN: waktu[s.id].n } : {})
         };

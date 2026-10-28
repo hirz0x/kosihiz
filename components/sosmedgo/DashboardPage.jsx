@@ -945,14 +945,33 @@ class DashboardPage extends React.Component {
             : 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt + '.');
           return;
         }
+        var bodyDasar = Object.assign({ service: String(svc.id), link: st.link.trim(), quantity: qtyN }, extraCfg ? { extra: extraCfg.multiline ? extraBaris.join('\n') : extraTunggal } : {});
+        var bodyKey = JSON.stringify(bodyDasar);
+        /* Idempotency key: dibuat SEKALI per percobaan pesanan, dipakai ULANG kalau pelanggan
+           klik "kirim" lagi untuk form yang BENAR-BENAR SAMA (link/jumlah/layanan tidak diubah)
+           setelah percobaan sebelumnya gagal TANPA kepastian (koneksi putus/timeout — fetch()
+           di bawah masuk .catch tanpa respons server sama sekali, lihat komentar di .catch).
+           Server (lib/pesanan.js) menjamin key yang sama + data yang sama tidak akan pernah
+           membuat pesanan dobel atau memotong saldo dua kali, berapa kali pun dikirim ulang.
+           Begitu form diubah (bodyKey beda) atau server sudah pernah MERESPONS apa pun (sukses
+           ATAUPUN gagal — lihat dua cabang .then di bawah), key-nya dibuang supaya percobaan
+           baru/berikutnya memakai key baru, bukan menimpa hasil percobaan sebelumnya. */
+        var lanjutan = self._pesananTertunda && self._pesananTertunda.bodyKey === bodyKey;
+        var idemKey = lanjutan ? self._pesananTertunda.key
+          : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'idem-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10));
+        self._pesananTertunda = { bodyKey: bodyKey, key: idemKey };
         self.setState({ sending: true, sent: false, sentText: '' });
         fetch('/api/orders?as=user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(Object.assign({ service: String(svc.id), link: st.link.trim(), quantity: qtyN }, extraCfg ? { extra: extraCfg.multiline ? extraBaris.join('\n') : extraTunggal } : {}))
+          body: JSON.stringify(Object.assign({}, bodyDasar, { idempotencyKey: idemKey }))
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
+            /* Server sudah MERESPONS (sukses ataupun ditolak) -- keadaan permintaan ini tidak lagi
+               ambigu, jadi key-nya selesai dipakai. Percobaan BERIKUTNYA (baik form yang sama
+               dikirim ulang dengan sengaja, atau form baru) wajar dapat key baru. */
+            self._pesananTertunda = null;
             if (!res.ok || res.d.error) {
               var pesanGagal = res.d.error || 'Pesanan gagal dikirim.';
               self.setState({ sending: false, sent: true, sentOk: false, sentText: pesanGagal });
@@ -969,6 +988,11 @@ class DashboardPage extends React.Component {
             }
           })
           .catch(function (err) {
+            /* fetch() sendiri gagal (koneksi putus/timeout) -- TIDAK tahu apakah server sempat
+               memproses permintaan ini atau belum. self._pesananTertunda SENGAJA tidak dibersihkan
+               di sini, supaya kalau pelanggan klik "kirim" lagi tanpa mengubah apa pun, key yang
+               SAMA dipakai ulang dan server bisa membalas hasil yang sudah ada (kalau ternyata
+               sempat berhasil) daripada memproses dua kali. */
             var pesanError = String(err && err.message ? err.message : err);
             self.setState({ sending: false, sent: true, sentOk: false, sentText: pesanError });
             self.tampilkanToast(false, pesanError);

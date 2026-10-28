@@ -109,7 +109,7 @@ export default function Layanan() {
   const chip = { border: '1px solid #26262E', borderRadius: '10px', padding: '7px 12px', fontSize: '12px', color: '#D4D4D8', whiteSpace: 'nowrap' };
 
   return (
-    <BlogLayout judul="Layanan" deskripsi="Daftar layanan SMM SosmedGo lengkap dengan harga per 1000 dan estimasi waktu." lebar={1100}>
+    <BlogLayout judul="Layanan" deskripsi="Daftar layanan SMM SosmedGo lengkap dengan harga per 1000 dan estimasi waktu." lebar={1100} path="/layanan">
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width:640px){
           .lay-banner{margin:-36px -12px 22px !important;padding:36px 16px 26px !important;border-radius:16px !important}

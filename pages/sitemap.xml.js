@@ -10,7 +10,7 @@ function escXml(s) {
 export async function getServerSideProps({ res }) {
   const artikel = (await ambilSemuaArtikel()).filter((a) => a.terbit !== false);
   const url = (loc, tgl) => '<url><loc>' + escXml(BASE + loc) + '</loc>' + (tgl ? '<lastmod>' + escXml(tgl) + '</lastmod>' : '') + '</url>';
-  const daftar = [url('/'), url('/layanan'), url('/blog'), ...artikel.map((a) => url('/blog/' + a.slug, a.tanggal))].join('');
+  const daftar = [url('/'), url('/layanan'), url('/blog'), url('/bantuan'), url('/ketentuan-layanan'), ...artikel.map((a) => url('/blog/' + a.slug, a.tanggal))].join('');
   res.setHeader('Content-Type', 'application/xml; charset=utf-8');
   res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
   res.write('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + daftar + '</urlset>');

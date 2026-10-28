@@ -63,7 +63,7 @@ Ada pertanyaan soal ketentuan ini? Hubungi kami lewat halaman tiket bantuan di d
 
 export default function KetentuanLayanan() {
   return (
-    <BlogLayout judul="Ketentuan Layanan" deskripsi="Ketentuan penggunaan layanan SosmedGo — akun, pemesanan, refund, dan tanggung jawab pengguna.">
+    <BlogLayout judul="Ketentuan Layanan" deskripsi="Ketentuan penggunaan layanan SosmedGo — akun, pemesanan, refund, dan tanggung jawab pengguna." path="/ketentuan-layanan">
       <h1 style={{ margin: '0 0 28px', fontSize: 'clamp(30px,4.5vw,46px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.15 }}>Ketentuan Layanan</h1>
       <div style={{ background: '#0E0E11', border: '1px solid #1A1A1F', borderRadius: '18px', padding: '28px', fontSize: '16px', lineHeight: 1.75, color: '#D4D4D8' }}>
         <Markdown teks={ISI} />

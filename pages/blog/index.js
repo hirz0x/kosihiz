@@ -7,7 +7,7 @@ export default function Blog({ artikel }) {
   const daftar = artikel.filter((a) => a.terbit !== false).sort((a, b) => (a.tanggal < b.tanggal ? 1 : -1));
 
   return (
-    <BlogLayout judul="Blog" deskripsi="Artikel seputar social media marketing dan tips reseller dari SosmedGo.">
+    <BlogLayout judul="Blog" deskripsi="Artikel seputar social media marketing dan tips reseller dari SosmedGo." path="/blog">
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ margin: '0 0 8px', fontSize: 'clamp(32px,4.5vw,46px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.1 }}>
           Blog <span style={{ color: '#E11D3A' }}>SosmedGo</span>
@@ -26,9 +26,9 @@ export default function Blog({ artikel }) {
               <Link key={a.slug} href={'/blog/' + a.slug} style={{ display: 'flex', flexDirection: 'column', background: '#0E0E11', border: '1px solid #1A1A1F', borderRadius: '18px', overflow: 'hidden', color: '#F4F4F5', textDecoration: 'none' }}>
                 <div style={{ aspectRatio: '16 / 10', background: 'linear-gradient(160deg,#2A0E14,#0A0A0C)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {a.gambar ? (
-                    <img src={a.gambar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <img src={a.gambar} alt={a.judul} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   ) : (
-                    <img src="/icon.png" alt="" width="64" height="64" style={{ borderRadius: '16px' }} />
+                    <img src="/icon.png" alt="" width="64" height="64" style={{ borderRadius: '16px' }} role="presentation" />
                   )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '18px 18px 20px', flex: 1 }}>

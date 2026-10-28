@@ -6,20 +6,42 @@ const MENU = [
   { href: '/', label: 'Beranda' },
   { href: '/layanan', label: 'Layanan' },
   { href: '/blog', label: 'Blog' },
+  { href: '/bantuan', label: 'Bantuan' },
   { href: '/login', label: 'Masuk' },
   { href: '/register', label: 'Daftar' }
 ];
 
-export default function BlogLayout({ judul, deskripsi, lebar = 860, children }) {
+/* Sama persis base domain yang dipakai pages/sitemap.xml.js, supaya canonical/OG konsisten
+ * dengan URL yang didaftarkan ke search engine. */
+const BASE = (process.env.APP_URL || 'https://smmsosmedgo.store').replace(/\/$/, '');
+
+export default function BlogLayout({ judul, deskripsi, lebar = 860, path, gambar, ldJson, children }) {
   const [menuBuka, setMenuBuka] = useState(false);
+  const titleLengkap = judul + ' — SosmedGo';
+  const url = path ? BASE + path : undefined;
+  const og = gambar ? (gambar.startsWith('http') ? gambar : BASE + gambar) : BASE + '/icon.png';
 
   return (
     <>
       <Head>
-        <title>{judul + ' — SosmedGo'}</title>
+        <title>{titleLengkap}</title>
         <meta name="description" content={deskripsi} />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="icon" href="/icon.png" />
+        {url ? <link rel="canonical" href={url} /> : null}
+        {/* Open Graph/Twitter Card: sama alasannya dengan LandingPage — supaya link blog/layanan
+            yang dibagikan muncul sebagai kartu berisi judul+deskripsi+gambar, bukan link polos. */}
+        <meta property="og:type" content={path && path.startsWith('/blog/') ? 'article' : 'website'} />
+        {url ? <meta property="og:url" content={url} /> : null}
+        <meta property="og:site_name" content="SosmedGo" />
+        <meta property="og:title" content={titleLengkap} />
+        <meta property="og:description" content={deskripsi} />
+        <meta property="og:image" content={og} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={titleLengkap} />
+        <meta name="twitter:description" content={deskripsi} />
+        <meta name="twitter:image" content={og} />
+        {ldJson ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ldJson) }} /> : null}
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
         <style>{`
           html,body{margin:0;background:#0A0A0C;color:#F4F4F5;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color-scheme:dark;-webkit-text-size-adjust:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -61,6 +83,7 @@ export default function BlogLayout({ judul, deskripsi, lebar = 860, children }) 
               <Link href="/" style={{ color: '#D4D4D8' }}>Beranda</Link>
               <Link href="/layanan" style={{ color: '#D4D4D8' }}>Layanan</Link>
               <Link href="/blog" style={{ color: '#FF5A75', background: '#2A0E14' }}>Blog</Link>
+              <Link href="/bantuan" style={{ color: '#D4D4D8' }}>Bantuan</Link>
               <Link href="/login" style={{ color: '#F4F4F5', background: '#17171B', border: '1px solid #26262E', padding: '8px 14px' }}>Masuk</Link>
               <Link href="/register" style={{ color: '#FFFFFF', background: '#E11D3A', padding: '8px 14px' }}>Daftar</Link>
             </nav>
@@ -85,6 +108,12 @@ export default function BlogLayout({ judul, deskripsi, lebar = 860, children }) 
             {children}
           </main>
           <footer style={{ borderTop: '1px solid #1A1A1F', padding: '24px 0 36px', textAlign: 'center', color: '#6B6E78', fontSize: '13px' }}>
+            <nav aria-label="Tautan footer" style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '14px' }}>
+              <Link href="/layanan" style={{ color: '#A1A3AB', textDecoration: 'none' }}>Layanan</Link>
+              <Link href="/blog" style={{ color: '#A1A3AB', textDecoration: 'none' }}>Blog</Link>
+              <Link href="/bantuan" style={{ color: '#A1A3AB', textDecoration: 'none' }}>Bantuan</Link>
+              <Link href="/ketentuan-layanan" style={{ color: '#A1A3AB', textDecoration: 'none' }}>Ketentuan Layanan</Link>
+            </nav>
             © SosmedGo
           </footer>
         </div>

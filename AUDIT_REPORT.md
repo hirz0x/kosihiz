@@ -29,7 +29,7 @@ perilaku/arsitektur (lihat RLS-02 soal REVOKE fungsi RPC, PERF-01 soal query adm
 | ID | Severity | Lokasi | Deskripsi | Dampak | Status |
 |---|---|---|---|---|---|
 | WEBHOOK-04 | **High** | `.env.local` — `PAYMENKU_API_KEY` | Kunci Paymenku yang terpasang adalah kunci **LIVE** (`sk_live_...`), bukan sandbox, walau komentar di file menyebut "sandbox" | Kalau environment ini pernah memproses transaksi, itu transaksi uang sungguhan, bukan simulasi. **Terbukti pernah terjadi — lihat bagian "Invoice sungguhan yang pernah tercipta" di bawah** | **Perlu keputusan** — bukan bug kode, saya tidak mengubah file `.env.local`. Mohon cek & ganti ke `sk_test_...` kalau memang untuk development |
-| WEBHOOK-03 | Medium | `pages/api/paymenku/webhook.js` | Verifikasi signature HMAC webhook dulu dilewati (fail-open) kalau `PAYMENKU_WEBHOOK_SECRET` kosong | Webhook bisa dipicu siapa saja yang tahu/menebak reference_id selama secret belum di-setup | **Diperbaiki** — fail-closed: webhook sekarang menolak (401) SEMUA request kalau secret belum diisi, bukan melewati verifikasi. `PAYMENKU_WEBHOOK_SECRET` sendiri masih belum diisi di `.env.local` (perlu diambil dari dashboard Paymenku) — sampai diisi, endpoint ini menolak semua webhook, bukan merusak apa pun |
+| WEBHOOK-03 | Medium | `pages/api/paymenku/webhook.js` | Verifikasi signature HMAC webhook dulu dilewati (fail-open) kalau `PAYMENKU_WEBHOOK_SECRET` kosong | Webhook bisa dipicu siapa saja yang tahu/menebak reference_id selama secret belum di-setup | **Diperbaiki** — fail-closed: webhook sekarang menolak (401) SEMUA request kalau secret belum diisi, bukan melewati verifikasi. `PAYMENKU_WEBHOOK_SECRET` di `.env.local` lokal **sudah diisi** (diperbarui 2026-10-29, lihat WEBHOOK-04) — belum diverifikasi lewat deposit sungguhan, dan belum dikonfirmasi apakah environment produksi (terpisah dari `.env.local`) sudah diisi juga |
 | WEBHOOK-05 | High | `lib/paymenku-kredit.js` | Status webhook dicek ulang ke API Paymenku (sudah ada sebelumnya), TAPI nominal & reference_id dari balasan Paymenku tidak pernah dicocokkan ke data deposit sendiri sebelum kredit | Kalau `trx_id` nyasar ke transaksi lain (reference_id tertukar/bug provider) tapi statusnya "paid", saldo bisa salah dikredit | **Diperbaiki** — nominal (lewat `jumlahBayar()`) dan `reference_id` sekarang WAJIB cocok persis sebelum kredit jalan; kalau tidak cocok atau transaksi tidak ditemukan, ditolak & dicatat ke `console.error`. Diuji otomatis di `tests/webhook-security.test.js` |
 | PERF-01 | Medium | `pages/api/pengguna.js` → `lib/store.js: getOrders()` | Halaman admin "Pengguna" menarik SEMUA baris tabel `orders` (tanpa filter/limit) tiap kali dibuka, cuma untuk menghitung jumlah+total belanja per user | Akan makin lambat seiring tabel orders membesar tanpa batas (saat ini ribuan baris, masih OK) | **Perlu keputusan** — opsi: agregat lewat view/RPC Postgres, atau cache berkala. Mengubah arsitektur, bukan perbaikan kecil |
 | CODE-01 | Low | `pages/api/{invoice,pengguna,riwayat,statistik,tickets}.js` | Fungsi format tanggal/waktu WIB diimplementasikan ulang terpisah di 5 file, sebagian tanpa penjaga tanggal tidak valid | Risiko rendah — kalau ada bug di satu, 4 lainnya tidak otomatis ikut benar | **Diperbaiki** — disatukan ke `lib/waktu.js` |
@@ -678,3 +678,312 @@ audit sebelum guard ini dipasang).
   sekilas, tidak ditemukan masalah), dan bundle-size spesifik halaman admin per-komponen.
 - **Build/deploy produksi sungguhan** — semua pengujian di sini jalan di `npm run dev` lokal, bukan
   `next start` produksi.
+
+## Tinjauan status 3 keputusan tertunda (lanjutan, 2026-10-29)
+
+Sesi ini memeriksa ULANG status ketiga item "Perlu keputusan" di tabel temuan di atas — bukan
+menduga-duga, tapi mengecek langsung ke `.env.local` dan ke Supabase project yang sedang aktif
+(empiris, metode sama dengan audit asli). **Tidak ada kredensial yang ditampilkan di bawah** —
+cuma status ya/tidak dan prefix generik (`sk_live_` vs `sk_test_`, bukan isi key-nya).
+
+### 1. WEBHOOK-04 — kunci Paymenku LIVE
+
+**Status sekarang (diperbarui 2026-10-29, dilaporkan developer + dikonfirmasi presence-only,
+TANPA membaca isi secret): `PAYMENKU_WEBHOOK_SECRET` SUDAH TERISI di `.env.local`** (dikonfirmasi
+non-kosong, panjang 64 karakter — konsisten dengan hex random 32-byte seperti `openssl rand -hex
+32`; nilainya sendiri tidak pernah dibaca/ditampilkan oleh sesi ini). Webhook **tidak lagi
+fail-closed** — `signatureValid()` di `pages/api/paymenku/webhook.js` sekarang benar-benar
+memverifikasi signature dari Paymenku, bukan menolak semua request.
+- `PAYMENKU_API_KEY` di `.env.local` masih berprefix `sk_live_` (LIVE, bukan sandbox) — status ini
+  TIDAK berubah, tetap perlu keputusan terpisah (lihat prasyarat di bawah).
+
+**Risiko aktual sekarang**: bergeser dari "webhook menolak semua notifikasi" ke "webhook aktif
+menerima & memverifikasi notifikasi sungguhan dari Paymenku" — secara desain ini yang diinginkan.
+Risiko yang PERLU dipastikan sebelum lalu lintas sungguhan lewat jalur ini:
+- Nilai `PAYMENKU_WEBHOOK_SECRET` di `.env.local` **harus identik** dengan yang terdaftar di
+  dashboard Paymenku (Settings → Webhook) — sesi ini tidak bisa memverifikasi kecocokan ini tanpa
+  notifikasi sungguhan masuk (lihat "Cara verifikasi" di bawah, belum dijalankan).
+- Kalau `.env.local` ini dipakai untuk **produksi** sungguhan (bukan development) dengan
+  `PAYMENKU_API_KEY` live yang sama, webhook sekarang berpotensi menerima & mengkredit deposit
+  NYATA begitu signature-nya valid — pastikan ini memang yang dimaksud sebelum lalu lintas
+  sungguhan lewat endpoint ini (lihat prasyarat di bawah, belum terjawab).
+
+**Prasyarat yang BELUM terjawab**: apakah `.env.local` ini memang untuk produksi (kalau iya, kunci
+live + secret yang baru diisi SUDAH benar kombinasinya) atau untuk development (kalau iya,
+`PAYMENKU_API_KEY` sebaiknya tetap diganti ke `sk_test_...` dari dashboard Paymenku, supaya
+notifikasi yang sekarang bisa diverifikasi webhook ini tidak sampai mengkredit dari transaksi
+live sungguhan selama masih development).
+
+**Langkah implementasi yang TERSISA:**
+1. ~~Isi `PAYMENKU_WEBHOOK_SECRET`~~ — **sudah dilakukan**.
+2. Restart `next dev` (env var dibaca sekali saat start) kalau server dev sedang jalan dari sebelum
+   secret diisi — kalau belum di-restart, proses yang sedang berjalan masih memakai env lama
+   (kosong) di memori walau file `.env.local` sudah berubah.
+3. Kalau `.env.local` ini dipakai untuk development: pertimbangkan ganti `PAYMENKU_API_KEY` ke
+   kunci sandbox (`sk_test_...`) dari dashboard Paymenku yang sama — belum dilakukan, masih
+   `sk_live_...`.
+4. Untuk produksi (Vercel/hosting lain): env var ini terpisah dari `.env.local` lokal — pastikan
+   `PAYMENKU_WEBHOOK_SECRET` juga diisi di Environment Variables produksi (JANGAN commit ke git),
+   bukan cuma di `.env.local` mesin ini.
+
+**Cara verifikasi (belum dijalankan sesi ini — butuh deposit sungguhan, tidak bisa diotomatisasi
+dengan aman)**: kirim deposit QRIS nominal kecil (Rp 10.000) dari akun sungguhan (bukan tester),
+bayar, dan pastikan saldo masuk OTOMATIS tanpa perlu klik "Cek pembayaran" manual — ini membuktikan
+secret di `.env.local` memang cocok dengan yang terdaftar di dashboard Paymenku.
+
+**Rollback**: kosongkan kembali `PAYMENKU_WEBHOOK_SECRET` — webhook langsung fail-closed lagi
+(menolak semua notifikasi, tidak merusak apa pun, deposit tetap bisa diproses manual/cron).
+
+### 2. RLS-02 — migrasi REVOKE RPC (`supabase/lock-rpc-execute.sql`)
+
+**Status sekarang: BELUM dijalankan, tidak berubah dari audit asli.**
+
+Dikonfirmasi EMPIRIS sesi ini (bukan cuma baca file SQL): memanggil `rpc/potong_saldo` pakai
+`SUPABASE_ANON_KEY` dari `.env.local` dengan `uid` yang tidak ada & `amount: 0` (no-op total, nol
+efek ke data apa pun) → **HTTP 200**, bukan `permission denied`. Kalau migrasinya sudah jalan,
+seharusnya ditolak dengan HTTP 401 "permission denied for function" (persis seperti 5 fungsi lain
+yang SUDAH direvoke sejak `schema.sql` lama, lihat tabel RLS di atas).
+
+**Risiko aktual HARI INI: tetap rendah, BUKAN tereksploitasi** — sama seperti temuan asli: RLS
+tabel `profiles`/`orders`/dll yang aktif+nol policy tetap menahan `UPDATE` di dalam fungsi ini
+dari sisi `anon`, jadi panggilannya selalu `null`/tidak berefek walau tidak ditolak di level
+`EXECUTE`. Ini pertahanan BERLAPIS yang belum ditutup, bukan celah yang terbuka sekarang.
+
+**Prasyarat**: akses Supabase Dashboard (SQL Editor) ke project yang sama dengan `SUPABASE_URL`
+di `.env.local` produksi — migrasinya BUKAN dijalankan dari kode/CLI aplikasi ini.
+
+**Langkah implementasi**: lihat "RLS-02: migrasi REVOKE RPC" dan "Urutan deploy" di atas — tidak
+berubah, masih berlaku persis: Supabase Dashboard → SQL Editor → paste seluruh isi
+`supabase/lock-rpc-execute.sql` → Run.
+
+**Cara verifikasi**: `npm run test:rpc-privileges` (butuh `.env.test.local` + dev server jalan,
+lihat bagian "Cara menjalankan tes") — harus jadi 11/11 fungsi menolak anon (sebelumnya 5/11).
+
+**Rollback**: jalankan `supabase/lock-rpc-execute.rollback.sql` lewat SQL Editor yang sama.
+
+### 3. PERF-01 — query admin tanpa batas (`pages/api/pengguna.js`)
+
+**Status sekarang: SEBAGIAN diselesaikan di sesi ini (perbaikan lokal, aman, TIDAK butuh
+migrasi/akses produksi) — bukan fix arsitektur penuh.**
+
+Dikonfirmasi ulang: `pages/api/pengguna.js` masih memanggil `getOrders()` tanpa filter (menarik
+SELURUH baris tabel `orders`, semua kolom) HANYA untuk menghitung jumlah+total belanja per user.
+**Yang diperbaiki sesi ini**: ditambah `getOrdersRingkas()` (`lib/store.js`) — menarik HANYA 3
+kolom yang benar-benar dipakai (`user_id, biaya, status`) lewat parameter `select` baru di
+`selectAll()`, bukan `select=*`. Hasil akhirnya (angka pesanan/belanja per user) **persis sama**,
+cuma data yang ditransfer dari Supabase jauh lebih kecil per baris. Ini LOKAL murni (kode
+aplikasi), nol migrasi, nol perubahan skema — makanya dikerjakan langsung tanpa menunggu
+keputusan, sesuai instruksi "implementasikan perbaikan lokal yang aman".
+
+**Yang BELUM diperbaiki (tetap butuh keputusan arsitektur)**: query ini masih menarik SEMUA baris
+(bukan diagregasi di database) — tetap akan melambat seiring tabel `orders` membesar tanpa batas,
+cuma lebih lambat melambatnya dibanding sebelumnya. Perbaikan penuh = agregasi `GROUP BY user_id`
+langsung di Postgres lewat fungsi RPC (pola sama dengan `waktu_per_layanan()` yang sudah ada di
+`supabase/schema.sql`) atau materialized view, dipanggil lewat `rpc/...` seperti fungsi lain.
+**Belum dibuat** — ini perubahan skema (fungsi RPC baru), konsisten dengan instruksi untuk tidak
+menjalankan migrasi produksi tanpa persetujuan eksplisit. Kalau disetujui, migrasinya sederhana:
+fungsi SQL stabil (`language sql stable`) yang `select user_id, count(*), sum(biaya) ... group by
+user_id`, dipanggil dari `pages/api/pengguna.js` menggantikan `getOrdersRingkas()`.
+
+**Cara verifikasi perbaikan yang SUDAH jalan**: buka tab "Pengguna" di admin, bandingkan angka
+"Pesanan"/"Belanja" per user sebelum & sesudah — harus identik (tidak ada perubahan hasil, cuma
+performa). Sudah dicek: `npm run build` lolos, endpoint tidak berubah bentuk responsnya.
+
+## Idempotency key pembuatan pesanan dashboard (lanjutan, 2026-10-29)
+
+Lihat `supabase/order-idempotency.sql` (migrasi baru, **BELUM dijalankan ke database manapun**),
+`lib/store.js` (`klaimIdempotensiPesanan`/`selesaikanIdempotensiPesanan`/`lepasKlaimIdempotensiPesanan`),
+`lib/pesanan.js` (`buatPesanan` — logikanya), `components/sosmedgo/DashboardPage.jsx`
+(`submitOrder` — pembuat & pengelola key di sisi klien), dan `tests/order-idempotency.test.js`.
+
+**Cakupan**: HANYA form "Buat Pesanan" di dashboard pelanggan (yang mengirim field
+`idempotencyKey` opsional ke `POST /api/orders`). Mass order (`sendMass`) dan API key reseller
+(`pages/api/v1/order.js`) TIDAK mengirim field ini sama sekali — `buatPesanan()` melewati SELURUH
+logika idempotency kalau field ini tidak ada, jadi kedua jalur itu nol perubahan perilaku.
+
+**Desain** (lihat komentar lengkap di `supabase/order-idempotency.sql` untuk alasan setiap bagian):
+tabel baru `order_idempotency` (terpisah dari `orders`, tidak mengubah skema `orders` sama sekali)
+menyimpan satu baris per (user, key) dengan hash isi permintaan. Klaim key dilakukan ATOMIC lewat
+fungsi RPC `klaim_idempotensi_pesanan` (pola "insert, tangkap unique_violation, lalu SELECT ...
+FOR UPDATE" — contoh resmi Postgres untuk race insert-or-select) SEBELUM saldo dipotong/provider
+dipanggil. Hasilnya salah satu dari 4: `claimed` (lanjut proses normal), `processing` (permintaan
+lain untuk key sama masih berjalan → ditolak 409), `done` (key ini sudah pernah sukses → pesanan
+yang SUDAH ADA dikembalikan, tidak dibuat baru), `hash_mismatch` (key sama tapi data permintaan
+beda → ditolak 409, bukan diproses sebagai permintaan itu).
+
+**Konsistensi saldo/provider**: urutan tetap sama seperti sebelumnya (klaim key → potong saldo →
+panggil provider → simpan pesanan) — idempotency HANYA menambah lapis "jangan lakukan urutan ini
+dua kali untuk key yang sama", tidak mengubah urutan atau logika refund otomatis yang sudah ada.
+Klaim dilepas (baris dihapus) kalau gagal di saldo tidak cukup atau provider gagal DENGAN saldo
+berhasil dikembalikan — supaya key itu segera bisa dipakai ulang untuk percobaan yang sah. Klaim
+SENGAJA TIDAK dilepas kalau pengembalian saldo sendiri gagal (status ambigu) — dibiarkan basi
+lewat `IDEMPOTENSI_STALE_MS` (60 detik) daripada dilepas terlalu cepat.
+
+**Risiko residual yang didokumentasikan (bukan diabaikan)**:
+- Kalau `selesaikanIdempotensiPesanan()` (tandai "done" setelah sukses) gagal terus setelah 3x
+  percobaan DAN klien retry dengan key yang sama tepat di jendela `IDEMPOTENSI_STALE_MS` (60 detik)
+  sebelum baris itu basi, replay akan dapat `processing` (ditolak 409) — bukan hasil yang salah,
+  cuma pesan error yang membingungkan untuk kasus yang sangat langka ini. Dicatat `console.error`
+  level KRITIS kalau terjadi, sama kelasnya dengan risiko "gagal disimpan ke database setelah 3x
+  percobaan" yang SUDAH diterima desain `buatPesanan()` sebelum perubahan ini.
+- 60 detik dipilih sebagai margin aman di atas waktu wajar satu kali panggil provider (yang tidak
+  punya timeout eksplisit di `lib/provider.js`) — **kalau kamu tahu batas waktu eksekusi function
+  serverless yang sebenarnya dipakai (Vercel plan tertentu), sebaiknya dikonfirmasi ulang apakah
+  60 detik ini cukup besar** (lihat `IDEMPOTENSI_STALE_MS` di `lib/pesanan.js`).
+- Tabel `order_idempotency` akan bertambah terus (satu baris per percobaan pesanan yang pakai key)
+  — belum ada pembersihan otomatis baris lama. Rekomendasi (belum dikerjakan): cron/job berkala
+  hapus baris `status='done'` yang lebih tua dari, misalnya, 30 hari.
+
+**Keterbatasan pengujian (lihat juga komentar di `tests/order-idempotency.test.js`)**: `buatPesanan()`
+memanggil API provider SMM SUNGGUHAN (`lib/provider.js`, tidak ada mode sandbox) — jadi tes
+otomatis TIDAK memanggil `POST /api/orders` ujung-ke-ujung (akan membuat pesanan & memotong saldo
+provider NYATA). Sebagai gantinya, `tests/order-idempotency.test.js` menguji PRIMITIF
+`klaim_idempotensi_pesanan` + tabel `order_idempotency` langsung lewat Supabase REST (pola sama
+dengan `tests/webhook-idempotency.test.js` untuk alasan yang identik terhadap Paymenku) — ini
+PERSIS mekanisme yang dipakai `buatPesanan()` sebelum menyentuh saldo/provider sama sekali, jadi
+membuktikan primitif ini benar sudah membuktikan `buatPesanan()` tidak akan memproses dobel.
+Skenario yang diuji: request identik (replay setelah selesai), request bersamaan (race dua
+panggilan konkuren), payload berbeda dengan key sama (hash mismatch), retry setelah "timeout"
+(baris basi diklaim ulang), dan key baru untuk pesanan berbeda (tidak terganggu key lain).
+
+**BELUM dijalankan di sesi ini** — guard `tests/_guard.js` menghentikan SEMUA tes di folder ini
+(termasuk yang sudah ada sebelumnya, dikonfirmasi ulang dengan `npm run test:admin-authz`) karena
+`.env.test.local` tidak ada di environment ini, bukan masalah khusus tes baru ini.
+
+**Verifikasi manual yang disarankan sebelum deploy** (menggantikan tes otomatis ujung-ke-ujung
+yang tidak bisa dijalankan dengan aman):
+1. Jalankan migrasi `supabase/order-idempotency.sql` di project **staging/testing** dulu (bukan
+   produksi), lewat Supabase Dashboard → SQL Editor → paste → Run.
+2. Dari dashboard customer sungguhan (akun tester), buat SATU pesanan nyata ke provider sandbox/
+   layanan murah — pastikan sukses seperti biasa (tidak ada perubahan perilaku untuk pesanan
+   normal).
+3. Buka DevTools → Network, ulangi persis request `POST /api/orders` yang sama (klik kanan →
+   Replay/Fetch, atau `curl` manual dengan body+cookie session yang sama) — pastikan: (a) TIDAK
+   ada pesanan kedua yang muncul di tab Pesanan, (b) saldo TIDAK terpotong lagi, (c) respons yang
+   dikembalikan adalah pesanan yang SAMA dengan langkah 2.
+4. Ulangi migrasi di produksi (lewat SQL Editor yang sama) setelah langkah 1-3 lolos di staging.
+
+**Rollback**: `drop function if exists klaim_idempotensi_pesanan(text, text, text, bigint); drop
+table if exists order_idempotency;` — aman dijalankan kapan pun (tabel ini tidak direferensikan
+balik oleh tabel lain, cuma punya FK SATU ARAH ke `orders.id`). Setelah rollback, kode aplikasi
+(`lib/pesanan.js`) akan melempar error setiap kali ada `idempotencyKey` di request — **sebelum
+rollback, redeploy dulu versi kode SEBELUM perubahan idempotency ini**, baru jalankan rollback SQL
+(urutan terbalik dari deploy: kode dulu, baru SQL — supaya tidak ada jendela waktu kode baru
+memanggil fungsi yang sudah dihapus).
+
+## Hardening & verification pass (lanjutan, 2026-10-29)
+
+Tidak ada fitur baru ditambahkan di sesi ini — murni audit ulang + tes tambahan + 1 perbaikan bug
+di migrasi yang **belum pernah dijalankan ke database manapun**.
+
+**Bug ditemukan & diperbaiki di `supabase/order-idempotency.sql`** (fungsi
+`klaim_idempotensi_pesanan`): urutan pengecekan awalnya `status = 'done'` DULU, baru
+`request_hash <> p_hash` — artinya key yang sudah "done" lalu dipakai ulang dengan payload
+BERBEDA akan lolos lewat cabang `done` dan diam-diam mengembalikan `order_id` LAMA, padahal
+dokumentasi fungsi ini sendiri menjanjikan `hash_mismatch` untuk kasus "key sama, data beda".
+Tidak berdampak finansial/keamanan (cabang `done` tidak menyentuh saldo/provider sama sekali,
+dan `DashboardPage.jsx` sendiri tidak pernah mengirim ulang key yang sudah dapat respons sukses),
+tapi tetap bug korektness nyata. Diperbaiki: hash dicek LEBIH DULU, status `done` baru dicek
+setelah itu — jadi `done` + hash beda sekarang benar mengembalikan `hash_mismatch`. Dibuktikan
+lewat tes baru di `tests/order-flow-mock.test.mjs` (skenario B→C berurutan) dan ditambahkan juga
+sebagai kasus baru di `tests/order-idempotency.test.js` (langkah 2b) untuk primitif SQL-nya begitu
+ada `.env.test.local`.
+
+**Audit ulang kedua file migrasi** (`supabase/lock-rpc-execute.sql`,
+`supabase/order-idempotency.sql`), diverifikasi SUBSTANTIF (bukan dari nama file/komentar):
+- `grep -i "security definer"` di seluruh `supabase/schema.sql`: NOL hasil — seluruh fungsi
+  (termasuk 11 yang disentuh `lock-rpc-execute.sql`) memang `SECURITY INVOKER` (default Postgres),
+  bukan cuma klaim komentar. Karena hanya `service_role` yang diberi EXECUTE (setelah REVOKE), dan
+  `service_role` di Supabase sudah BYPASSRLS, konsistensi ini aman.
+- Setiap signature fungsi di `lock-rpc-execute.sql` (`add_saldo(text,bigint)`, dst, 11 total)
+  dicocokkan satu-satu ke definisi aslinya di `supabase/schema.sql` — SEMUA cocok persis. Kalau
+  ada yang tidak cocok, `revoke/grant ... on function` akan gagal total saat dijalankan (bukan
+  gagal diam-diam), jadi migrasi ini aman dieksekusi (akan error jelas kalau skema berubah sejak
+  file ini ditulis, bukan silently no-op).
+- `order_id text references orders(id)` di tabel baru dicocokkan ke `orders.id` (`text primary
+  key` di `schema.sql` baris 19) — tipe cocok, FK tidak akan gagal dibuat.
+- RLS deny-all (tabel baru enable RLS + nol policy) konsisten dengan SELURUH tabel lain di schema
+  ini — bukan pola baru yang belum terbukti, tabel-tabel lain dengan pola identik sudah berjalan
+  di produksi.
+- Nit kecil (bukan bug): kolom `status` di komentar tabel menyebut tiga nilai mungkin
+  (`'processing' | 'done' | 'failed'`), tapi tidak ada kode yang PERNAH menulis `'failed'` —
+  `lepasKlaimIdempotensiPesanan()` menghapus barisnya, bukan mengubah status jadi `'failed'`.
+  Tidak ada constraint yang menegakkan ini jadi bukan masalah fungsional, hanya komentar yang
+  sedikit menyesatkan soal nilai yang benar-benar dipakai.
+
+**Tes integrasi mock baru**: `tests/order-flow-mock.test.mjs` (lewat `npm run
+test:order-flow-mock`, sudah masuk rantai `npm run test:security`) — menjalankan KODE ASLI
+`buatPesanan()` (`lib/pesanan.js`, diimpor langsung, tidak ditulis ulang) melawan server HTTP
+lokal buatan sendiri yang berperan sebagai Supabase REST/RPC + provider SMM, SEMUANYA di memori,
+NOL kredensial sungguhan, NOL panggilan jaringan ke luar. Ini melengkapi (bukan menggantikan)
+`tests/order-idempotency.test.js` yang menguji primitif SQL-nya langsung — tes baru ini menguji
+bagaimana `lib/pesanan.js` BEREAKSI terhadap primitif itu, termasuk skenario yang primitif saja
+tidak bisa jangkau (gagal provider, gagal refund, gagal finalisasi, koneksi provider putus).
+Dijalankan sungguhan di sesi ini: **35/35 assertion lolos**. Jawaban atas pertanyaan konsistensi
+yang diminta, dengan bukti eksekusi nyata (bukan cuma penalaran kode):
+- **Claim → potong saldo → provider → finalisasi bisa menghasilkan saldo/order tidak konsisten?**
+  Tidak, untuk SELURUH kombinasi yang diuji (sukses normal, provider gagal+refund sukses, provider
+  gagal+refund JUGA gagal, finalisasi gagal 3x). Saldo & tabel `orders` selalu berakhir konsisten;
+  satu-satunya yang bisa "lag" adalah baris `order_idempotency` (cache replay), bukan saldo/order
+  itu sendiri.
+- **Retry dengan key sama bisa mengirim ke provider dua kali?** Tidak — dibuktikan skenario B
+  (replay setelah sukses: provider log tidak bertambah) dan skenario D (dua request BENAR-BENAR
+  konkuren secara HTTP dengan key sama: provider cuma dipanggil 1x total).
+- **Kegagalan finalisasi/pelepasan klaim bisa membuat key macet?** Bisa, TAPI hanya SEMENTARA
+  (sampai `IDEMPOTENSI_STALE_MS` = 60 detik) — dibuktikan skenario F & G: selama jendela itu, key
+  memang tertahan (klien dapat 409, bukan hasil pesanan pertamanya) tapi TIDAK membuat pesanan
+  kedua ataupun memotong saldo lagi; setelah basi, key otomatis bisa diklaim ulang.
+- **Payload berbeda dengan key sama ditolak?** Ya, selalu 409, sebelum menyentuh saldo/provider
+  (skenario C), termasuk untuk key yang sudah `done` setelah perbaikan bug di atas.
+- **Request paralel aman di level database?** Ya untuk yang bisa diuji di satu proses Node
+  (skenario D) — klaim betul-betul serial (tepat satu `claimed`, satu `processing`). Catatan
+  jujur: ini mensimulasikan kontrak RPC-nya (bukan mekanisme row-lock Postgres `FOR UPDATE`
+  sungguhan, yang divalidasi lewat pembacaan SQL manual di atas, bukan lewat mock ini).
+- **Exactly-once ke PROVIDER EKSTERNAL?** **TIDAK dijamin, dan sengaja tidak diklaim** — skenario
+  I membuktikan: kalau koneksi ke provider putus SETELAH provider menerima request tapi SEBELUM
+  responsnya sampai, sistem kita menganggap gagal, mengembalikan saldo, melepas klaim, dan retry
+  berikutnya memanggil provider LAGI sebagai percobaan baru yang sah dari sudut pandang kita.
+  Kalau percobaan pertama itu ternyata diam-diam sudah diproses provider, provider bisa menerima
+  2 panggilan `add` berbeda — provider (smmsoc/likeo) tidak punya field dedup/idempotency key
+  sendiri (`lib/provider.js`: `ALLOWED.add` tidak memuatnya). Idempotensi di sini HANYA menjamin
+  exactly-once di SISI KITA (saldo & record order lokal), BUKAN ujung-ke-ujung ke provider.
+
+**Perbaikan klaim yang tidak terbukti tanpa bukti**: FAQ di homepage (`components/sosmedgo/
+LandingPage.jsx`, `faqData`) sebelumnya menyebut "Tim support kami aktif 24/7 lewat tiket DAN
+WhatsApp" — digrep seluruh repo, satu-satunya WhatsApp yang benar-benar ada adalah CHANNEL
+broadcast satu-arah (`https://whatsapp.com/channel/...`, dipakai untuk info status layanan di
+`PeringatanOrder.jsx`/menu dashboard), bukan kanal chat dukungan dua-arah. Diubah jadi
+"tiket di dashboard" sebagai jalur support, dengan WhatsApp/Telegram disebut hanya sebagai channel
+info status — konsisten dengan `pages/bantuan.js` yang dari awal sudah sengaja HANYA menyebut
+tiket sebagai jalur bantuan resmi. Desain/styling halaman tidak diubah, cuma teks klaimnya.
+
+**Verifikasi `/bantuan`, SEO, sitemap, nav** (re-cek sesi ini, bukan asumsi dari sesi sebelumnya):
+- Seluruh 5 label status pesanan (Menunggu/Diproses/Sebagian/Selesai/Dibatalkan) dan 3 label status
+  deposit (Menunggu/Berhasil/Gagal) di `pages/bantuan.js` dicocokkan ke konstanta `SM`/`lbl` yang
+  SUNGGUHAN dipakai `DashboardPage.jsx` untuk menampilkan status ke pelanggan — persis sama, tidak
+  ada yang direka.
+- `pages/sitemap.xml.js` memuat `/bantuan`; `components/sosmedgo/BlogLayout.jsx` memuat link nav
+  desktop + footer ke `/bantuan`. `npm run build` sesi ini: sukses, `/bantuan` ter-prerender statis
+  (○, bukan dinamis) dengan metadata (canonical/OG/Twitter/`FAQPage` JSON-LD) ter-render dari
+  `BlogLayout`.
+
+**Kategorisasi temuan sesi ini**:
+| Area | Status |
+|---|---|
+| Alur `buatPesanan()` (claim/saldo/provider/finalisasi, termasuk 6 pertanyaan konsistensi) | **Terbukti lewat tes** (`tests/order-flow-mock.test.mjs`, 35/35 lolos, dijalankan sungguhan) |
+| Bug urutan hash/done di `klaim_idempotensi_pesanan` | **Diperbaiki & diverifikasi lewat tes** (sebelum migrasi dijalankan ke mana pun) |
+| Privilege EXECUTE/RLS/search_path di kedua file migrasi | **Direview, diverifikasi substantif** (signature dicocokkan ke schema.sql, SECURITY INVOKER dikonfirmasi lewat grep, bukan dari komentar) — belum dieksekusi ke database manapun |
+| Race condition Postgres `FOR UPDATE` yang sesungguhnya (bukan simulasi mock) | **Direview manual (SQL), BELUM diuji otomatis** — butuh `.env.test.local` + migrasi dijalankan di staging untuk `tests/order-idempotency.test.js` |
+| Exactly-once ke provider eksternal | **Dibuktikan TIDAK terjamin (by design)** — didokumentasikan sebagai batasan, bukan diklaim aman |
+| Klaim WhatsApp support di homepage | **Diperbaiki** (teks diubah ke klaim yang bisa dibuktikan dari kode) |
+| `/bantuan` isi, SEO, sitemap, nav | **Diverifikasi ulang** (dicocokkan ke konstanta status asli + `npm run build` sukses) |
+| Migrasi SQL benar-benar dijalankan ke Supabase (staging/produksi) | **Butuh keputusan & akses produksi** — tidak dilakukan sesi ini, lihat prosedur deploy di atas |
+
+**Tidak dikerjakan (butuh keputusan manusia/akses produksi, bukan diabaikan)**: menjalankan kedua
+migrasi SQL ke project Supabase manapun (staging ataupun produksi). `PAYMENKU_WEBHOOK_SECRET` di
+`.env.local` SUDAH diisi developer setelah bagian ini ditulis (lihat WEBHOOK-04 di atas, diperbarui
+2026-10-29) — belum diverifikasi lewat deposit sungguhan, dan status di environment PRODUKSI
+(Vercel/hosting lain, terpisah dari `.env.local` lokal) masih belum diketahui. Yang masih tersisa:
+mengganti `PAYMENKU_API_KEY` live, dan verifikasi manual ujung-ke-ujung di langkah 1-4 bagian
+"Verifikasi manual" di atas — semuanya tetap menunggu `.env.test.local`/akses staging/persetujuan
+eksplisit sebelum bisa dijalankan.

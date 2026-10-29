@@ -6,7 +6,7 @@ import { namaIndo } from './terjemah';
 import Head from 'next/head';
 import Link from 'next/link';
 import { ACCENTS, accentVarsFor } from './theme';
-import { extraFieldFor } from '../../lib/layananTipe';
+import { extraFieldFor, lengkapiLink } from '../../lib/layananTipe';
 
 import {
   FaIcon, LU_MENU, LuIcon, formatCurrency, bonusDariPeringkat, tiketDariApi, batasiGrup, totalGrup, PLAT_COLOR, hexKeRgb
@@ -933,10 +933,12 @@ class DashboardPage extends React.Component {
         if (st.sending) return;
         if (!svc) { self.tampilkanToast(false, 'Pilih layanan dulu.'); return; }
         if (!st.link.trim()) { self.tampilkanToast(false, 'Link belum diisi.'); return; }
-        /* Pesanan Massal sudah lebih dulu mewajibkan format URL lengkap (lihat sendMass di
-           bawah) — form pesan satuan ini sebelumnya cuma cek "tidak kosong", jadi username
-           polos tanpa https:// ikut terkirim mentah ke provider dan baru gagal di sana. */
-        if (!/^https?:\/\//.test(st.link.trim())) { self.tampilkanToast(false, 'Link harus URL lengkap (diawali http:// atau https://), bukan cuma username.'); return; }
+        /* Pelanggan sering ketik username polos (tanpa https://) di kolom Link — provider tetap
+           butuh URL utuh, jadi dilengkapi otomatis dulu (lengkapiLink, bareng lib/pesanan.js biar
+           server konsisten) sebelum divalidasi, supaya tidak perlu nolak dengan error membingungkan
+           cuma gara-gara pelanggan lupa nambahin https://.../ sendiri. */
+        var linkLengkap = lengkapiLink(st.link, svc.p);
+        if (!/^https?:\/\//.test(linkLengkap)) { self.tampilkanToast(false, 'Link harus URL lengkap (diawali http:// atau https://), bukan cuma username.'); return; }
         if (extraCfg && extraCfg.numeric && extraTunggal && !extraAngkaOk) { self.tampilkanToast(false, 'Kolom "' + extraCfg.label + '" harus berupa angka.'); return; }
         if (extraCfg && !extraTerisi) { self.tampilkanToast(false, 'Isi dulu kolom "' + extraCfg.label + '".'); return; }
         if (!qtyOk) {
@@ -945,7 +947,7 @@ class DashboardPage extends React.Component {
             : 'Jumlah harus antara ' + svc.minTxt + ' dan ' + svc.maxTxt + '.');
           return;
         }
-        var bodyDasar = Object.assign({ service: String(svc.id), link: st.link.trim(), quantity: qtyN }, extraCfg ? { extra: extraCfg.multiline ? extraBaris.join('\n') : extraTunggal } : {});
+        var bodyDasar = Object.assign({ service: String(svc.id), link: linkLengkap, quantity: qtyN }, extraCfg ? { extra: extraCfg.multiline ? extraBaris.join('\n') : extraTunggal } : {});
         var bodyKey = JSON.stringify(bodyDasar);
         /* Idempotency key: dibuat SEKALI per percobaan pesanan, dipakai ULANG kalau pelanggan
            klik "kirim" lagi untuk form yang BENAR-BENAR SAMA (link/jumlah/layanan tidak diubah)
@@ -1156,9 +1158,10 @@ class DashboardPage extends React.Component {
         lines.forEach(function (l, i) {
           var p = l.split('|').map(function (x) { return x.trim(); });
           var sv = p.length === 3 ? byId[parseInt(p[0], 10)] : null;
+          var linkLengkapMass = sv && p.length === 3 ? lengkapiLink(p[1], sv.p) : (p.length === 3 ? p[1] : '');
           var q = p.length === 3 ? parseInt(p[2], 10) : NaN;
-          if (!sv || p.length !== 3 || !/^https?:\/\//.test(p[1]) || isNaN(q) || q < sv.min || q > sv.max) bad.push(i + 1);
-          else valid.push({ baris: i + 1, service: sv.id, link: p[1], quantity: q });
+          if (!sv || p.length !== 3 || !/^https?:\/\//.test(linkLengkapMass) || isNaN(q) || q < sv.min || q > sv.max) bad.push(i + 1);
+          else valid.push({ baris: i + 1, service: sv.id, link: linkLengkapMass, quantity: q });
         });
         if (valid.length === 0) { self.setState({ massRes: { ok: 0, bad: bad, gagal: [], total: 0, empty: false } }); return; }
 

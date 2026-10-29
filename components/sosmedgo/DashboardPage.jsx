@@ -937,7 +937,7 @@ class DashboardPage extends React.Component {
            butuh URL utuh, jadi dilengkapi otomatis dulu (lengkapiLink, bareng lib/pesanan.js biar
            server konsisten) sebelum divalidasi, supaya tidak perlu nolak dengan error membingungkan
            cuma gara-gara pelanggan lupa nambahin https://.../ sendiri. */
-        var linkLengkap = lengkapiLink(st.link, svc.p);
+        var linkLengkap = lengkapiLink(st.link, svc.p, svc.kategori + ' ' + svc.name);
         if (!/^https?:\/\//.test(linkLengkap)) { self.tampilkanToast(false, 'Link harus URL lengkap (diawali http:// atau https://), bukan cuma username.'); return; }
         if (extraCfg && extraCfg.numeric && extraTunggal && !extraAngkaOk) { self.tampilkanToast(false, 'Kolom "' + extraCfg.label + '" harus berupa angka.'); return; }
         if (extraCfg && !extraTerisi) { self.tampilkanToast(false, 'Isi dulu kolom "' + extraCfg.label + '".'); return; }
@@ -1158,7 +1158,7 @@ class DashboardPage extends React.Component {
         lines.forEach(function (l, i) {
           var p = l.split('|').map(function (x) { return x.trim(); });
           var sv = p.length === 3 ? byId[parseInt(p[0], 10)] : null;
-          var linkLengkapMass = sv && p.length === 3 ? lengkapiLink(p[1], sv.p) : (p.length === 3 ? p[1] : '');
+          var linkLengkapMass = sv && p.length === 3 ? lengkapiLink(p[1], sv.p, sv.kategori + ' ' + sv.name) : (p.length === 3 ? p[1] : '');
           var q = p.length === 3 ? parseInt(p[2], 10) : NaN;
           if (!sv || p.length !== 3 || !/^https?:\/\//.test(linkLengkapMass) || isNaN(q) || q < sv.min || q > sv.max) bad.push(i + 1);
           else valid.push({ baris: i + 1, service: sv.id, link: linkLengkapMass, quantity: q });
